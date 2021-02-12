@@ -3,7 +3,7 @@ use super::{
 };
 use num_derive::FromPrimitive;
 
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum MidiMsg {
     ChannelVoice {
         channel: Channel,
@@ -33,7 +33,7 @@ pub enum MidiMsg {
 }
 
 impl MidiMsg {
-    pub fn to_midi(self) -> Vec<u8> {
+    pub fn to_midi(&self) -> Vec<u8> {
         self.into()
     }
 
@@ -42,18 +42,18 @@ impl MidiMsg {
     }
 }
 
-impl From<MidiMsg> for Vec<u8> {
-    fn from(m: MidiMsg) -> Vec<u8> {
+impl From<&MidiMsg> for Vec<u8> {
+    fn from(m: &MidiMsg) -> Vec<u8> {
         match m {
             MidiMsg::ChannelVoice { channel, msg } => {
                 let mut r = msg.to_midi();
-                r[0] += channel as u8;
+                r[0] += *channel as u8;
                 r
             }
             MidiMsg::RunningChannelVoice { msg, .. } => msg.to_midi_running(),
             MidiMsg::ChannelMode { channel, msg } => {
                 let mut r = msg.to_midi();
-                r[0] += channel as u8;
+                r[0] += *channel as u8;
                 r
             }
             MidiMsg::RunningChannelMode { msg, .. } => msg.to_midi_running(),

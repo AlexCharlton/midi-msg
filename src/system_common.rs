@@ -19,14 +19,14 @@ pub enum SystemCommonMsg {
 }
 
 impl SystemCommonMsg {
-    pub fn to_midi(self) -> Vec<u8> {
+    pub fn to_midi(&self) -> Vec<u8> {
         self.into()
     }
 }
 
-impl From<SystemCommonMsg> for Vec<u8> {
-    fn from(m: SystemCommonMsg) -> Vec<u8> {
-        match m {
+impl From<&SystemCommonMsg> for Vec<u8> {
+    fn from(m: &SystemCommonMsg) -> Vec<u8> {
+        match *m {
             SystemCommonMsg::MTCQuarterFrame1(qf) => vec![0xF1, qf.to_nibbles()[0]],
             SystemCommonMsg::MTCQuarterFrame2(qf) => vec![0xF1, qf.to_nibbles()[1]],
             SystemCommonMsg::MTCQuarterFrame3(qf) => vec![0xF1, qf.to_nibbles()[2]],

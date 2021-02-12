@@ -11,21 +11,21 @@ pub enum ChannelModeMsg {
 }
 
 impl ChannelModeMsg {
-    pub fn to_midi(self) -> Vec<u8> {
+    pub fn to_midi(&self) -> Vec<u8> {
         let m = self.to_midi_running();
         vec![0xB0, m[0], m[1]]
     }
 
-    pub fn to_midi_running(self) -> Vec<u8> {
+    pub fn to_midi_running(&self) -> Vec<u8> {
         match self {
             ChannelModeMsg::AllSoundOff => vec![120, 0],
             ChannelModeMsg::ResetAllControllers => vec![121, 0],
-            ChannelModeMsg::LocalControl(on) => vec![122, if on { 127 } else { 0 }],
+            ChannelModeMsg::LocalControl(on) => vec![122, if *on { 127 } else { 0 }],
             ChannelModeMsg::AllNotesOff => vec![123, 0],
-            ChannelModeMsg::OmniMode(on) => vec![if on { 125 } else { 124 }, 0],
+            ChannelModeMsg::OmniMode(on) => vec![if *on { 125 } else { 124 }, 0],
             ChannelModeMsg::PolyMode(m) => vec![
-                if m == PolyMode::Poly { 127 } else { 126 },
-                match m {
+                if *m == PolyMode::Poly { 127 } else { 126 },
+                match *m {
                     PolyMode::Poly => 0,
                     PolyMode::Mono(n) => to_u7(n),
                 },

@@ -35,8 +35,8 @@ pub enum ChannelVoiceMsg {
 }
 
 impl ChannelVoiceMsg {
-    pub fn to_midi(self) -> Vec<u8> {
-        match self {
+    pub fn to_midi(&self) -> Vec<u8> {
+        match *self {
             ChannelVoiceMsg::NoteOff { note, velocity } => vec![0x80, to_u7(note), to_u7(velocity)],
             ChannelVoiceMsg::NoteOn { note, velocity } => vec![0x90, to_u7(note), to_u7(velocity)],
             ChannelVoiceMsg::PolyPressure { note, pressure } => {
@@ -56,8 +56,8 @@ impl ChannelVoiceMsg {
         }
     }
 
-    pub fn to_midi_running(self) -> Vec<u8> {
-        match self {
+    pub fn to_midi_running(&self) -> Vec<u8> {
+        match *self {
             ChannelVoiceMsg::NoteOff { note, velocity } => vec![to_u7(note), to_u7(velocity)],
             ChannelVoiceMsg::NoteOn { note, velocity } => vec![to_u7(note), to_u7(velocity)],
             ChannelVoiceMsg::PolyPressure { note, pressure } => vec![to_u7(note), to_u7(pressure)],
@@ -194,8 +194,8 @@ impl ControlChange {
 }
 
 impl ControlChange {
-    pub fn to_midi(self) -> Vec<u8> {
-        match self {
+    pub fn to_midi(&self) -> Vec<u8> {
+        match *self {
             ControlChange::BankSelect(x) => ControlChange::high_res_cc(0, x),
             ControlChange::ModWheel(x) => ControlChange::high_res_cc(1, x),
             ControlChange::Breath(x) => ControlChange::high_res_cc(2, x),
