@@ -1,7 +1,7 @@
 use super::util::*;
 
 #[derive(Debug, Clone, Copy, PartialEq, Default)]
-pub struct Frame {
+pub struct TimeCode {
     /// 0-29
     pub frame: u8,
     /// 0-59
@@ -27,7 +27,7 @@ impl Default for TimeCodeType {
     }
 }
 
-impl Frame {
+impl TimeCode {
     // Return the four byte representation of the frame: [frame, seconds, minutes, timecode + hours]
     pub fn to_bytes(self) -> [u8; 4] {
         [
@@ -56,5 +56,72 @@ impl Frame {
             (6 << 4) + codehour_lsb,
             (7 << 4) + codehour_msb,
         ]
+    }
+}
+
+#[derive(Debug, Copy, Clone, PartialEq)]
+pub enum UserBits {
+    //TODO
+}
+
+impl UserBits {
+    pub fn to_bytes(&self) -> Vec<u8> {
+        //TODO
+        vec![]
+    }
+}
+
+#[derive(Debug, Copy, Clone, PartialEq)]
+pub enum TimeCodeMsg {
+    //TODO
+}
+
+impl TimeCodeMsg {
+    pub fn to_midi(&self) -> Vec<u8> {
+        self.into()
+    }
+}
+
+impl From<&TimeCodeMsg> for Vec<u8> {
+    fn from(_m: &TimeCodeMsg) -> Vec<u8> {
+        vec![] // TODO
+    }
+}
+
+#[derive(Debug, Copy, Clone, PartialEq)]
+pub enum TimeCodeCueingMsg {
+    //TODO
+}
+
+impl TimeCodeCueingMsg {
+    pub fn to_midi(&self) -> Vec<u8> {
+        self.into()
+    }
+}
+
+impl From<&TimeCodeCueingMsg> for Vec<u8> {
+    fn from(_m: &TimeCodeCueingMsg) -> Vec<u8> {
+        vec![] // TODO
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn serialize_time_code_msg() {
+        // TODO
+        // assert_eq!(
+        //     MidiMsg::ChannelVoice {
+        //         channel: Channel::Ch1,
+        //         msg: ChannelVoiceMsg::NoteOn {
+        //             note: 0x88,
+        //             velocity: 0xff
+        //         }
+        //     }
+        //     .to_midi(),
+        //     vec![0x90, 0x7f, 127]
+        // );
     }
 }

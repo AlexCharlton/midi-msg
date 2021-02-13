@@ -3,14 +3,14 @@ use super::util::*;
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum SystemCommonMsg {
-    MTCQuarterFrame1(Frame),
-    MTCQuarterFrame2(Frame),
-    MTCQuarterFrame3(Frame),
-    MTCQuarterFrame4(Frame),
-    MTCQuarterFrame5(Frame),
-    MTCQuarterFrame6(Frame),
-    MTCQuarterFrame7(Frame),
-    MTCQuarterFrame8(Frame),
+    TimeCodeQuarterFrame1(TimeCode),
+    TimeCodeQuarterFrame2(TimeCode),
+    TimeCodeQuarterFrame3(TimeCode),
+    TimeCodeQuarterFrame4(TimeCode),
+    TimeCodeQuarterFrame5(TimeCode),
+    TimeCodeQuarterFrame6(TimeCode),
+    TimeCodeQuarterFrame7(TimeCode),
+    TimeCodeQuarterFrame8(TimeCode),
     /// Max 16383
     SongPosition(u16),
     /// Max 127
@@ -27,14 +27,14 @@ impl SystemCommonMsg {
 impl From<&SystemCommonMsg> for Vec<u8> {
     fn from(m: &SystemCommonMsg) -> Vec<u8> {
         match *m {
-            SystemCommonMsg::MTCQuarterFrame1(qf) => vec![0xF1, qf.to_nibbles()[0]],
-            SystemCommonMsg::MTCQuarterFrame2(qf) => vec![0xF1, qf.to_nibbles()[1]],
-            SystemCommonMsg::MTCQuarterFrame3(qf) => vec![0xF1, qf.to_nibbles()[2]],
-            SystemCommonMsg::MTCQuarterFrame4(qf) => vec![0xF1, qf.to_nibbles()[3]],
-            SystemCommonMsg::MTCQuarterFrame5(qf) => vec![0xF1, qf.to_nibbles()[4]],
-            SystemCommonMsg::MTCQuarterFrame6(qf) => vec![0xF1, qf.to_nibbles()[5]],
-            SystemCommonMsg::MTCQuarterFrame7(qf) => vec![0xF1, qf.to_nibbles()[6]],
-            SystemCommonMsg::MTCQuarterFrame8(qf) => vec![0xF1, qf.to_nibbles()[7]],
+            SystemCommonMsg::TimeCodeQuarterFrame1(qf) => vec![0xF1, qf.to_nibbles()[0]],
+            SystemCommonMsg::TimeCodeQuarterFrame2(qf) => vec![0xF1, qf.to_nibbles()[1]],
+            SystemCommonMsg::TimeCodeQuarterFrame3(qf) => vec![0xF1, qf.to_nibbles()[2]],
+            SystemCommonMsg::TimeCodeQuarterFrame4(qf) => vec![0xF1, qf.to_nibbles()[3]],
+            SystemCommonMsg::TimeCodeQuarterFrame5(qf) => vec![0xF1, qf.to_nibbles()[4]],
+            SystemCommonMsg::TimeCodeQuarterFrame6(qf) => vec![0xF1, qf.to_nibbles()[5]],
+            SystemCommonMsg::TimeCodeQuarterFrame7(qf) => vec![0xF1, qf.to_nibbles()[6]],
+            SystemCommonMsg::TimeCodeQuarterFrame8(qf) => vec![0xF1, qf.to_nibbles()[7]],
             SystemCommonMsg::SongPosition(pos) => {
                 let [msb, lsb] = to_u14(pos);
                 vec![0xF2, lsb, msb]
@@ -75,7 +75,7 @@ mod tests {
             vec![0xF2, 0x68, 0x07]
         );
 
-        let frame = Frame {
+        let frame = TimeCode {
             frame: 40,                     // Should be limited to 29: 0b00011101
             seconds: 58,                   // 0b00111010
             minutes: 20,                   // 0b00010100
@@ -85,56 +85,56 @@ mod tests {
 
         assert_eq!(
             MidiMsg::SystemCommon {
-                msg: SystemCommonMsg::MTCQuarterFrame1(frame)
+                msg: SystemCommonMsg::TimeCodeQuarterFrame1(frame)
             }
             .to_midi(),
             vec![0xF1, 0b1101]
         );
         assert_eq!(
             MidiMsg::SystemCommon {
-                msg: SystemCommonMsg::MTCQuarterFrame2(frame)
+                msg: SystemCommonMsg::TimeCodeQuarterFrame2(frame)
             }
             .to_midi(),
             vec![0xF1, 0b00010000 + 0b0001]
         );
         assert_eq!(
             MidiMsg::SystemCommon {
-                msg: SystemCommonMsg::MTCQuarterFrame3(frame)
+                msg: SystemCommonMsg::TimeCodeQuarterFrame3(frame)
             }
             .to_midi(),
             vec![0xF1, 0b00100000 + 0b1010]
         );
         assert_eq!(
             MidiMsg::SystemCommon {
-                msg: SystemCommonMsg::MTCQuarterFrame4(frame)
+                msg: SystemCommonMsg::TimeCodeQuarterFrame4(frame)
             }
             .to_midi(),
             vec![0xF1, 0b00110000 + 0b0011]
         );
         assert_eq!(
             MidiMsg::SystemCommon {
-                msg: SystemCommonMsg::MTCQuarterFrame5(frame)
+                msg: SystemCommonMsg::TimeCodeQuarterFrame5(frame)
             }
             .to_midi(),
             vec![0xF1, 0b01000000 + 0b0100]
         );
         assert_eq!(
             MidiMsg::SystemCommon {
-                msg: SystemCommonMsg::MTCQuarterFrame6(frame)
+                msg: SystemCommonMsg::TimeCodeQuarterFrame6(frame)
             }
             .to_midi(),
             vec![0xF1, 0b01010000 + 0b0001]
         );
         assert_eq!(
             MidiMsg::SystemCommon {
-                msg: SystemCommonMsg::MTCQuarterFrame7(frame)
+                msg: SystemCommonMsg::TimeCodeQuarterFrame7(frame)
             }
             .to_midi(),
             vec![0xF1, 0b01100000 + 0b0111]
         );
         assert_eq!(
             MidiMsg::SystemCommon {
-                msg: SystemCommonMsg::MTCQuarterFrame8(frame)
+                msg: SystemCommonMsg::TimeCodeQuarterFrame8(frame)
             }
             .to_midi(),
             vec![0xF1, 0b01110000 + 0b0101]

@@ -1,7 +1,7 @@
+mod util;
+
 mod connection;
 pub use connection::*;
-
-mod util;
 
 pub mod time_code;
 pub use time_code::*;
