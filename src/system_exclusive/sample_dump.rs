@@ -2,7 +2,11 @@ use crate::util::*;
 
 #[derive(Debug, Copy, Clone, PartialEq)]
 pub enum SampleDumpMsg {
-    //TODO
+    Header,
+    Packet,
+    Request,
+    MultipleLoopPoints,
+    LoopPointsRequest,
 }
 
 impl SampleDumpMsg {

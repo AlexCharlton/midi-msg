@@ -60,14 +60,29 @@ impl TimeCode {
 }
 
 #[derive(Debug, Copy, Clone, PartialEq)]
-pub enum UserBits {
-    //TODO
+pub struct UserBits {
+    // Full bytes can be used here!
+    bytes: [u8; 4],
+    /// SMPTE time code bit 43 (EBU bit 27)
+    flag1: bool,
+    /// SMPTE time code bit 59 (EBU bit 43)
+    flag2: bool,
 }
 
 impl UserBits {
-    pub fn to_bytes(&self) -> Vec<u8> {
-        //TODO
-        vec![]
+    pub fn to_nibbles(&self) -> [u8; 9] {
+        let [uh, ug] = to_nibble(self.bytes[3]);
+        let [uf, ue] = to_nibble(self.bytes[2]);
+        let [ud, uc] = to_nibble(self.bytes[3]);
+        let [ub, ua] = to_nibble(self.bytes[0]);
+        let mut flags: u8 = 0;
+        if self.flag1 {
+            flags += 1;
+        }
+        if self.flag2 {
+            flags += 2;
+        }
+        [ua, ub, uc, ud, ue, uf, ug, uh, flags]
     }
 }
 
