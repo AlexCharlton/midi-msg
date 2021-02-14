@@ -4,15 +4,6 @@ version = "0.1.0"
 authors = ["Alex Charlton"]
 edition = "2018"
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
-[features]
-default = ["midir_connection"]
-
-midir_connection = ["midir"]
-
 [dependencies]
 num-traits = "0.2"
 num-derive = "0.3"
-
-# features
-midir = {version = "0.6", optional = true}
