@@ -1,4 +1,4 @@
-use crate::util::*;
+// use crate::util::*;
 
 #[derive(Debug, Copy, Clone, PartialEq)]
 pub enum SampleDumpMsg {
@@ -10,20 +10,18 @@ pub enum SampleDumpMsg {
 }
 
 impl SampleDumpMsg {
-    pub fn to_midi(&self) -> Vec<u8> {
-        self.into()
+    pub(crate) fn extend_midi(&self, v: &mut Vec<u8>) {
+        // TODO
     }
-}
 
-impl From<&SampleDumpMsg> for Vec<u8> {
-    fn from(_m: &SampleDumpMsg) -> Vec<u8> {
-        vec![] // TODO
+    pub(crate) fn from_midi(_m: &[u8]) -> Result<(Self, usize), &str> {
+        Err("TODO: not implemented")
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use super::*;
+    // use super::*;
 
     #[test]
     fn serialize_sample_dump_msg() {

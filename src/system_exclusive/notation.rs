@@ -1,4 +1,4 @@
-use crate::util::*;
+// use crate::util::*;
 
 #[derive(Debug, Copy, Clone, PartialEq)]
 pub struct BarMarker {
@@ -6,8 +6,12 @@ pub struct BarMarker {
 }
 
 impl BarMarker {
-    pub fn to_midi(&self) -> Vec<u8> {
-        vec![] // TODO
+    pub(crate) fn extend_midi(&self, v: &mut Vec<u8>) {
+        // TODO
+    }
+
+    pub(crate) fn from_midi(_m: &[u8]) -> Result<(Self, usize), &str> {
+        Err("TODO: not implemented")
     }
 }
 
@@ -17,14 +21,18 @@ pub struct TimeSignature {
 }
 
 impl TimeSignature {
-    pub fn to_midi(&self) -> Vec<u8> {
-        vec![] // TODO
+    pub(crate) fn extend_midi(&self, v: &mut Vec<u8>) {
+        // TODO
+    }
+
+    pub(crate) fn from_midi(_m: &[u8]) -> Result<(Self, usize), &str> {
+        Err("TODO: not implemented")
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use super::*;
+    // use super::*;
 
     #[test]
     fn serialize_bar_marker() {

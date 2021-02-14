@@ -12,25 +12,63 @@ pub enum ChannelModeMsg {
 
 impl ChannelModeMsg {
     pub fn to_midi(&self) -> Vec<u8> {
-        let m = self.to_midi_running();
-        vec![0xB0, m[0], m[1]]
+        let mut r: Vec<u8> = vec![];
+        self.extend_midi(&mut r);
+        r
     }
 
     pub fn to_midi_running(&self) -> Vec<u8> {
+        let mut r: Vec<u8> = vec![];
+        self.extend_midi_running(&mut r);
+        r
+    }
+
+    pub fn extend_midi(&self, v: &mut Vec<u8>) {
+        v.push(0xB0);
+        self.extend_midi_running(v);
+    }
+
+    pub fn extend_midi_running(&self, v: &mut Vec<u8>) {
         match self {
-            ChannelModeMsg::AllSoundOff => vec![120, 0],
-            ChannelModeMsg::ResetAllControllers => vec![121, 0],
-            ChannelModeMsg::LocalControl(on) => vec![122, if *on { 127 } else { 0 }],
-            ChannelModeMsg::AllNotesOff => vec![123, 0],
-            ChannelModeMsg::OmniMode(on) => vec![if *on { 125 } else { 124 }, 0],
-            ChannelModeMsg::PolyMode(m) => vec![
-                if *m == PolyMode::Poly { 127 } else { 126 },
-                match *m {
+            ChannelModeMsg::AllSoundOff => {
+                v.push(120);
+                v.push(0);
+            }
+            ChannelModeMsg::ResetAllControllers => {
+                v.push(121);
+                v.push(0);
+            }
+            ChannelModeMsg::LocalControl(on) => {
+                v.push(122);
+                v.push(if *on { 127 } else { 0 });
+            }
+            ChannelModeMsg::AllNotesOff => {
+                v.push(123);
+                v.push(0);
+            }
+            ChannelModeMsg::OmniMode(on) => {
+                v.push(if *on { 125 } else { 124 });
+                v.push(0);
+            }
+            ChannelModeMsg::PolyMode(m) => {
+                v.push(if *m == PolyMode::Poly { 127 } else { 126 });
+                v.push(match *m {
                     PolyMode::Poly => 0,
                     PolyMode::Mono(n) => to_u7(n),
-                },
-            ],
+                })
+            }
         }
+    }
+
+    /// Ok results return a MidiMsg and the number of bytes consumed from the input
+    pub fn from_midi(_m: &[u8]) -> Result<(Self, usize), &str> {
+        Err("TODO: not implemented")
+    }
+}
+
+impl From<&ChannelModeMsg> for Vec<u8> {
+    fn from(m: &ChannelModeMsg) -> Vec<u8> {
+        m.to_midi()
     }
 }
 

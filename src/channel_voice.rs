@@ -36,41 +36,67 @@ pub enum ChannelVoiceMsg {
 
 impl ChannelVoiceMsg {
     pub fn to_midi(&self) -> Vec<u8> {
+        let mut r: Vec<u8> = vec![];
+        self.extend_midi(&mut r);
+        r
+    }
+
+    pub fn to_midi_running(&self) -> Vec<u8> {
+        let mut r: Vec<u8> = vec![];
+        self.extend_midi_running(&mut r);
+        r
+    }
+
+    pub fn extend_midi(&self, v: &mut Vec<u8>) {
+        match self {
+            ChannelVoiceMsg::NoteOff { .. } => v.push(0x80),
+            ChannelVoiceMsg::NoteOn { .. } => v.push(0x90),
+            ChannelVoiceMsg::PolyPressure { .. } => v.push(0xA0),
+            ChannelVoiceMsg::ControlChange { .. } => v.push(0xB0),
+            ChannelVoiceMsg::ProgramChange { .. } => v.push(0xC0),
+            ChannelVoiceMsg::ChannelPressure { .. } => v.push(0xD0),
+            ChannelVoiceMsg::PitchBend { .. } => v.push(0xE0),
+        }
+        self.extend_midi_running(v);
+    }
+
+    pub fn extend_midi_running(&self, v: &mut Vec<u8>) {
         match *self {
-            ChannelVoiceMsg::NoteOff { note, velocity } => vec![0x80, to_u7(note), to_u7(velocity)],
-            ChannelVoiceMsg::NoteOn { note, velocity } => vec![0x90, to_u7(note), to_u7(velocity)],
+            ChannelVoiceMsg::NoteOff { note, velocity } => {
+                v.push(to_u7(note));
+                v.push(to_u7(velocity));
+            }
+            ChannelVoiceMsg::NoteOn { note, velocity } => {
+                v.push(to_u7(note));
+                v.push(to_u7(velocity));
+            }
             ChannelVoiceMsg::PolyPressure { note, pressure } => {
-                vec![0xA0, to_u7(note), to_u7(pressure)]
+                v.push(to_u7(note));
+                v.push(to_u7(pressure));
             }
-            ChannelVoiceMsg::ControlChange { control } => {
-                let mut r: Vec<u8> = vec![0xB0];
-                r.extend(control.to_midi());
-                r
-            }
-            ChannelVoiceMsg::ProgramChange { program } => vec![0xC0, to_u7(program)],
-            ChannelVoiceMsg::ChannelPressure { pressure } => vec![0xD0, to_u7(pressure)],
+            ChannelVoiceMsg::ControlChange { control } => control.extend_midi_running(v),
+            ChannelVoiceMsg::ProgramChange { program } => v.push(to_u7(program)),
+            ChannelVoiceMsg::ChannelPressure { pressure } => v.push(to_u7(pressure)),
             ChannelVoiceMsg::PitchBend { bend } => {
                 let [msb, lsb] = to_u14(bend);
-                vec![0xE0, lsb, msb]
+                v.push(lsb);
+                v.push(msb);
             }
         }
     }
 
-    pub fn to_midi_running(&self) -> Vec<u8> {
-        match *self {
-            ChannelVoiceMsg::NoteOff { note, velocity } => vec![to_u7(note), to_u7(velocity)],
-            ChannelVoiceMsg::NoteOn { note, velocity } => vec![to_u7(note), to_u7(velocity)],
-            ChannelVoiceMsg::PolyPressure { note, pressure } => vec![to_u7(note), to_u7(pressure)],
-            ChannelVoiceMsg::ControlChange { control } => control.to_midi(),
-            ChannelVoiceMsg::ProgramChange { program } => vec![to_u7(program)],
-            ChannelVoiceMsg::ChannelPressure { pressure } => vec![to_u7(pressure)],
-            ChannelVoiceMsg::PitchBend { bend } => {
-                let [msb, lsb] = to_u14(bend);
-                vec![lsb, msb]
-            }
-        }
+    /// Ok results return a MidiMsg and the number of bytes consumed from the input
+    pub fn from_midi(_m: &[u8]) -> Result<(Self, usize), &str> {
+        Err("TODO: not implemented")
     }
 }
+
+impl From<&ChannelVoiceMsg> for Vec<u8> {
+    fn from(m: &ChannelVoiceMsg) -> Vec<u8> {
+        m.to_midi()
+    }
+}
+
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum ControlChange {
     /// Max 16383
@@ -178,77 +204,176 @@ pub enum ControlChange {
 }
 
 impl ControlChange {
-    fn high_res_cc(control: u8, value: u16) -> Vec<u8> {
+    fn high_res_cc(v: &mut Vec<u8>, control: u8, value: u16) {
         let [msb, lsb] = to_u14(value);
-        vec![control, msb, control + 32, lsb]
+        v.push(control);
+        v.push(msb);
+        v.push(control + 32);
+        v.push(lsb);
     }
 
-    fn undefined(control: u8, value: u8) -> Vec<u8> {
-        vec![control.min(119), to_u7(value)]
+    fn undefined(v: &mut Vec<u8>, control: u8, value: u8) {
+        v.push(control.min(119));
+        v.push(to_u7(value));
     }
 
-    fn undefined_high_res(control1: u8, control2: u8, value: u16) -> Vec<u8> {
+    fn undefined_high_res(v: &mut Vec<u8>, control1: u8, control2: u8, value: u16) {
         let [msb, lsb] = to_u14(value);
-        vec![control1.min(119), msb, control2.min(119), lsb]
+        v.push(control1.min(119));
+        v.push(msb);
+        v.push(control2.min(119));
+        v.push(lsb);
     }
 }
 
 impl ControlChange {
-    pub fn to_midi(&self) -> Vec<u8> {
+    pub fn to_midi_running(&self) -> Vec<u8> {
+        let mut r: Vec<u8> = vec![];
+        self.extend_midi_running(&mut r);
+        r
+    }
+
+    pub fn extend_midi_running(&self, v: &mut Vec<u8>) {
         match *self {
-            ControlChange::BankSelect(x) => ControlChange::high_res_cc(0, x),
-            ControlChange::ModWheel(x) => ControlChange::high_res_cc(1, x),
-            ControlChange::Breath(x) => ControlChange::high_res_cc(2, x),
-            ControlChange::Undefined { control, value } => ControlChange::undefined(control, value),
+            ControlChange::BankSelect(x) => ControlChange::high_res_cc(v, 0, x),
+            ControlChange::ModWheel(x) => ControlChange::high_res_cc(v, 1, x),
+            ControlChange::Breath(x) => ControlChange::high_res_cc(v, 2, x),
+            ControlChange::Undefined { control, value } => {
+                ControlChange::undefined(v, control, value)
+            }
             ControlChange::UndefinedHighRes {
                 control1,
                 control2,
                 value,
-            } => ControlChange::undefined_high_res(control1, control2, value),
-            ControlChange::Foot(x) => ControlChange::high_res_cc(4, x),
-            ControlChange::Portamento(x) => ControlChange::high_res_cc(5, x),
-            ControlChange::Volume(x) => ControlChange::high_res_cc(7, x),
-            ControlChange::Balance(x) => ControlChange::high_res_cc(8, x),
-            ControlChange::Pan(x) => ControlChange::high_res_cc(10, x),
-            ControlChange::Expression(x) => ControlChange::high_res_cc(11, x),
-            ControlChange::Effect1(x) => ControlChange::high_res_cc(12, x),
-            ControlChange::Effect2(x) => ControlChange::high_res_cc(13, x),
-            ControlChange::GeneralPurpose1(x) => ControlChange::high_res_cc(0, x),
-            ControlChange::GeneralPurpose2(x) => ControlChange::high_res_cc(0, x),
-            ControlChange::GeneralPurpose3(x) => ControlChange::high_res_cc(0, x),
-            ControlChange::GeneralPurpose4(x) => ControlChange::high_res_cc(0, x),
-            ControlChange::GeneralPurpose5(x) => vec![80, to_u7(x)],
-            ControlChange::GeneralPurpose6(x) => vec![82, to_u7(x)],
-            ControlChange::GeneralPurpose7(x) => vec![83, to_u7(x)],
-            ControlChange::GeneralPurpose8(x) => vec![84, to_u7(x)],
-            ControlChange::Hold(x) => vec![64, to_u7(x)],
-            ControlChange::Hold2(x) => vec![69, to_u7(x)],
-            ControlChange::TogglePortamento(on) => vec![65, if on { 127 } else { 0 }],
-            ControlChange::Sostenuto(x) => vec![66, to_u7(x)],
-            ControlChange::SoftPedal(x) => vec![67, to_u7(x)],
-            ControlChange::ToggleLegato(on) => vec![68, if on { 127 } else { 0 }],
-            ControlChange::SoundVariation(x) => vec![70, to_u7(x)],
-            ControlChange::Timbre(x) => vec![71, to_u7(x)],
-            ControlChange::ReleaseTime(x) => vec![72, to_u7(x)],
-            ControlChange::AttachTime(x) => vec![73, to_u7(x)],
-            ControlChange::Brightness(x) => vec![74, to_u7(x)],
-            ControlChange::SoundControl6(x) => vec![75, to_u7(x)],
-            ControlChange::SoundControl7(x) => vec![76, to_u7(x)],
-            ControlChange::SoundControl8(x) => vec![77, to_u7(x)],
-            ControlChange::SoundControl9(x) => vec![78, to_u7(x)],
-            ControlChange::SoundControl10(x) => vec![79, to_u7(x)],
-            ControlChange::PortamentoControl(x) => vec![84, to_u7(x)],
-            ControlChange::ExternalFX(x) => vec![91, to_u7(x)],
-            ControlChange::Tremolo(x) => vec![92, to_u7(x)],
-            ControlChange::Chorus(x) => vec![93, to_u7(x)],
-            ControlChange::Celeste(x) => vec![94, to_u7(x)],
-            ControlChange::Phaser(x) => vec![95, to_u7(x)],
+            } => ControlChange::undefined_high_res(v, control1, control2, value),
+            ControlChange::Foot(x) => ControlChange::high_res_cc(v, 4, x),
+            ControlChange::Portamento(x) => ControlChange::high_res_cc(v, 5, x),
+            ControlChange::Volume(x) => ControlChange::high_res_cc(v, 7, x),
+            ControlChange::Balance(x) => ControlChange::high_res_cc(v, 8, x),
+            ControlChange::Pan(x) => ControlChange::high_res_cc(v, 10, x),
+            ControlChange::Expression(x) => ControlChange::high_res_cc(v, 11, x),
+            ControlChange::Effect1(x) => ControlChange::high_res_cc(v, 12, x),
+            ControlChange::Effect2(x) => ControlChange::high_res_cc(v, 13, x),
+            ControlChange::GeneralPurpose1(x) => ControlChange::high_res_cc(v, 0, x),
+            ControlChange::GeneralPurpose2(x) => ControlChange::high_res_cc(v, 0, x),
+            ControlChange::GeneralPurpose3(x) => ControlChange::high_res_cc(v, 0, x),
+            ControlChange::GeneralPurpose4(x) => ControlChange::high_res_cc(v, 0, x),
+            ControlChange::GeneralPurpose5(x) => {
+                v.push(80);
+                v.push(to_u7(x));
+            }
+            ControlChange::GeneralPurpose6(x) => {
+                v.push(82);
+                v.push(to_u7(x));
+            }
+            ControlChange::GeneralPurpose7(x) => {
+                v.push(83);
+                v.push(to_u7(x));
+            }
+            ControlChange::GeneralPurpose8(x) => {
+                v.push(84);
+                v.push(to_u7(x));
+            }
+            ControlChange::Hold(x) => {
+                v.push(64);
+                v.push(to_u7(x));
+            }
+            ControlChange::Hold2(x) => {
+                v.push(69);
+                v.push(to_u7(x));
+            }
+            ControlChange::TogglePortamento(on) => {
+                v.push(65);
+                v.push(if on { 127 } else { 0 });
+            }
+            ControlChange::Sostenuto(x) => {
+                v.push(66);
+                v.push(to_u7(x));
+            }
+            ControlChange::SoftPedal(x) => {
+                v.push(67);
+                v.push(to_u7(x));
+            }
+            ControlChange::ToggleLegato(on) => {
+                v.push(68);
+                v.push(if on { 127 } else { 0 });
+            }
+            ControlChange::SoundVariation(x) => {
+                v.push(70);
+                v.push(to_u7(x));
+            }
+            ControlChange::Timbre(x) => {
+                v.push(71);
+                v.push(to_u7(x));
+            }
+            ControlChange::ReleaseTime(x) => {
+                v.push(72);
+                v.push(to_u7(x));
+            }
+            ControlChange::AttachTime(x) => {
+                v.push(73);
+                v.push(to_u7(x));
+            }
+            ControlChange::Brightness(x) => {
+                v.push(74);
+                v.push(to_u7(x));
+            }
+            ControlChange::SoundControl6(x) => {
+                v.push(75);
+                v.push(to_u7(x));
+            }
+            ControlChange::SoundControl7(x) => {
+                v.push(76);
+                v.push(to_u7(x));
+            }
+            ControlChange::SoundControl8(x) => {
+                v.push(77);
+                v.push(to_u7(x));
+            }
+            ControlChange::SoundControl9(x) => {
+                v.push(78);
+                v.push(to_u7(x));
+            }
+            ControlChange::SoundControl10(x) => {
+                v.push(79);
+                v.push(to_u7(x));
+            }
+            ControlChange::PortamentoControl(x) => {
+                v.push(84);
+                v.push(to_u7(x));
+            }
+            ControlChange::ExternalFX(x) => {
+                v.push(91);
+                v.push(to_u7(x));
+            }
+            ControlChange::Tremolo(x) => {
+                v.push(92);
+                v.push(to_u7(x));
+            }
+            ControlChange::Chorus(x) => {
+                v.push(93);
+                v.push(to_u7(x));
+            }
+            ControlChange::Celeste(x) => {
+                v.push(94);
+                v.push(to_u7(x));
+            }
+            ControlChange::Phaser(x) => {
+                v.push(95);
+                v.push(to_u7(x));
+            }
 
             // Parameters
-            ControlChange::Parameter(p) => p.into(),
-            ControlChange::DataEntry(x) => ControlChange::high_res_cc(6, x),
-            ControlChange::DataIncrement(x) => vec![96, to_u7(x)],
-            ControlChange::DataDecrement(x) => vec![97, to_u7(x)],
+            ControlChange::Parameter(p) => p.extend_midi_running(v),
+            ControlChange::DataEntry(x) => ControlChange::high_res_cc(v, 6, x),
+            ControlChange::DataIncrement(x) => {
+                v.push(96);
+                v.push(to_u7(x));
+            }
+            ControlChange::DataDecrement(x) => {
+                v.push(97);
+                v.push(to_u7(x));
+            }
         }
     }
 }
@@ -264,17 +389,45 @@ pub enum Parameter {
     Unregistered(u16),
 }
 
-impl From<Parameter> for Vec<u8> {
-    fn from(p: Parameter) -> Vec<u8> {
-        match p {
-            Parameter::PitchBendSensitivity => vec![100, 0, 101, 0],
-            Parameter::FineTuning => vec![100, 1, 101, 0],
-            Parameter::CoarseTuning => vec![100, 2, 101, 0],
-            Parameter::TuningProgramSelect => vec![100, 3, 101, 0],
-            Parameter::TuningBankSelect => vec![100, 4, 101, 0],
+impl Parameter {
+    fn extend_midi_running(&self, v: &mut Vec<u8>) {
+        match self {
+            Parameter::PitchBendSensitivity => {
+                v.push(100);
+                v.push(0);
+                v.push(101);
+                v.push(0);
+            }
+            Parameter::FineTuning => {
+                v.push(100);
+                v.push(1);
+                v.push(101);
+                v.push(0);
+            }
+            Parameter::CoarseTuning => {
+                v.push(100);
+                v.push(2);
+                v.push(101);
+                v.push(0);
+            }
+            Parameter::TuningProgramSelect => {
+                v.push(100);
+                v.push(3);
+                v.push(101);
+                v.push(0);
+            }
+            Parameter::TuningBankSelect => {
+                v.push(100);
+                v.push(4);
+                v.push(101);
+                v.push(0);
+            }
             Parameter::Unregistered(x) => {
-                let [msb, lsb] = to_u14(x);
-                vec![98, lsb, 99, msb]
+                let [msb, lsb] = to_u14(*x);
+                v.push(98);
+                v.push(lsb);
+                v.push(99);
+                v.push(msb);
             }
         }
     }

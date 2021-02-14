@@ -36,39 +36,45 @@ pub enum SystemExclusiveMsg {
 
 impl SystemExclusiveMsg {
     pub fn to_midi(&self) -> Vec<u8> {
-        self.into()
+        let mut r: Vec<u8> = vec![];
+        self.extend_midi(&mut r);
+        r
+    }
+
+    pub fn extend_midi(&self, v: &mut Vec<u8>) {
+        v.push(0xF0);
+        match self {
+            SystemExclusiveMsg::Commercial { id, data } => {
+                id.extend_midi(v);
+                data.iter().for_each(|d| v.push(to_u7(*d)));
+            }
+            SystemExclusiveMsg::NonCommercial { data } => {
+                v.push(0x7D);
+                data.iter().for_each(|d| v.push(to_u7(*d)));
+            }
+            SystemExclusiveMsg::UniversalRealTime { device, msg } => {
+                v.push(0x7F);
+                v.push(device.to_u8());
+                msg.extend_midi(v);
+            }
+            SystemExclusiveMsg::UniversalNonRealTime { device, msg } => {
+                v.push(0x7E);
+                v.push(device.to_u8());
+                msg.extend_midi(v);
+            }
+        }
+        v.push(0xF7);
+    }
+
+    /// Ok results return a MidiMsg and the number of bytes consumed from the input
+    pub fn from_midi(_m: &[u8]) -> Result<(Self, usize), &str> {
+        Err("TODO: not implemented")
     }
 }
 
 impl From<&SystemExclusiveMsg> for Vec<u8> {
     fn from(m: &SystemExclusiveMsg) -> Vec<u8> {
-        match m {
-            SystemExclusiveMsg::Commercial { id, data } => {
-                let mut r: Vec<u8> = vec![0xF0];
-                r.extend(id.to_midi());
-                r.extend(data.iter().map(|d| to_u7(*d)).collect::<Vec<u8>>());
-                r.push(0xF7);
-                r
-            }
-            SystemExclusiveMsg::NonCommercial { data } => {
-                let mut r: Vec<u8> = vec![0xF0, 0x7D];
-                r.extend(data.iter().map(|d| to_u7(*d)).collect::<Vec<u8>>());
-                r.push(0xF7);
-                r
-            }
-            SystemExclusiveMsg::UniversalRealTime { device, msg } => {
-                let mut r: Vec<u8> = vec![0xF0, 0x7F, device.to_midi()];
-                r.extend(msg.to_midi());
-                r.push(0xF7);
-                r
-            }
-            SystemExclusiveMsg::UniversalNonRealTime { device, msg } => {
-                let mut r: Vec<u8> = vec![0xF0, 0x7E, device.to_midi()];
-                r.extend(msg.to_midi());
-                r.push(0xF7);
-                r
-            }
-        }
+        m.to_midi()
     }
 }
 
@@ -77,11 +83,13 @@ impl From<&SystemExclusiveMsg> for Vec<u8> {
 pub struct SysExID(u8, Option<u8>);
 
 impl SysExID {
-    pub fn to_midi(&self) -> Vec<u8> {
+    fn extend_midi(&self, v: &mut Vec<u8>) {
         if let Some(second) = self.1 {
-            vec![0x00, to_u7(self.0), to_u7(second)]
+            v.push(0x00);
+            v.push(to_u7(self.0));
+            v.push(to_u7(second));
         } else {
-            vec![to_u7(self.0)]
+            v.push(to_u7(self.0))
         }
     }
 }
@@ -105,7 +113,7 @@ pub enum DeviceID {
 }
 
 impl DeviceID {
-    pub fn to_midi(&self) -> u8 {
+    fn to_u8(&self) -> u8 {
         match self {
             Self::AllCall => 0x7F,
             Self::Device(x) => to_u7(*x),
@@ -130,71 +138,75 @@ pub enum UniversalRealTimeMsg {
 }
 
 impl UniversalRealTimeMsg {
-    pub fn to_midi(&self) -> Vec<u8> {
-        self.into()
-    }
-}
-
-impl From<&UniversalRealTimeMsg> for Vec<u8> {
-    fn from(m: &UniversalRealTimeMsg) -> Vec<u8> {
-        match m {
+    fn extend_midi(&self, v: &mut Vec<u8>) {
+        match self {
             UniversalRealTimeMsg::TimeCodeFull(code) => {
+                v.push(01);
+                v.push(01);
                 let [frame, seconds, minutes, codehour] = code.to_bytes();
-                vec![01, 01, codehour, minutes, seconds, frame]
+                v.extend_from_slice(&[codehour, minutes, seconds, frame]);
             }
             UniversalRealTimeMsg::TimeCodeUserBits(user_bits) => {
+                v.push(01);
+                v.push(02);
                 let [ub1, ub2, ub3, ub4, ub5, ub6, ub7, ub8, ub9] = user_bits.to_nibbles();
-                vec![01, 02, ub1, ub2, ub3, ub4, ub5, ub6, ub7, ub8, ub9]
+                v.extend_from_slice(&[ub1, ub2, ub3, ub4, ub5, ub6, ub7, ub8, ub9]);
             }
             UniversalRealTimeMsg::ShowControl(msg) => {
-                let mut r: Vec<u8> = vec![02];
-                r.extend(msg.to_midi());
-                r
+                v.push(02);
+                msg.extend_midi(v);
             }
             UniversalRealTimeMsg::BarMarker(marker) => {
-                let mut r: Vec<u8> = vec![03, 01];
-                r.extend(marker.to_midi());
-                r
+                v.push(03);
+                v.push(01);
+                marker.extend_midi(v);
             }
             UniversalRealTimeMsg::TimeSignature(signature) => {
-                let mut r: Vec<u8> = vec![03, 02];
-                r.extend(signature.to_midi());
-                r
+                v.push(03);
+                v.push(02);
+                signature.extend_midi(v);
             }
             UniversalRealTimeMsg::TimeSignatureDelayed(signature) => {
-                let mut r: Vec<u8> = vec![03, 42];
-                r.extend(signature.to_midi());
-                r
+                v.push(03);
+                v.push(42);
+                signature.extend_midi(v);
             }
             UniversalRealTimeMsg::MasterVolume(vol) => {
+                v.push(04);
+                v.push(01);
                 let [msb, lsb] = to_u14(*vol);
-                vec![04, 01, lsb, msb]
+                v.push(lsb);
+                v.push(msb);
             }
             UniversalRealTimeMsg::MasterBalance(bal) => {
+                v.push(04);
+                v.push(02);
                 let [msb, lsb] = to_u14(*bal);
-                vec![04, 02, lsb, msb]
+                v.push(lsb);
+                v.push(msb);
             }
             UniversalRealTimeMsg::TimeCodeCueing(msg) => {
-                let mut r: Vec<u8> = vec![05];
-                r.extend(msg.to_midi());
-                r
+                v.push(05);
+                msg.extend_midi(v);
             }
             UniversalRealTimeMsg::MachineControlCommand(msg) => {
-                let mut r: Vec<u8> = vec![06];
-                r.extend(msg.to_midi());
-                r
+                v.push(06);
+                msg.extend_midi(v);
             }
             UniversalRealTimeMsg::MachineControlResponse(msg) => {
-                let mut r: Vec<u8> = vec![07];
-                r.extend(msg.to_midi());
-                r
+                v.push(07);
+                msg.extend_midi(v);
             }
             UniversalRealTimeMsg::TuningNoteChange(note_change) => {
-                let mut r: Vec<u8> = vec![08, 02];
-                r.extend(note_change.to_midi());
-                r
+                v.push(08);
+                v.push(02);
+                note_change.extend_midi(v);
             }
         }
+    }
+
+    fn from_midi(_m: &[u8]) -> Result<(Self, usize), &str> {
+        Err("TODO: not implemented")
     }
 }
 
@@ -217,63 +229,81 @@ pub enum UniversalNonRealTimeMsg {
 }
 
 impl UniversalNonRealTimeMsg {
-    pub fn to_midi(&self) -> Vec<u8> {
-        self.into()
-    }
-}
-
-impl From<&UniversalNonRealTimeMsg> for Vec<u8> {
-    fn from(m: &UniversalNonRealTimeMsg) -> Vec<u8> {
-        match m {
+    fn extend_midi(&self, v: &mut Vec<u8>) {
+        match self {
             UniversalNonRealTimeMsg::SampleDump(msg) => {
-                let mut r: Vec<u8> = vec![];
                 match msg {
-                    SampleDumpMsg::Header => r.push(01),
-                    SampleDumpMsg::Packet => r.push(02),
-                    SampleDumpMsg::Request => r.push(03),
+                    SampleDumpMsg::Header => v.push(01),
+                    SampleDumpMsg::Packet => v.push(02),
+                    SampleDumpMsg::Request => v.push(03),
                     SampleDumpMsg::MultipleLoopPoints => {
-                        r.push(05);
-                        r.push(01);
+                        v.push(05);
+                        v.push(01);
                     }
                     SampleDumpMsg::LoopPointsRequest => {
-                        r.push(05);
-                        r.push(02);
+                        v.push(05);
+                        v.push(02);
                     }
                 }
-                r.extend(msg.to_midi());
-                r
+                msg.extend_midi(v);
             }
             UniversalNonRealTimeMsg::TimeCode(msg) => {
-                let mut r: Vec<u8> = vec![04];
-                r.extend(msg.to_midi());
-                r
+                v.push(04);
+                msg.extend_midi(v);
             }
-            UniversalNonRealTimeMsg::IdentityRequest => vec![06, 01],
+            UniversalNonRealTimeMsg::IdentityRequest => {
+                v.push(06);
+                v.push(01);
+            }
             UniversalNonRealTimeMsg::IdentityReply(identity) => {
-                let mut r: Vec<u8> = vec![06, 02];
-                r.extend(identity.to_midi());
-                r
+                v.push(06);
+                v.push(02);
+                identity.extend_midi(v);
             }
             UniversalNonRealTimeMsg::FileDump(msg) => {
-                let mut r: Vec<u8> = vec![07];
-                r.extend(msg.to_midi());
-                r
+                v.push(07);
+                msg.extend_midi(v);
             }
             UniversalNonRealTimeMsg::TuningBulkDumpRequest(program_num) => {
-                vec![08, 00, to_u7(*program_num)]
+                v.push(08);
+                v.push(00);
+                v.push(to_u7(*program_num));
             }
             UniversalNonRealTimeMsg::TuningBulkDumpReply(program_num, tuning) => {
-                let mut r: Vec<u8> = vec![08, 01, to_u7(*program_num)];
-                r.extend(tuning.to_midi());
-                r
+                v.push(08);
+                v.push(01);
+                v.push(to_u7(*program_num));
+                tuning.extend_midi(v);
             }
-            UniversalNonRealTimeMsg::GeneralMidi(on) => vec![09, if *on { 01 } else { 02 }],
-            UniversalNonRealTimeMsg::EOF => vec![0x7B, 00],
-            UniversalNonRealTimeMsg::Wait => vec![0x7C, 00],
-            UniversalNonRealTimeMsg::Cancel => vec![0x7D, 00],
-            UniversalNonRealTimeMsg::NAK(packet_num) => vec![0x7E, to_u7(*packet_num)],
-            UniversalNonRealTimeMsg::ACK(packet_num) => vec![0x7F, to_u7(*packet_num)],
+            UniversalNonRealTimeMsg::GeneralMidi(on) => {
+                v.push(09);
+                v.push(if *on { 01 } else { 02 });
+            }
+            UniversalNonRealTimeMsg::EOF => {
+                v.push(0x7B);
+                v.push(00);
+            }
+            UniversalNonRealTimeMsg::Wait => {
+                v.push(0x7C);
+                v.push(00);
+            }
+            UniversalNonRealTimeMsg::Cancel => {
+                v.push(0x7D);
+                v.push(00);
+            }
+            UniversalNonRealTimeMsg::NAK(packet_num) => {
+                v.push(0x7E);
+                v.push(to_u7(*packet_num));
+            }
+            UniversalNonRealTimeMsg::ACK(packet_num) => {
+                v.push(0x7F);
+                v.push(to_u7(*packet_num));
+            }
         }
+    }
+
+    fn from_midi(_m: &[u8]) -> Result<(Self, usize), &str> {
+        Err("TODO: not implemented")
     }
 }
 
@@ -283,9 +313,8 @@ pub struct IdentityReply {
 }
 
 impl IdentityReply {
-    pub fn to_midi(&self) -> Vec<u8> {
+    fn extend_midi(&self, v: &mut Vec<u8>) {
         //TODO
-        vec![]
     }
 }
 

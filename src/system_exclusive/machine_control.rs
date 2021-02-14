@@ -1,4 +1,4 @@
-use crate::util::*;
+// use crate::util::*;
 
 #[derive(Debug, Copy, Clone, PartialEq)]
 pub enum MachineControlCommandMsg {
@@ -6,14 +6,12 @@ pub enum MachineControlCommandMsg {
 }
 
 impl MachineControlCommandMsg {
-    pub fn to_midi(&self) -> Vec<u8> {
-        self.into()
+    pub(crate) fn extend_midi(&self, v: &mut Vec<u8>) {
+        // TODO
     }
-}
 
-impl From<&MachineControlCommandMsg> for Vec<u8> {
-    fn from(_m: &MachineControlCommandMsg) -> Vec<u8> {
-        vec![] // TODO
+    pub(crate) fn from_midi(_m: &[u8]) -> Result<(Self, usize), &str> {
+        Err("TODO: not implemented")
     }
 }
 
@@ -23,23 +21,21 @@ pub enum MachineControlResponseMsg {
 }
 
 impl MachineControlResponseMsg {
-    pub fn to_midi(&self) -> Vec<u8> {
-        self.into()
+    pub(crate) fn extend_midi(&self, v: &mut Vec<u8>) {
+        // TODO
     }
-}
 
-impl From<&MachineControlResponseMsg> for Vec<u8> {
-    fn from(_m: &MachineControlResponseMsg) -> Vec<u8> {
-        vec![] // TODO
+    pub(crate) fn from_midi(_m: &[u8]) -> Result<(Self, usize), &str> {
+        Err("TODO: not implemented")
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use super::*;
+    // use super::*;
 
     #[test]
-    fn serialize_Machine_control_msg() {
+    fn serialize_machine_control_msg() {
         // TODO
         // assert_eq!(
         //     MidiMsg::ChannelVoice {

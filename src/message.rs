@@ -33,34 +33,49 @@ pub enum MidiMsg {
 }
 
 impl MidiMsg {
-    pub fn to_midi(&self) -> Vec<u8> {
-        self.into()
+    pub fn messages_to_midi(msgs: &[Self]) -> Vec<u8> {
+        let mut r: Vec<u8> = vec![];
+        for m in msgs.iter() {
+            m.extend_midi(&mut r);
+        }
+        r
     }
 
-    pub fn from_midi(_m: &[u8]) -> Result<Self, &str> {
+    pub fn to_midi(&self) -> Vec<u8> {
+        let mut r: Vec<u8> = vec![];
+        self.extend_midi(&mut r);
+        r
+    }
+
+    pub fn extend_midi(&self, v: &mut Vec<u8>) {
+        match self {
+            MidiMsg::ChannelVoice { channel, msg } => {
+                let p = v.len();
+                msg.extend_midi(v);
+                v[p] += *channel as u8;
+            }
+            MidiMsg::RunningChannelVoice { msg, .. } => msg.extend_midi_running(v),
+            MidiMsg::ChannelMode { channel, msg } => {
+                let p = v.len();
+                msg.extend_midi(v);
+                v[p] += *channel as u8;
+            }
+            MidiMsg::RunningChannelMode { msg, .. } => msg.extend_midi_running(v),
+            MidiMsg::SystemCommon { msg } => msg.extend_midi(v),
+            MidiMsg::SystemRealTime { msg } => msg.extend_midi(v),
+            MidiMsg::SystemExclusive { msg } => msg.extend_midi(v),
+        }
+    }
+
+    /// Ok results return a MidiMsg and the number of bytes consumed from the input
+    pub fn from_midi(_m: &[u8]) -> Result<(Self, usize), &str> {
         Err("TODO: not implemented")
     }
 }
 
 impl From<&MidiMsg> for Vec<u8> {
     fn from(m: &MidiMsg) -> Vec<u8> {
-        match m {
-            MidiMsg::ChannelVoice { channel, msg } => {
-                let mut r = msg.to_midi();
-                r[0] += *channel as u8;
-                r
-            }
-            MidiMsg::RunningChannelVoice { msg, .. } => msg.to_midi_running(),
-            MidiMsg::ChannelMode { channel, msg } => {
-                let mut r = msg.to_midi();
-                r[0] += *channel as u8;
-                r
-            }
-            MidiMsg::RunningChannelMode { msg, .. } => msg.to_midi_running(),
-            MidiMsg::SystemCommon { msg } => msg.to_midi(),
-            MidiMsg::SystemRealTime { msg } => msg.to_midi(),
-            MidiMsg::SystemExclusive { msg } => msg.to_midi(),
-        }
+        m.to_midi()
     }
 }
 

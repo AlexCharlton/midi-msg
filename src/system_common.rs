@@ -20,28 +20,68 @@ pub enum SystemCommonMsg {
 
 impl SystemCommonMsg {
     pub fn to_midi(&self) -> Vec<u8> {
-        self.into()
+        let mut r: Vec<u8> = vec![];
+        self.extend_midi(&mut r);
+        r
+    }
+
+    pub fn extend_midi(&self, v: &mut Vec<u8>) {
+        match self {
+            SystemCommonMsg::TimeCodeQuarterFrame1(qf) => {
+                v.push(0xF1);
+                v.push(qf.to_nibbles()[0]);
+            }
+            SystemCommonMsg::TimeCodeQuarterFrame2(qf) => {
+                v.push(0xF1);
+                v.push(qf.to_nibbles()[1]);
+            }
+            SystemCommonMsg::TimeCodeQuarterFrame3(qf) => {
+                v.push(0xF1);
+                v.push(qf.to_nibbles()[2]);
+            }
+            SystemCommonMsg::TimeCodeQuarterFrame4(qf) => {
+                v.push(0xF1);
+                v.push(qf.to_nibbles()[3]);
+            }
+            SystemCommonMsg::TimeCodeQuarterFrame5(qf) => {
+                v.push(0xF1);
+                v.push(qf.to_nibbles()[4]);
+            }
+            SystemCommonMsg::TimeCodeQuarterFrame6(qf) => {
+                v.push(0xF1);
+                v.push(qf.to_nibbles()[5]);
+            }
+            SystemCommonMsg::TimeCodeQuarterFrame7(qf) => {
+                v.push(0xF1);
+                v.push(qf.to_nibbles()[6]);
+            }
+            SystemCommonMsg::TimeCodeQuarterFrame8(qf) => {
+                v.push(0xF1);
+                v.push(qf.to_nibbles()[7]);
+            }
+            SystemCommonMsg::SongPosition(pos) => {
+                v.push(0xF2);
+                let [msb, lsb] = to_u14(*pos);
+                v.push(lsb);
+                v.push(msb);
+            }
+            SystemCommonMsg::SongSelect(song) => {
+                v.push(0xF3);
+                v.push(to_u7(*song));
+            }
+            SystemCommonMsg::TuneRequest => v.push(0xF6),
+        }
+    }
+
+    /// Ok results return a MidiMsg and the number of bytes consumed from the input
+    pub fn from_midi(_m: &[u8]) -> Result<(Self, usize), &str> {
+        Err("TODO: not implemented")
     }
 }
 
 impl From<&SystemCommonMsg> for Vec<u8> {
     fn from(m: &SystemCommonMsg) -> Vec<u8> {
-        match *m {
-            SystemCommonMsg::TimeCodeQuarterFrame1(qf) => vec![0xF1, qf.to_nibbles()[0]],
-            SystemCommonMsg::TimeCodeQuarterFrame2(qf) => vec![0xF1, qf.to_nibbles()[1]],
-            SystemCommonMsg::TimeCodeQuarterFrame3(qf) => vec![0xF1, qf.to_nibbles()[2]],
-            SystemCommonMsg::TimeCodeQuarterFrame4(qf) => vec![0xF1, qf.to_nibbles()[3]],
-            SystemCommonMsg::TimeCodeQuarterFrame5(qf) => vec![0xF1, qf.to_nibbles()[4]],
-            SystemCommonMsg::TimeCodeQuarterFrame6(qf) => vec![0xF1, qf.to_nibbles()[5]],
-            SystemCommonMsg::TimeCodeQuarterFrame7(qf) => vec![0xF1, qf.to_nibbles()[6]],
-            SystemCommonMsg::TimeCodeQuarterFrame8(qf) => vec![0xF1, qf.to_nibbles()[7]],
-            SystemCommonMsg::SongPosition(pos) => {
-                let [msb, lsb] = to_u14(pos);
-                vec![0xF2, lsb, msb]
-            }
-            SystemCommonMsg::SongSelect(song) => vec![0xF3, to_u7(song)],
-            SystemCommonMsg::TuneRequest => vec![0xF6],
-        }
+        m.to_midi()
     }
 }
 

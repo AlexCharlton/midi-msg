@@ -92,14 +92,12 @@ pub enum TimeCodeMsg {
 }
 
 impl TimeCodeMsg {
-    pub fn to_midi(&self) -> Vec<u8> {
-        self.into()
+    pub(crate) fn extend_midi(&self, v: &mut Vec<u8>) {
+        // TODO
     }
-}
 
-impl From<&TimeCodeMsg> for Vec<u8> {
-    fn from(_m: &TimeCodeMsg) -> Vec<u8> {
-        vec![] // TODO
+    pub(crate) fn from_midi(_m: &[u8]) -> Result<(Self, usize), &str> {
+        Err("TODO: not implemented")
     }
 }
 
@@ -109,20 +107,18 @@ pub enum TimeCodeCueingMsg {
 }
 
 impl TimeCodeCueingMsg {
-    pub fn to_midi(&self) -> Vec<u8> {
-        self.into()
+    pub(crate) fn extend_midi(&self, v: &mut Vec<u8>) {
+        // TODO
     }
-}
 
-impl From<&TimeCodeCueingMsg> for Vec<u8> {
-    fn from(_m: &TimeCodeCueingMsg) -> Vec<u8> {
-        vec![] // TODO
+    pub(crate) fn from_midi(_m: &[u8]) -> Result<(Self, usize), &str> {
+        Err("TODO: not implemented")
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use super::*;
+    // use super::*;
 
     #[test]
     fn serialize_time_code_msg() {
