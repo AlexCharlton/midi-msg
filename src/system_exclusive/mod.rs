@@ -18,7 +18,7 @@ use super::util::*;
 #[derive(Debug, Clone, PartialEq)]
 pub enum SystemExclusiveMsg {
     Commercial {
-        id: SysExID,
+        id: ManufacturerID,
         data: Vec<u8>,
     },
     NonCommercial {
@@ -58,9 +58,14 @@ impl SystemExclusiveMsg {
                 msg.extend_midi(v);
             }
             SystemExclusiveMsg::UniversalNonRealTime { device, msg } => {
+                let p = v.len();
                 v.push(0x7E);
                 v.push(device.to_u8());
                 msg.extend_midi(v);
+                if let UniversalNonRealTimeMsg::SampleDump(SampleDumpMsg::Packet { .. }) = msg {
+                    const BYTES_IN_MSG: usize = 125; // Minus 0xF0 .. 0xF7
+                    v[p + BYTES_IN_MSG - 1] = checksum(&v[p..BYTES_IN_MSG - 1]);
+                }
             }
         }
         v.push(0xF7);
@@ -80,9 +85,9 @@ impl From<&SystemExclusiveMsg> for Vec<u8> {
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 /// If second byte is None, it is a one-byte ID
-pub struct SysExID(u8, Option<u8>);
+pub struct ManufacturerID(u8, Option<u8>);
 
-impl SysExID {
+impl ManufacturerID {
     fn extend_midi(&self, v: &mut Vec<u8>) {
         if let Some(second) = self.1 {
             v.push(0x00);
@@ -94,13 +99,13 @@ impl SysExID {
     }
 }
 
-impl From<u8> for SysExID {
+impl From<u8> for ManufacturerID {
     fn from(a: u8) -> Self {
         Self(a, None)
     }
 }
 
-impl From<(u8, u8)> for SysExID {
+impl From<(u8, u8)> for ManufacturerID {
     fn from((a, b): (u8, u8)) -> Self {
         Self(a, Some(b))
     }
@@ -174,16 +179,12 @@ impl UniversalRealTimeMsg {
             UniversalRealTimeMsg::MasterVolume(vol) => {
                 v.push(04);
                 v.push(01);
-                let [msb, lsb] = to_u14(*vol);
-                v.push(lsb);
-                v.push(msb);
+                push_u14(*vol, v);
             }
             UniversalRealTimeMsg::MasterBalance(bal) => {
                 v.push(04);
                 v.push(02);
-                let [msb, lsb] = to_u14(*bal);
-                v.push(lsb);
-                v.push(msb);
+                push_u14(*bal, v);
             }
             UniversalRealTimeMsg::TimeCodeCueing(msg) => {
                 v.push(05);
@@ -233,14 +234,14 @@ impl UniversalNonRealTimeMsg {
         match self {
             UniversalNonRealTimeMsg::SampleDump(msg) => {
                 match msg {
-                    SampleDumpMsg::Header => v.push(01),
-                    SampleDumpMsg::Packet => v.push(02),
-                    SampleDumpMsg::Request => v.push(03),
-                    SampleDumpMsg::MultipleLoopPoints => {
+                    SampleDumpMsg::Header { .. } => v.push(01),
+                    SampleDumpMsg::Packet { .. } => v.push(02),
+                    SampleDumpMsg::Request { .. } => v.push(03),
+                    SampleDumpMsg::MultipleLoopPoints { .. } => {
                         v.push(05);
                         v.push(01);
                     }
-                    SampleDumpMsg::LoopPointsRequest => {
+                    SampleDumpMsg::LoopPointsRequest { .. } => {
                         v.push(05);
                         v.push(02);
                     }
@@ -309,12 +310,22 @@ impl UniversalNonRealTimeMsg {
 
 #[derive(Debug, Copy, Clone, PartialEq)]
 pub struct IdentityReply {
-    // TODO
+    id: ManufacturerID,
+    family: u16,
+    family_member: u16,
+    /// Four values, 0-127, sent in order provided
+    software_revision: (u8, u8, u8, u8),
 }
 
 impl IdentityReply {
     fn extend_midi(&self, v: &mut Vec<u8>) {
-        //TODO
+        self.id.extend_midi(v);
+        push_u14(self.family, v);
+        push_u14(self.family_member, v);
+        v.push(to_u7(self.software_revision.0));
+        v.push(to_u7(self.software_revision.1));
+        v.push(to_u7(self.software_revision.2));
+        v.push(to_u7(self.software_revision.3));
     }
 }
 

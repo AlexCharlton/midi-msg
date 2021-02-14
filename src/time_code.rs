@@ -61,8 +61,9 @@ impl TimeCode {
 
 #[derive(Debug, Copy, Clone, PartialEq)]
 pub struct UserBits {
-    // Full bytes can be used here!
-    bytes: [u8; 4],
+    /// Full bytes can be used here. Sent such that the first is considered
+    /// the "most significant" value
+    bytes: (u8, u8, u8, u8),
     /// SMPTE time code bit 43 (EBU bit 27)
     flag1: bool,
     /// SMPTE time code bit 59 (EBU bit 43)
@@ -71,10 +72,10 @@ pub struct UserBits {
 
 impl UserBits {
     pub fn to_nibbles(&self) -> [u8; 9] {
-        let [uh, ug] = to_nibble(self.bytes[3]);
-        let [uf, ue] = to_nibble(self.bytes[2]);
-        let [ud, uc] = to_nibble(self.bytes[3]);
-        let [ub, ua] = to_nibble(self.bytes[0]);
+        let [uh, ug] = to_nibble(self.bytes.3);
+        let [uf, ue] = to_nibble(self.bytes.2);
+        let [ud, uc] = to_nibble(self.bytes.1);
+        let [ub, ua] = to_nibble(self.bytes.0);
         let mut flags: u8 = 0;
         if self.flag1 {
             flags += 1;

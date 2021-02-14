@@ -78,9 +78,7 @@ impl ChannelVoiceMsg {
             ChannelVoiceMsg::ProgramChange { program } => v.push(to_u7(program)),
             ChannelVoiceMsg::ChannelPressure { pressure } => v.push(to_u7(pressure)),
             ChannelVoiceMsg::PitchBend { bend } => {
-                let [msb, lsb] = to_u14(bend);
-                v.push(lsb);
-                v.push(msb);
+                push_u14(bend, v);
             }
         }
     }
@@ -385,6 +383,8 @@ pub enum Parameter {
     CoarseTuning,
     TuningProgramSelect,
     TuningBankSelect,
+    ModulationDepthRange,
+    PolyphonicExpression,
     /// 0-16383
     Unregistered(u16),
 }
@@ -419,6 +419,18 @@ impl Parameter {
             Parameter::TuningBankSelect => {
                 v.push(100);
                 v.push(4);
+                v.push(101);
+                v.push(0);
+            }
+            Parameter::ModulationDepthRange => {
+                v.push(100);
+                v.push(5);
+                v.push(101);
+                v.push(0);
+            }
+            Parameter::PolyphonicExpression => {
+                v.push(100);
+                v.push(6);
                 v.push(101);
                 v.push(0);
             }
@@ -457,16 +469,16 @@ mod tests {
                 msg: ChannelVoiceMsg::PitchBend { bend: 0xff44 }
             }
             .to_midi(),
-            vec![0x44, 0x7f]
+            vec![0x7f, 0x7f]
         );
 
         assert_eq!(
             MidiMsg::ChannelVoice {
                 channel: Channel::Ch10,
-                msg: ChannelVoiceMsg::PitchBend { bend: 0xff44 }
+                msg: ChannelVoiceMsg::PitchBend { bend: 1000 }
             }
             .to_midi(),
-            vec![0xE9, 0x44, 0x7f]
+            vec![0xE9, 0x68, 0x07]
         );
 
         assert_eq!(

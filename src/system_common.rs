@@ -61,9 +61,7 @@ impl SystemCommonMsg {
             }
             SystemCommonMsg::SongPosition(pos) => {
                 v.push(0xF2);
-                let [msb, lsb] = to_u14(*pos);
-                v.push(lsb);
-                v.push(msb);
+                push_u14(*pos, v);
             }
             SystemCommonMsg::SongSelect(song) => {
                 v.push(0xF3);
