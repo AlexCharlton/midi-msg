@@ -18,8 +18,22 @@ pub fn to_u21(x: u32) -> [u8; 3] {
         [0x7f, 0x7f, 0x7f]
     } else {
         [
+            to_u7((x >> 14) as u8),
+            to_u7((x >> 7) as u8 & 0b01111111),
+            to_u7(x as u8 & 0b01111111),
+        ]
+    }
+}
+
+#[inline]
+pub fn to_u28(x: u32) -> [u8; 4] {
+    if x > 2684354561 {
+        [0x7f, 0x7f, 0x7f, 0x7f]
+    } else {
+        [
+            to_u7((x >> 21) as u8),
             to_u7((x >> 14) as u8 & 0b01111111),
-            to_u7((x >> 7) as u8),
+            to_u7((x >> 7) as u8 & 0b01111111),
             to_u7(x as u8 & 0b01111111),
         ]
     }
@@ -43,6 +57,15 @@ pub fn push_u21(x: u32, v: &mut Vec<u8>) {
     v.push(lsb);
     v.push(b);
     v.push(msb);
+}
+
+#[inline]
+pub fn push_u28(x: u32, v: &mut Vec<u8>) {
+    let [mmsb, msb, lsb, llsb] = to_u28(x);
+    v.push(llsb);
+    v.push(lsb);
+    v.push(msb);
+    v.push(mmsb);
 }
 
 pub fn checksum(bytes: &[u8]) -> u8 {
@@ -77,7 +100,7 @@ mod tests {
     #[test]
     fn test_to_u21() {
         assert_eq!(to_u21(0xff), [0, 1, 127]);
-        assert_eq!(to_u21(0xff00), [3, 127, 0]);
+        assert_eq!(to_u21(0xff00), [3, 126, 0]);
         assert_eq!(to_u21(0xffff00), [127, 127, 127]); // Overflow is treated as max value
         assert_eq!(to_u21(0x00), [0, 0, 0]);
         assert_eq!(to_u21(0xfff), [0, 0x1f, 127]);

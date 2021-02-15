@@ -66,6 +66,10 @@ impl SystemExclusiveMsg {
                     const BYTES_IN_MSG: usize = 125; // Minus 0xF0 .. 0xF7
                     v[p + BYTES_IN_MSG - 1] = checksum(&v[p..BYTES_IN_MSG - 1]);
                 }
+                if let UniversalNonRealTimeMsg::FileDump(FileDumpMsg::Packet { .. }) = msg {
+                    let q = v.len();
+                    v[q - 1] = checksum(&v[p..q - 1]);
+                }
             }
         }
         v.push(0xF7);
