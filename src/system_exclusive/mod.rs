@@ -177,7 +177,7 @@ impl UniversalRealTimeMsg {
             }
             UniversalRealTimeMsg::TimeSignatureDelayed(signature) => {
                 v.push(03);
-                v.push(42);
+                v.push(0x42);
                 signature.extend_midi(v);
             }
             UniversalRealTimeMsg::MasterVolume(vol) => {

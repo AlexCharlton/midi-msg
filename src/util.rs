@@ -8,7 +8,18 @@ pub fn to_u14(x: u16) -> [u8; 2] {
     if x > 16383 {
         [0x7f, 0x7f]
     } else {
-        [to_u7((x >> 7) as u8), to_u7(x as u8 & 0b01111111)]
+        [(x >> 7) as u8, x as u8 & 0b01111111]
+    }
+}
+
+#[inline]
+pub fn to_i14(x: i16) -> [u8; 2] {
+    if x > 8191 {
+        [0x3f, 0x7f]
+    } else if x < -8191 {
+        [0x40, 0x00]
+    } else {
+        [(x >> 7) as u8 & 0b01111111, x as u8 & 0b01111111]
     }
 }
 
@@ -18,9 +29,9 @@ pub fn to_u21(x: u32) -> [u8; 3] {
         [0x7f, 0x7f, 0x7f]
     } else {
         [
-            to_u7((x >> 14) as u8),
-            to_u7((x >> 7) as u8 & 0b01111111),
-            to_u7(x as u8 & 0b01111111),
+            (x >> 14) as u8,
+            (x >> 7) as u8 & 0b01111111,
+            x as u8 & 0b01111111,
         ]
     }
 }
@@ -31,10 +42,10 @@ pub fn to_u28(x: u32) -> [u8; 4] {
         [0x7f, 0x7f, 0x7f, 0x7f]
     } else {
         [
-            to_u7((x >> 21) as u8),
-            to_u7((x >> 14) as u8 & 0b01111111),
-            to_u7((x >> 7) as u8 & 0b01111111),
-            to_u7(x as u8 & 0b01111111),
+            (x >> 21) as u8,
+            (x >> 14) as u8 & 0b01111111,
+            (x >> 7) as u8 & 0b01111111,
+            x as u8 & 0b01111111,
         ]
     }
 }
@@ -47,6 +58,13 @@ pub fn to_nibble(x: u8) -> [u8; 2] {
 #[inline]
 pub fn push_u14(x: u16, v: &mut Vec<u8>) {
     let [msb, lsb] = to_u14(x);
+    v.push(lsb);
+    v.push(msb);
+}
+
+#[inline]
+pub fn push_i14(x: i16, v: &mut Vec<u8>) {
+    let [msb, lsb] = to_i14(x);
     v.push(lsb);
     v.push(msb);
 }
@@ -95,6 +113,19 @@ mod tests {
         assert_eq!(to_u14(0x00), [0, 0]);
         assert_eq!(to_u14(0xfff), [0x1f, 127]);
         assert_eq!(to_u14(1000), [0x07, 0x68]);
+    }
+
+    #[test]
+    fn test_to_i14() {
+        assert_eq!(to_i14(0xff), [0x01, 0x7f]);
+        assert_eq!(to_i14(0x6f00), [0x3f, 0x7f]); // Overflow is treated as max value
+        assert_eq!(to_i14(0x00), [0, 0]);
+        assert_eq!(to_i14(0xfff), [0x1f, 0x7f]);
+        assert_eq!(to_i14(1000), [0x07, 0x68]);
+        assert_eq!(to_i14(-10000), [0x40, 0x00]); // Min overflow is treated as min value
+        assert_eq!(to_i14(-8192), [0x40, 0x00]);
+        assert_eq!(to_i14(-8191), [0x40, 0x01]);
+        assert_eq!(to_i14(-1), [0x7f, 0x7f]);
     }
 
     #[test]
