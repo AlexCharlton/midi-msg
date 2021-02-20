@@ -114,7 +114,7 @@ mod tests {
         );
 
         let frame = TimeCode {
-            frame: 40,                     // Should be limited to 29: 0b00011101
+            frames: 40,                    // Should be limited to 29: 0b00011101
             seconds: 58,                   // 0b00111010
             minutes: 20,                   // 0b00010100
             hours: 25,                     // Should be limited to 23: 0b00010111

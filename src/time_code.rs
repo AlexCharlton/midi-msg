@@ -1,9 +1,11 @@
 use super::util::*;
+use crate::MidiMsg;
+use ascii::AsciiString;
 
 #[derive(Debug, Clone, Copy, PartialEq, Default)]
 pub struct TimeCode {
     /// 0-29
-    pub frame: u8,
+    pub frames: u8,
     /// 0-59
     pub seconds: u8,
     /// 0-59
@@ -13,32 +15,23 @@ pub struct TimeCode {
     pub code_type: TimeCodeType,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq)]
-pub enum TimeCodeType {
-    FPS24 = 0,
-    FPS25 = 1,
-    DF30 = 2,
-    NDF30 = 3,
-}
-
-impl Default for TimeCodeType {
-    fn default() -> Self {
-        Self::NDF30
-    }
-}
-
 impl TimeCode {
-    // Return the four byte representation of the frame: [frame, seconds, minutes, timecode + hours]
+    /// Return the four byte representation of the frame: [frame, seconds, minutes, timecode + hours]
     pub fn to_bytes(self) -> [u8; 4] {
         [
-            self.frame.min(29),
+            self.frames.min(29),
             self.seconds.min(59),
             self.minutes.min(59),
             self.hours.min(23) + ((self.code_type as u8) << 5),
         ]
     }
 
-    // Return an 8 byte, Quarter Frame representation of the Frame
+    pub(crate) fn extend_midi(&self, v: &mut Vec<u8>) {
+        let [frame, seconds, minutes, codehour] = self.to_bytes();
+        v.extend_from_slice(&[codehour, minutes, seconds, frame]);
+    }
+
+    /// Return an 8 byte, Quarter Frame representation of the Frame
     pub fn to_nibbles(self) -> [u8; 8] {
         let [frame, seconds, minutes, codehour] = self.to_bytes();
 
@@ -59,15 +52,64 @@ impl TimeCode {
     }
 }
 
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum TimeCodeType {
+    FPS24 = 0,
+    FPS25 = 1,
+    DF30 = 2,
+    NDF30 = 3,
+}
+
+impl Default for TimeCodeType {
+    fn default() -> Self {
+        Self::NDF30
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Default)]
+/// Like `TimeCode` but includes `fractional_frames`
+pub struct HighResTimeCode {
+    /// 0-99
+    pub fractional_frames: u8,
+    /// 0-29
+    pub frames: u8,
+    /// 0-59
+    pub seconds: u8,
+    /// 0-59
+    pub minutes: u8,
+    /// 0-23
+    pub hours: u8,
+    pub code_type: TimeCodeType,
+}
+
+impl HighResTimeCode {
+    /// Return the five byte representation of the frame:
+    /// [fractional_frames, frames, seconds, minutes, timecode + hours]
+    pub fn to_bytes(self) -> [u8; 5] {
+        [
+            self.fractional_frames.min(99),
+            self.frames.min(29),
+            self.seconds.min(59),
+            self.minutes.min(59),
+            self.hours.min(23) + ((self.code_type as u8) << 5),
+        ]
+    }
+
+    fn extend_midi(&self, v: &mut Vec<u8>) {
+        let [fractional_frames, frames, seconds, minutes, codehour] = self.to_bytes();
+        v.extend_from_slice(&[codehour, minutes, seconds, frames, fractional_frames]);
+    }
+}
+
 #[derive(Debug, Copy, Clone, PartialEq)]
 pub struct UserBits {
     /// Full bytes can be used here. Sent such that the first is considered
     /// the "most significant" value
-    pub bytes: (u8, u8, u8, u8),
+    bytes: (u8, u8, u8, u8),
     /// SMPTE time code bit 43 (EBU bit 27)
-    pub flag1: bool,
+    flag1: bool,
     /// SMPTE time code bit 59 (EBU bit 43)
-    pub flag2: bool,
+    flag2: bool,
 }
 
 impl UserBits {
@@ -87,14 +129,216 @@ impl UserBits {
     }
 }
 
-#[derive(Debug, Copy, Clone, PartialEq)]
-pub enum TimeCodeMsg {
-    //TODO
+#[derive(Debug, Clone, PartialEq)]
+pub enum TimeCodeCueingSetupMsg {
+    TimeCodeOffset {
+        time_code: HighResTimeCode,
+    },
+    EnableEventList,
+    DisableEventList,
+    ClearEventList,
+    SystemStop,
+    EventListRequest {
+        time_code: HighResTimeCode,
+    },
+    PunchIn {
+        time_code: HighResTimeCode,
+        event_number: u16,
+    },
+    PunchOut {
+        time_code: HighResTimeCode,
+        event_number: u16,
+    },
+    DeletePunchIn {
+        time_code: HighResTimeCode,
+        event_number: u16,
+    },
+    DeletePunchOut {
+        time_code: HighResTimeCode,
+        event_number: u16,
+    },
+    EventStart {
+        time_code: HighResTimeCode,
+        event_number: u16,
+        additional_information: Vec<MidiMsg>,
+    },
+    EventStop {
+        time_code: HighResTimeCode,
+        event_number: u16,
+        additional_information: Vec<MidiMsg>,
+    },
+    DeleteEventStart {
+        time_code: HighResTimeCode,
+        event_number: u16,
+    },
+    DeleteEventStop {
+        time_code: HighResTimeCode,
+        event_number: u16,
+    },
+    Cue {
+        time_code: HighResTimeCode,
+        event_number: u16,
+        additional_information: Vec<MidiMsg>,
+    },
+    DeleteCue {
+        time_code: HighResTimeCode,
+        event_number: u16,
+    },
+    EventName {
+        time_code: HighResTimeCode,
+        event_number: u16,
+        name: AsciiString,
+    },
 }
 
-impl TimeCodeMsg {
+impl TimeCodeCueingSetupMsg {
     pub(crate) fn extend_midi(&self, v: &mut Vec<u8>) {
-        // TODO
+        match self {
+            Self::TimeCodeOffset { time_code } => {
+                v.push(0x00);
+                time_code.extend_midi(v);
+                v.push(0x00);
+                v.push(0x00);
+            }
+            Self::EnableEventList => {
+                v.push(0x00);
+                HighResTimeCode::default().extend_midi(v);
+                v.push(0x01);
+                v.push(0x00);
+            }
+            Self::DisableEventList => {
+                v.push(0x00);
+                HighResTimeCode::default().extend_midi(v);
+                v.push(0x02);
+                v.push(0x00);
+            }
+            Self::ClearEventList => {
+                v.push(0x00);
+                HighResTimeCode::default().extend_midi(v);
+                v.push(0x03);
+                v.push(0x00);
+            }
+            Self::SystemStop => {
+                v.push(0x00);
+                HighResTimeCode::default().extend_midi(v);
+                v.push(0x04);
+                v.push(0x00);
+            }
+            Self::EventListRequest { time_code } => {
+                v.push(0x00);
+                time_code.extend_midi(v);
+                v.push(0x05);
+                v.push(0x00);
+            }
+            Self::PunchIn {
+                time_code,
+                event_number,
+            } => {
+                v.push(0x01);
+                time_code.extend_midi(v);
+                push_u14(*event_number, v);
+            }
+            Self::PunchOut {
+                time_code,
+                event_number,
+            } => {
+                v.push(0x02);
+                time_code.extend_midi(v);
+                push_u14(*event_number, v);
+            }
+            Self::DeletePunchIn {
+                time_code,
+                event_number,
+            } => {
+                v.push(0x03);
+                time_code.extend_midi(v);
+                push_u14(*event_number, v);
+            }
+            Self::DeletePunchOut {
+                time_code,
+                event_number,
+            } => {
+                v.push(0x04);
+                time_code.extend_midi(v);
+                push_u14(*event_number, v);
+            }
+            Self::EventStart {
+                time_code,
+                event_number,
+                additional_information,
+            } => {
+                if additional_information.is_empty() {
+                    v.push(0x05);
+                } else {
+                    v.push(0x07);
+                }
+                time_code.extend_midi(v);
+                push_u14(*event_number, v);
+                push_nibblized_midi(additional_information, v);
+            }
+            Self::EventStop {
+                time_code,
+                event_number,
+                additional_information,
+            } => {
+                if additional_information.is_empty() {
+                    v.push(0x06);
+                } else {
+                    v.push(0x08);
+                }
+                time_code.extend_midi(v);
+                push_u14(*event_number, v);
+                push_nibblized_midi(additional_information, v);
+            }
+            Self::DeleteEventStart {
+                time_code,
+                event_number,
+            } => {
+                v.push(0x09);
+                time_code.extend_midi(v);
+                push_u14(*event_number, v);
+            }
+            Self::DeleteEventStop {
+                time_code,
+                event_number,
+            } => {
+                v.push(0x0A);
+                time_code.extend_midi(v);
+                push_u14(*event_number, v);
+            }
+            Self::Cue {
+                time_code,
+                event_number,
+                additional_information,
+            } => {
+                if additional_information.is_empty() {
+                    v.push(0x0B);
+                } else {
+                    v.push(0x0C);
+                }
+                time_code.extend_midi(v);
+                push_u14(*event_number, v);
+                push_nibblized_midi(additional_information, v);
+            }
+            Self::DeleteCue {
+                time_code,
+                event_number,
+            } => {
+                v.push(0x0D);
+                time_code.extend_midi(v);
+                push_u14(*event_number, v);
+            }
+            Self::EventName {
+                time_code,
+                event_number,
+                name,
+            } => {
+                v.push(0x0E);
+                time_code.extend_midi(v);
+                push_u14(*event_number, v);
+                push_nibblized_name(name, v);
+            }
+        }
     }
 
     pub(crate) fn from_midi(_m: &[u8]) -> Result<(Self, usize), &str> {
@@ -102,14 +346,110 @@ impl TimeCodeMsg {
     }
 }
 
-#[derive(Debug, Copy, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum TimeCodeCueingMsg {
-    //TODO
+    SystemStop,
+    PunchIn {
+        event_number: u16,
+    },
+    PunchOut {
+        event_number: u16,
+    },
+    EventStart {
+        event_number: u16,
+        additional_information: Vec<MidiMsg>,
+    },
+    EventStop {
+        event_number: u16,
+        additional_information: Vec<MidiMsg>,
+    },
+    Cue {
+        event_number: u16,
+        additional_information: Vec<MidiMsg>,
+    },
+    EventName {
+        event_number: u16,
+        name: AsciiString,
+    },
+}
+
+fn push_nibblized_midi(msgs: &[MidiMsg], v: &mut Vec<u8>) {
+    for msg in msgs.iter() {
+        for b in msg.to_midi().iter() {
+            let [msn, lsn] = to_nibble(*b);
+            v.push(lsn);
+            v.push(msn);
+        }
+    }
+}
+
+fn push_nibblized_name(name: &AsciiString, v: &mut Vec<u8>) {
+    // Not sure if this actually handles newlines correctly
+    for b in name.as_bytes().iter() {
+        let [msn, lsn] = to_nibble(*b);
+        v.push(lsn);
+        v.push(msn);
+    }
 }
 
 impl TimeCodeCueingMsg {
     pub(crate) fn extend_midi(&self, v: &mut Vec<u8>) {
-        // TODO
+        match self {
+            Self::SystemStop => {
+                v.push(0x00);
+                v.push(0x04);
+                v.push(0x00);
+            }
+            Self::PunchIn { event_number } => {
+                v.push(0x01);
+                push_u14(*event_number, v);
+            }
+            Self::PunchOut { event_number } => {
+                v.push(0x02);
+                push_u14(*event_number, v);
+            }
+            Self::EventStart {
+                event_number,
+                additional_information,
+            } => {
+                if additional_information.is_empty() {
+                    v.push(0x05);
+                } else {
+                    v.push(0x07);
+                }
+                push_u14(*event_number, v);
+                push_nibblized_midi(additional_information, v);
+            }
+            Self::EventStop {
+                event_number,
+                additional_information,
+            } => {
+                if additional_information.is_empty() {
+                    v.push(0x06);
+                } else {
+                    v.push(0x08);
+                }
+                push_u14(*event_number, v);
+                push_nibblized_midi(additional_information, v);
+            }
+            Self::Cue {
+                event_number,
+                additional_information,
+            } => {
+                if additional_information.is_empty() {
+                    v.push(0x0B);
+                } else {
+                    v.push(0x0C);
+                }
+                push_u14(*event_number, v);
+                push_nibblized_midi(additional_information, v);
+            }
+            Self::EventName { event_number, name } => {
+                v.push(0x0E);
+                push_u14(*event_number, v);
+                push_nibblized_name(name, v);
+            }
+        }
     }
 
     pub(crate) fn from_midi(_m: &[u8]) -> Result<(Self, usize), &str> {
@@ -119,21 +459,73 @@ impl TimeCodeCueingMsg {
 
 #[cfg(test)]
 mod tests {
-    // use super::*;
+    use crate::*;
 
     #[test]
-    fn serialize_time_code_msg() {
-        // TODO
-        // assert_eq!(
-        //     MidiMsg::ChannelVoice {
-        //         channel: Channel::Ch1,
-        //         msg: ChannelVoiceMsg::NoteOn {
-        //             note: 0x88,
-        //             velocity: 0xff
-        //         }
-        //     }
-        //     .to_midi(),
-        //     vec![0x90, 0x7f, 127]
-        // );
+    fn serialize_time_code_cuing_setup_msg() {
+        assert_eq!(
+            MidiMsg::SystemExclusive {
+                msg: SystemExclusiveMsg::UniversalNonRealTime {
+                    device: DeviceID::AllCall,
+                    msg: UniversalNonRealTimeMsg::TimeCodeCueingSetup(
+                        TimeCodeCueingSetupMsg::SystemStop
+                    ),
+                },
+            }
+            .to_midi(),
+            vec![0xF0, 0x7E, 0x7f, 04, 00, 96, 00, 00, 00, 00, 04, 00, 0xF7]
+        );
+    }
+    #[test]
+    fn serialize_time_code_cuing_msg() {
+        assert_eq!(
+            MidiMsg::SystemExclusive {
+                msg: SystemExclusiveMsg::UniversalRealTime {
+                    device: DeviceID::AllCall,
+                    msg: UniversalRealTimeMsg::TimeCodeCueing(TimeCodeCueingMsg::SystemStop),
+                },
+            }
+            .to_midi(),
+            vec![0xF0, 0x7F, 0x7f, 05, 00, 04, 00, 0xF7]
+        );
+
+        assert_eq!(
+            MidiMsg::SystemExclusive {
+                msg: SystemExclusiveMsg::UniversalRealTime {
+                    device: DeviceID::AllCall,
+                    msg: UniversalRealTimeMsg::TimeCodeCueing(TimeCodeCueingMsg::EventStart {
+                        event_number: 511,
+                        additional_information: vec![]
+                    }),
+                },
+            }
+            .to_midi(),
+            vec![0xF0, 0x7F, 0x7f, 05, 05, 0x7f, 0x03, 0xF7]
+        );
+
+        assert_eq!(
+            MidiMsg::SystemExclusive {
+                msg: SystemExclusiveMsg::UniversalRealTime {
+                    device: DeviceID::AllCall,
+                    msg: UniversalRealTimeMsg::TimeCodeCueing(TimeCodeCueingMsg::EventStart {
+                        event_number: 511,
+                        additional_information: vec![MidiMsg::ChannelVoice {
+                            channel: Channel::Ch2,
+                            msg: ChannelVoiceMsg::NoteOn {
+                                note: 0x55,
+                                velocity: 0x67
+                            }
+                        }]
+                    }),
+                },
+            }
+            .to_midi(),
+            vec![
+                0xF0, 0x7F, 0x7f, 05, 07, 0x7f, 0x03,
+                // Note on midi msg: 0x91, 0x55, 0x67
+                0x01, 0x09, 0x05, 0x05, 0x07, 0x06, // End
+                0xF7
+            ]
+        );
     }
 }

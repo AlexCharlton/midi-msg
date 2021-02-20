@@ -156,8 +156,7 @@ impl UniversalRealTimeMsg {
             UniversalRealTimeMsg::TimeCodeFull(code) => {
                 v.push(01);
                 v.push(01);
-                let [frame, seconds, minutes, codehour] = code.to_bytes();
-                v.extend_from_slice(&[codehour, minutes, seconds, frame]);
+                code.extend_midi(v);
             }
             UniversalRealTimeMsg::TimeCodeUserBits(user_bits) => {
                 v.push(01);
@@ -222,7 +221,7 @@ impl UniversalRealTimeMsg {
 #[derive(Debug, Clone, PartialEq)]
 pub enum UniversalNonRealTimeMsg {
     SampleDump(SampleDumpMsg),
-    TimeCode(TimeCodeMsg),
+    TimeCodeCueingSetup(TimeCodeCueingSetupMsg),
     IdentityRequest,
     IdentityReply(IdentityReply),
     FileDump(FileDumpMsg),
@@ -257,7 +256,7 @@ impl UniversalNonRealTimeMsg {
                 }
                 msg.extend_midi(v);
             }
-            UniversalNonRealTimeMsg::TimeCode(msg) => {
+            UniversalNonRealTimeMsg::TimeCodeCueingSetup(msg) => {
                 v.push(04);
                 msg.extend_midi(v);
             }
