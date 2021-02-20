@@ -23,8 +23,6 @@ pub enum SampleDumpMsg {
         running_count: u8,
         /// At most 120 7 bit words
         data: Vec<u8>,
-        /// Checksum (XOR of full message before the checkpoint). Computed automatically
-        checksum: u8,
     },
     Request {
         sample_num: u16,
@@ -119,7 +117,6 @@ impl SampleDumpMsg {
 
         Self::Packet {
             running_count: (num % 128) as u8,
-            checksum: 0, // Calculated later
             data: data.to_vec(),
         }
     }

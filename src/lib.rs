@@ -1,4 +1,8 @@
 mod util;
+pub use util::{
+    freq_to_midi_note_cents, freq_to_midi_note_float, midi_note_cents_to_freq,
+    midi_note_float_to_freq,
+};
 
 pub mod time_code;
 pub use time_code::*;

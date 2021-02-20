@@ -63,11 +63,11 @@ impl TimeCode {
 pub struct UserBits {
     /// Full bytes can be used here. Sent such that the first is considered
     /// the "most significant" value
-    bytes: (u8, u8, u8, u8),
+    pub bytes: (u8, u8, u8, u8),
     /// SMPTE time code bit 43 (EBU bit 27)
-    flag1: bool,
+    pub flag1: bool,
     /// SMPTE time code bit 59 (EBU bit 43)
-    flag2: bool,
+    pub flag2: bool,
 }
 
 impl UserBits {

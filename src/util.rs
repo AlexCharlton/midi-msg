@@ -56,6 +56,11 @@ pub fn to_nibble(x: u8) -> [u8; 2] {
 }
 
 #[inline]
+pub fn push_u7(x: u8, v: &mut Vec<u8>) {
+    v.push(to_u7(x));
+}
+
+#[inline]
 pub fn push_u14(x: u16, v: &mut Vec<u8>) {
     let [msb, lsb] = to_u14(x);
     v.push(lsb);
@@ -92,6 +97,34 @@ pub fn checksum(bytes: &[u8]) -> u8 {
         sum ^= b;
     }
     sum
+}
+
+/// Given a frequency in Hertz, returns a floating point midi note number with 1.0 = 100 cents
+pub fn freq_to_midi_note_float(freq: f32) -> f32 {
+    12.0 * (freq / 440.0).log2() + 69.0
+}
+
+/// Returns (midi_note_number, additional cents from semitone)
+pub fn freq_to_midi_note_cents(freq: f32) -> (u8, f32) {
+    let semitone = freq_to_midi_note_float(freq);
+    (semitone as u8, semitone.fract() * 100.0)
+}
+
+/// Given a floating point midi note number, return the frequency in Hertz
+pub fn midi_note_float_to_freq(note: f32) -> f32 {
+    (2.0 as f32).powf((note - 69.0) / 12.0) * 440.0
+}
+
+/// Given a midi note number and additional cents, return the frequency
+pub fn midi_note_cents_to_freq(note: u8, cents: f32) -> f32 {
+    midi_note_float_to_freq(note as f32 + cents / 100.0)
+}
+
+/// Takes a positive value between 0.0 and 100.0 and fits it into the u14 range
+/// 1 = 0.0061 cents
+pub fn cents_to_u14(cents: f32) -> u16 {
+    let cents = cents.max(0.0).min(100.0);
+    (cents / 100.0 * (0b11111111111111 as f32)).round() as u16
 }
 
 #[cfg(test)]
@@ -148,5 +181,29 @@ mod tests {
             checksum(&[0x41, 0x4D, 0x02, 0x41, 0x21, 0x04, 0x02, 0x02]),
             0x6A
         )
+    }
+
+    fn freq_to_midi_note_u14(freq: f32) -> (u8, u16) {
+        let (n, c) = freq_to_midi_note_cents(freq);
+        (n, cents_to_u14(c))
+    }
+
+    #[test]
+    fn test_freq_to_midi_note() {
+        assert_eq!(freq_to_midi_note_u14(8.1758), (0x00, 0x00));
+        assert_eq!(freq_to_midi_note_u14(8.2104), (0x00, 1198));
+        assert_eq!(freq_to_midi_note_u14(8.66197), (0x01, 0x00));
+        assert_eq!(freq_to_midi_note_u14(261.6256), (0x3C, 0x00));
+        assert_eq!(freq_to_midi_note_u14(440.0000), (0x45, 0x00));
+        assert_eq!(freq_to_midi_note_u14(440.0016), (0x45, 0x01));
+        assert_eq!(freq_to_midi_note_u14(8372.0190), (0x78, 0x00));
+        assert_eq!(freq_to_midi_note_u14(8372.0630), (0x78, 0x01));
+        assert_eq!(freq_to_midi_note_u14(12543.8700), (0x7F, 0x00));
+        assert_eq!(freq_to_midi_note_u14(13289.7100), (0x7F, 0x3FFE));
+    }
+
+    #[test]
+    fn test_midi_note_float_to_freq() {
+        assert_eq!(midi_note_float_to_freq(69.0), 440.0);
     }
 }

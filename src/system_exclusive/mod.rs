@@ -66,6 +66,10 @@ impl SystemExclusiveMsg {
                     const BYTES_IN_MSG: usize = 125; // Minus 0xF0 .. 0xF7
                     v[p + BYTES_IN_MSG - 1] = checksum(&v[p..BYTES_IN_MSG - 1]);
                 }
+                if let UniversalNonRealTimeMsg::TuningBulkDumpReply(_) = msg {
+                    const BYTES_IN_MSG: usize = 406; // Minus 0xF0 .. 0xF7
+                    v[p + BYTES_IN_MSG - 1] = checksum(&v[p..BYTES_IN_MSG - 1]);
+                }
                 if let UniversalNonRealTimeMsg::FileDump(FileDumpMsg::Packet { .. }) = msg {
                     let q = v.len();
                     v[q - 1] = checksum(&v[p..q - 1]);
@@ -224,7 +228,8 @@ pub enum UniversalNonRealTimeMsg {
     FileDump(FileDumpMsg),
     // Tuning program number, 0-127
     TuningBulkDumpRequest(u8),
-    TuningBulkDumpReply(u8, TuningBulkDumpReply),
+    TuningBulkDumpReply(TuningBulkDumpReply),
+    TuningNoteChange(TuningNoteChange),
     GeneralMidi(bool),
     EOF,
     Wait,
@@ -274,10 +279,14 @@ impl UniversalNonRealTimeMsg {
                 v.push(00);
                 v.push(to_u7(*program_num));
             }
-            UniversalNonRealTimeMsg::TuningBulkDumpReply(program_num, tuning) => {
+            UniversalNonRealTimeMsg::TuningBulkDumpReply(tuning) => {
                 v.push(08);
                 v.push(01);
-                v.push(to_u7(*program_num));
+                tuning.extend_midi(v);
+            }
+            UniversalNonRealTimeMsg::TuningNoteChange(tuning) => {
+                v.push(08);
+                v.push(07);
                 tuning.extend_midi(v);
             }
             UniversalNonRealTimeMsg::GeneralMidi(on) => {
@@ -314,11 +323,11 @@ impl UniversalNonRealTimeMsg {
 
 #[derive(Debug, Copy, Clone, PartialEq)]
 pub struct IdentityReply {
-    id: ManufacturerID,
-    family: u16,
-    family_member: u16,
+    pub id: ManufacturerID,
+    pub family: u16,
+    pub family_member: u16,
     /// Four values, 0-127, sent in order provided
-    software_revision: (u8, u8, u8, u8),
+    pub software_revision: (u8, u8, u8, u8),
 }
 
 impl IdentityReply {

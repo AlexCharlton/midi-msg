@@ -40,15 +40,15 @@ impl BarMarker {
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct TimeSignature {
-    signature: Signature,
+    pub signature: Signature,
     /// How many MIDI clock events per metronome click.
     /// 24 indicates one click per quarter note (unless specified otherwise by `thirty_second_notes_in_midi_quarter_note`)
-    midi_clocks_in_metronome_click: u8,
+    pub midi_clocks_in_metronome_click: u8,
     /// Number of notated 32nd notes in a MIDI quarter note.
     /// 8 is the normal value (e.g. a midi quarter note is a quarter note)
-    thirty_second_notes_in_midi_quarter_note: u8,
+    pub thirty_second_notes_in_midi_quarter_note: u8,
     /// At most 61 (!) additional times signatures for compound time definitions
-    compound: Vec<Signature>,
+    pub compound: Vec<Signature>,
 }
 
 impl Default for TimeSignature {
@@ -86,8 +86,8 @@ impl TimeSignature {
 #[derive(Debug, Copy, Clone, PartialEq)]
 pub struct Signature {
     /// Number of beats in a bar
-    beats: u8,
-    beat_value: BeatValue,
+    pub beats: u8,
+    pub beat_value: BeatValue,
 }
 
 impl Signature {

@@ -17,8 +17,6 @@ pub enum FileDumpMsg {
         running_count: u8,
         /// At most 112 bytes (full 8 bits may be used)
         data: Vec<u8>,
-        /// Checksum (XOR of full message before the checkpoint). Computed automatically
-        checksum: u8,
     },
     Request {
         requester_device: DeviceID,
@@ -74,7 +72,6 @@ impl FileDumpMsg {
     pub fn packet(num: u32, data: Vec<u8>) -> Self {
         Self::Packet {
             running_count: (num % 128) as u8,
-            checksum: 0, // Calculated later
             data,
         }
     }
