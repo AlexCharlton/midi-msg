@@ -101,6 +101,119 @@ impl HighResTimeCode {
     }
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Default)]
+/// Like `TimeCode` but uses `subframes` to optional include status flags, and fractional frames may be negative
+pub struct StandardTimeCode {
+    pub subframes: SubFrames,
+    /// -29-29
+    pub frames: i8,
+    /// 0-59
+    pub seconds: u8,
+    /// 0-59
+    pub minutes: u8,
+    /// 0-23
+    pub hours: u8,
+    pub code_type: TimeCodeType,
+}
+
+impl StandardTimeCode {
+    /// Return the five byte representation of the frame:
+    /// [fractional_frames, frames, seconds, minutes, timecode + hours]
+    pub fn to_bytes(self) -> [u8; 5] {
+        let [subframes, frames] = self.to_bytes_short();
+        [
+            subframes,
+            frames,
+            self.seconds.min(59),
+            self.minutes.min(59),
+            self.hours.min(23) + ((self.code_type as u8) << 5),
+        ]
+    }
+
+    pub fn to_bytes_short(self) -> [u8; 2] {
+        let mut frames = self.frames.abs().min(29) as u8;
+        if let SubFrames::Status(_) = self.subframes {
+            frames += 1 << 5;
+        }
+        if self.frames < 0 {
+            frames += 1 << 6;
+        }
+        [self.subframes.to_byte(), frames]
+    }
+
+    fn extend_midi(&self, v: &mut Vec<u8>) {
+        let [subframes, frames, seconds, minutes, codehour] = self.to_bytes();
+        v.extend_from_slice(&[codehour, minutes, seconds, frames, subframes]);
+    }
+
+    fn extend_midi_short(&self, v: &mut Vec<u8>) {
+        let [subframes, frames] = self.to_bytes_short();
+        v.extend_from_slice(&[frames, subframes]);
+    }
+}
+
+impl From<TimeCode> for StandardTimeCode {
+    fn from(t: TimeCode) -> Self {
+        Self {
+            subframes: Default::default(),
+            frames: t.frames as i8,
+            seconds: t.seconds,
+            minutes: t.minutes,
+            hours: t.hours,
+            code_type: t.code_type,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum SubFrames {
+    /// 0-99
+    FractionalFrames(u8),
+    Status(TimeCodeStatus),
+}
+
+impl Default for SubFrames {
+    fn default() -> Self {
+        Self::FractionalFrames(0)
+    }
+}
+
+impl SubFrames {
+    fn to_byte(&self) -> u8 {
+        match *self {
+            Self::FractionalFrames(ff) => ff.min(99),
+            Self::Status(s) => s.to_byte(),
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Default)]
+pub struct TimeCodeStatus {
+    estimated_code: bool,
+    invalid_code: bool,
+    video_field1: bool,
+    no_time_code: bool,
+}
+
+impl TimeCodeStatus {
+    fn to_byte(&self) -> u8 {
+        let mut b: u8 = 0;
+        if self.estimated_code {
+            b += 1 << 6;
+        }
+        if self.invalid_code {
+            b += 1 << 5;
+        }
+        if self.video_field1 {
+            b += 1 << 4;
+        }
+        if self.no_time_code {
+            b += 1 << 3;
+        }
+        b
+    }
+}
+
 #[derive(Debug, Copy, Clone, PartialEq)]
 pub struct UserBits {
     /// Full bytes can be used here. Sent such that the first is considered
@@ -114,10 +227,10 @@ pub struct UserBits {
 
 impl UserBits {
     pub fn to_nibbles(&self) -> [u8; 9] {
-        let [uh, ug] = to_nibble(self.bytes.3);
-        let [uf, ue] = to_nibble(self.bytes.2);
-        let [ud, uc] = to_nibble(self.bytes.1);
-        let [ub, ua] = to_nibble(self.bytes.0);
+        let [uh, ug] = to_nibble(self.bytes.0);
+        let [uf, ue] = to_nibble(self.bytes.1);
+        let [ud, uc] = to_nibble(self.bytes.2);
+        let [ub, ua] = to_nibble(self.bytes.3);
         let mut flags: u8 = 0;
         if self.flag1 {
             flags += 1;
@@ -126,6 +239,87 @@ impl UserBits {
             flags += 2;
         }
         [ua, ub, uc, ud, ue, uf, ug, uh, flags]
+    }
+}
+
+#[derive(Debug, Copy, Clone, PartialEq)]
+pub struct StandardUserBits {
+    /// Full bytes can be used here. Sent such that the first is considered
+    /// the "most significant" value
+    bytes: (u8, u8, u8, u8),
+    /// SMPTE time code bit 43 (EBU bit 27)
+    flag1: bool,
+    /// SMPTE time code bit 59 (EBU bit 43)
+    flag2: bool,
+    /// Contains a secondary time code
+    secondary_time_code: bool,
+}
+
+impl StandardUserBits {
+    pub fn to_nibbles(&self) -> [u8; 9] {
+        let [uh, ug] = to_nibble(self.bytes.0);
+        let [uf, ue] = to_nibble(self.bytes.1);
+        let [ud, uc] = to_nibble(self.bytes.2);
+        let [ub, ua] = to_nibble(self.bytes.3);
+        let mut flags: u8 = 0;
+        if self.flag1 {
+            flags += 1;
+        }
+        if self.flag2 {
+            flags += 2;
+        }
+        if self.secondary_time_code {
+            flags += 4;
+        }
+        [ua, ub, uc, ud, ue, uf, ug, uh, flags]
+    }
+}
+
+impl From<StandardUserBits> for TimeCode {
+    fn from(t: StandardUserBits) -> Self {
+        let [ua, ub, uc, ud, ue, uf, ug, uh, _] = t.to_nibbles();
+        let frames = (ub << 4) + ua;
+        let seconds = (ud << 4) + uc;
+        let minutes = (uf << 4) + ue;
+        let hours = ((uh & 0b0001) << 4) + ug;
+        let code_type = (uh & 0b0110) >> 1;
+
+        TimeCode {
+            frames,
+            seconds,
+            minutes,
+            hours,
+            code_type: match code_type {
+                3 => TimeCodeType::NDF30,
+                2 => TimeCodeType::DF30,
+                1 => TimeCodeType::FPS25,
+                0 => TimeCodeType::FPS24,
+                _ => panic!("Should not be reachable"),
+            },
+        }
+    }
+}
+
+impl From<TimeCode> for StandardUserBits {
+    fn from(t: TimeCode) -> Self {
+        let [frame, seconds, minutes, codehour] = t.to_bytes();
+        StandardUserBits {
+            bytes: (codehour, minutes, seconds, frame),
+            flag1: false,
+            flag2: false,
+            secondary_time_code: true,
+        }
+    }
+}
+
+impl From<UserBits> for StandardUserBits {
+    fn from(t: UserBits) -> Self {
+        Self {
+            bytes: t.bytes,
+            flag1: t.flag1,
+            flag2: t.flag2,
+            secondary_time_code: false,
+        }
     }
 }
 

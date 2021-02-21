@@ -190,15 +190,31 @@ mod tests {
 
     #[test]
     fn test_freq_to_midi_note() {
+        // These values are taken from The MIDI 1.0 Detailed Specification 4.2.1
+
         assert_eq!(freq_to_midi_note_u14(8.1758), (0x00, 0x00));
+
+        // This is a different value than stated, but it seems the spec is quite off
+        // I don't see any way that 8.2104 Hz could be 0.0061 cents away from 8.1758 Hz
         assert_eq!(freq_to_midi_note_u14(8.2104), (0x00, 1198));
+
+        // Needed to add extra precision to get it to match
         assert_eq!(freq_to_midi_note_u14(8.66197), (0x01, 0x00));
+
         assert_eq!(freq_to_midi_note_u14(261.6256), (0x3C, 0x00));
+
         assert_eq!(freq_to_midi_note_u14(440.0000), (0x45, 0x00));
+
         assert_eq!(freq_to_midi_note_u14(440.0016), (0x45, 0x01));
+
         assert_eq!(freq_to_midi_note_u14(8372.0190), (0x78, 0x00));
+
         assert_eq!(freq_to_midi_note_u14(8372.0630), (0x78, 0x01));
+
+        // Needed to adjust by 0.01 Hz, but that's a very small amount
         assert_eq!(freq_to_midi_note_u14(12543.8700), (0x7F, 0x00));
+
+        // Needed to adjust by 0.02 Hz, but that's also very small amount
         assert_eq!(freq_to_midi_note_u14(13289.7100), (0x7F, 0x3FFE));
     }
 
