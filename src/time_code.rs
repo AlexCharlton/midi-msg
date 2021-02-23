@@ -141,12 +141,12 @@ impl StandardTimeCode {
         [self.subframes.to_byte(), frames]
     }
 
-    fn extend_midi(&self, v: &mut Vec<u8>) {
+    pub(crate) fn extend_midi(&self, v: &mut Vec<u8>) {
         let [subframes, frames, seconds, minutes, codehour] = self.to_bytes();
         v.extend_from_slice(&[codehour, minutes, seconds, frames, subframes]);
     }
 
-    fn extend_midi_short(&self, v: &mut Vec<u8>) {
+    pub(crate) fn extend_midi_short(&self, v: &mut Vec<u8>) {
         let [subframes, frames] = self.to_bytes_short();
         v.extend_from_slice(&[frames, subframes]);
     }
@@ -189,10 +189,10 @@ impl SubFrames {
 
 #[derive(Debug, Clone, Copy, PartialEq, Default)]
 pub struct TimeCodeStatus {
-    estimated_code: bool,
-    invalid_code: bool,
-    video_field1: bool,
-    no_time_code: bool,
+    pub estimated_code: bool,
+    pub invalid_code: bool,
+    pub video_field1: bool,
+    pub no_time_code: bool,
 }
 
 impl TimeCodeStatus {
@@ -218,11 +218,11 @@ impl TimeCodeStatus {
 pub struct UserBits {
     /// Full bytes can be used here. Sent such that the first is considered
     /// the "most significant" value
-    bytes: (u8, u8, u8, u8),
+    pub bytes: (u8, u8, u8, u8),
     /// SMPTE time code bit 43 (EBU bit 27)
-    flag1: bool,
+    pub flag1: bool,
     /// SMPTE time code bit 59 (EBU bit 43)
-    flag2: bool,
+    pub flag2: bool,
 }
 
 impl UserBits {
@@ -246,13 +246,13 @@ impl UserBits {
 pub struct StandardUserBits {
     /// Full bytes can be used here. Sent such that the first is considered
     /// the "most significant" value
-    bytes: (u8, u8, u8, u8),
+    pub bytes: (u8, u8, u8, u8),
     /// SMPTE time code bit 43 (EBU bit 27)
-    flag1: bool,
+    pub flag1: bool,
     /// SMPTE time code bit 59 (EBU bit 43)
-    flag2: bool,
+    pub flag2: bool,
     /// Contains a secondary time code
-    secondary_time_code: bool,
+    pub secondary_time_code: bool,
 }
 
 impl StandardUserBits {
