@@ -4,6 +4,17 @@ pub fn to_u7(x: u8) -> u8 {
 }
 
 #[inline]
+pub fn to_i7(x: i8) -> u8 {
+    if x > 63 {
+        0x7f
+    } else if x < -64 {
+        0x40
+    } else {
+        x as u8 & 0b01111111
+    }
+}
+
+#[inline]
 pub fn to_u14(x: u16) -> [u8; 2] {
     if x > 16383 {
         [0x7f, 0x7f]
@@ -58,6 +69,11 @@ pub fn to_nibble(x: u8) -> [u8; 2] {
 #[inline]
 pub fn push_u7(x: u8, v: &mut Vec<u8>) {
     v.push(to_u7(x));
+}
+
+#[inline]
+pub fn push_i7(x: i8, v: &mut Vec<u8>) {
+    v.push(to_i7(x));
 }
 
 #[inline]

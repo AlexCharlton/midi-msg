@@ -144,6 +144,12 @@ pub enum UniversalRealTimeMsg {
     TimeSignatureDelayed(TimeSignature),
     MasterVolume(u16),
     MasterBalance(u16),
+    /// A value from -8192-8191, used like `Parameter::FineTuning`
+    /// Defined in CA 25
+    MasterFineTuning(i16),
+    /// A value from -64-63, used like `Parameter::CoarseTuning`
+    /// Defined in CA 25
+    MasterCoarseTuning(i8),
     TimeCodeCueing(TimeCodeCueingMsg),
     MachineControlCommand(MachineControlCommandMsg),
     MachineControlResponse(MachineControlResponseMsg),
@@ -192,6 +198,16 @@ impl UniversalRealTimeMsg {
                 v.push(04);
                 v.push(02);
                 push_u14(*bal, v);
+            }
+            UniversalRealTimeMsg::MasterFineTuning(t) => {
+                v.push(04);
+                v.push(03);
+                push_i14(*t, v);
+            }
+            UniversalRealTimeMsg::MasterCoarseTuning(t) => {
+                v.push(04);
+                v.push(04);
+                push_i7(*t, v);
             }
             UniversalRealTimeMsg::TimeCodeCueing(msg) => {
                 v.push(05);

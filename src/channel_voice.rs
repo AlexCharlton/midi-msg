@@ -191,13 +191,15 @@ pub enum ControlChange {
     /// Max 127
     Phaser(u8),
 
-    // Parameters
+    /// Registered and Unregistered Parameters
     Parameter(Parameter),
-    /// Max 16383
+    /// Set the value of the last-set Parameter 0-16383
     DataEntry(u16),
-    /// Max 127
+    /// Set the MSB and LSB of the last-set parameter separately
+    DataEntry2(u8, u8),
+    /// Increment the value of the last-set Parameter 0-127
     DataIncrement(u8),
-    /// Max 127
+    /// Decrement the value of the last-set Parameter 0-127
     DataDecrement(u8),
 }
 
@@ -364,6 +366,12 @@ impl ControlChange {
             // Parameters
             ControlChange::Parameter(p) => p.extend_midi_running(v),
             ControlChange::DataEntry(x) => ControlChange::high_res_cc(v, 6, x),
+            ControlChange::DataEntry2(msb, lsb) => {
+                v.push(6);
+                v.push(msb);
+                v.push(6 + 32);
+                v.push(lsb);
+            }
             ControlChange::DataIncrement(x) => {
                 v.push(96);
                 v.push(to_u7(x));
@@ -377,14 +385,40 @@ impl ControlChange {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]
+/// "Entry" Parameters can be used to set the given parameters
 pub enum Parameter {
+    /// The pitch bend sensitivity in semitones (0-127) and the sensitivity in cents (0-100),
+    /// respectively. For example, a value (1, 0) means +/- one semitone (a total range of two
+    /// semitones)
     PitchBendSensitivity,
+    PitchBendSensitivityEntry(u8, u8),
+    /// A value from -8192-8191, representing the fractional cents to shift away from A440
+    /// in 1/8192ths of a cent
     FineTuning,
+    FineTuningEntry(i16),
+    /// A value from -64-63, the number of semitones to shift away from A44
     CoarseTuning,
+    CoarseTuningEntry(i8),
+    /// Which "Tuning Program" to select from: 0-127
+    /// Defined in the MIDI Tuning Standard (Updated Specification)
     TuningProgramSelect,
+    TuningProgramSelectEntry(u8),
+    /// Which "Tuning Bank" to select from: 0-127
+    /// Defined in the MIDI Tuning Standard (Updated Specification)
     TuningBankSelect,
+    TuningBankSelectEntry(u8),
+    /// The amount of "modulation depth" your mod wheel should apply: 0-16383
+    /// There's no firm definition of what this means. Defined in CA 26
     ModulationDepthRange,
+    ModulationDepthRangeEntry(u16),
+    /// Only valid when sent to channel 1 or channel 16, the former indicating that this
+    /// is configuring the number of "lower zone" channels and the latter referring to the
+    /// "upper zone". A value between 0 (zone is not configured to be MPE) and 16 (zone has
+    /// 16 channels in it). There can be no more than lower zone channels + upper zone channels
+    /// active at a given time.
+    /// Defined in RP-053: MIDI Polyphonic Expression
     PolyphonicExpression,
+    PolyphonicExpressionEntry(u8),
     /// 0-16383
     Unregistered(u16),
 }
@@ -398,11 +432,34 @@ impl Parameter {
                 v.push(101);
                 v.push(0);
             }
+            Parameter::PitchBendSensitivityEntry(c, f) => {
+                v.push(100);
+                v.push(0);
+                v.push(101);
+                v.push(0);
+                // Data entry:
+                v.push(6);
+                v.push(*c);
+                v.push(6 + 32);
+                v.push((*f).min(100));
+            }
             Parameter::FineTuning => {
                 v.push(100);
                 v.push(1);
                 v.push(101);
                 v.push(0);
+            }
+            Parameter::FineTuningEntry(x) => {
+                v.push(100);
+                v.push(1);
+                v.push(101);
+                v.push(0);
+                // Data entry:
+                let [msb, lsb] = to_i14(*x);
+                v.push(6);
+                v.push(msb);
+                v.push(6 + 32);
+                v.push(lsb);
             }
             Parameter::CoarseTuning => {
                 v.push(100);
@@ -410,11 +467,32 @@ impl Parameter {
                 v.push(101);
                 v.push(0);
             }
+            Parameter::CoarseTuningEntry(x) => {
+                v.push(100);
+                v.push(2);
+                v.push(101);
+                v.push(0);
+                // Data entry:
+                let lsb = to_i7(*x);
+                v.push(6);
+                v.push(0);
+                v.push(6 + 32);
+                v.push(lsb);
+            }
             Parameter::TuningProgramSelect => {
                 v.push(100);
                 v.push(3);
                 v.push(101);
                 v.push(0);
+            }
+            Parameter::TuningProgramSelectEntry(x) => {
+                v.push(100);
+                v.push(3);
+                v.push(101);
+                v.push(0);
+                // Data entry (MSB only)
+                v.push(6);
+                v.push(*x);
             }
             Parameter::TuningBankSelect => {
                 v.push(100);
@@ -422,17 +500,43 @@ impl Parameter {
                 v.push(101);
                 v.push(0);
             }
+            Parameter::TuningBankSelectEntry(x) => {
+                v.push(100);
+                v.push(3);
+                v.push(101);
+                v.push(0);
+                // Data entry (MSB only)
+                v.push(6);
+                v.push(*x);
+            }
             Parameter::ModulationDepthRange => {
                 v.push(100);
                 v.push(5);
                 v.push(101);
                 v.push(0);
             }
+            Parameter::ModulationDepthRangeEntry(x) => {
+                v.push(100);
+                v.push(5);
+                v.push(101);
+                v.push(0);
+                // Data entry
+                ControlChange::high_res_cc(v, 6, *x);
+            }
             Parameter::PolyphonicExpression => {
                 v.push(100);
                 v.push(6);
                 v.push(101);
                 v.push(0);
+            }
+            Parameter::PolyphonicExpressionEntry(x) => {
+                v.push(100);
+                v.push(6);
+                v.push(101);
+                v.push(0);
+                // Data entry (MSB only)
+                v.push(6);
+                v.push((*x).min(16));
             }
             Parameter::Unregistered(x) => {
                 let [msb, lsb] = to_u14(*x);
