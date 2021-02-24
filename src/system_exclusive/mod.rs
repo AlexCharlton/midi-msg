@@ -63,12 +63,20 @@ impl SystemExclusiveMsg {
                 v.push(device.to_u8());
                 msg.extend_midi(v);
                 if let UniversalNonRealTimeMsg::SampleDump(SampleDumpMsg::Packet { .. }) = msg {
-                    const BYTES_IN_MSG: usize = 125; // Minus 0xF0 .. 0xF7
-                    v[p + BYTES_IN_MSG - 1] = checksum(&v[p..BYTES_IN_MSG - 1]);
+                    let q = v.len();
+                    v[q - 1] = checksum(&v[p..q - 1]);
                 }
-                if let UniversalNonRealTimeMsg::TuningBulkDumpReply(_) = msg {
-                    const BYTES_IN_MSG: usize = 406; // Minus 0xF0 .. 0xF7
-                    v[p + BYTES_IN_MSG - 1] = checksum(&v[p..BYTES_IN_MSG - 1]);
+                if let UniversalNonRealTimeMsg::KeyBasedTuningDump(_) = msg {
+                    let q = v.len();
+                    v[q - 1] = checksum(&v[p..q - 1]);
+                }
+                if let UniversalNonRealTimeMsg::ScaleTuning1Byte(_) = msg {
+                    let q = v.len();
+                    v[q - 1] = checksum(&v[p..q - 1]);
+                }
+                if let UniversalNonRealTimeMsg::ScaleTuning2Byte(_) = msg {
+                    let q = v.len();
+                    v[q - 1] = checksum(&v[p..q - 1]);
                 }
                 if let UniversalNonRealTimeMsg::FileDump(FileDumpMsg::Packet { .. }) = msg {
                     let q = v.len();
@@ -154,6 +162,8 @@ pub enum UniversalRealTimeMsg {
     MachineControlCommand(MachineControlCommandMsg),
     MachineControlResponse(MachineControlResponseMsg),
     TuningNoteChange(TuningNoteChange),
+    ScaleTuning1Byte(ScaleTuning1Byte),
+    ScaleTuning2Byte(ScaleTuning2Byte),
 }
 
 impl UniversalRealTimeMsg {
@@ -223,8 +233,25 @@ impl UniversalRealTimeMsg {
             }
             UniversalRealTimeMsg::TuningNoteChange(note_change) => {
                 v.push(08);
-                v.push(02);
+                v.push(if note_change.tuning_bank_num.is_some() {
+                    07
+                } else {
+                    02
+                });
+                if let Some(bank_num) = note_change.tuning_bank_num {
+                    v.push(to_u7(bank_num))
+                }
                 note_change.extend_midi(v);
+            }
+            UniversalRealTimeMsg::ScaleTuning1Byte(tuning) => {
+                v.push(08);
+                v.push(08);
+                tuning.extend_midi(v);
+            }
+            UniversalRealTimeMsg::ScaleTuning2Byte(tuning) => {
+                v.push(08);
+                v.push(09);
+                tuning.extend_midi(v);
             }
         }
     }
@@ -241,10 +268,14 @@ pub enum UniversalNonRealTimeMsg {
     IdentityRequest,
     IdentityReply(IdentityReply),
     FileDump(FileDumpMsg),
-    // Tuning program number, 0-127
-    TuningBulkDumpRequest(u8),
-    TuningBulkDumpReply(TuningBulkDumpReply),
+    // Tuning program number, 0-127, and optional tuning bank number, 0-127
+    TuningBulkDumpRequest(u8, Option<u8>),
+    KeyBasedTuningDump(KeyBasedTuningDump),
+    ScaleTuningDump1Byte(ScaleTuningDump1Byte),
+    ScaleTuningDump2Byte(ScaleTuningDump2Byte),
     TuningNoteChange(TuningNoteChange),
+    ScaleTuning1Byte(ScaleTuning1Byte),
+    ScaleTuning2Byte(ScaleTuning2Byte),
     GeneralMidi(bool),
     EOF,
     Wait,
@@ -289,19 +320,51 @@ impl UniversalNonRealTimeMsg {
                 v.push(07);
                 msg.extend_midi(v);
             }
-            UniversalNonRealTimeMsg::TuningBulkDumpRequest(program_num) => {
+            UniversalNonRealTimeMsg::TuningBulkDumpRequest(program_num, bank_num) => {
                 v.push(08);
-                v.push(00);
+                v.push(if bank_num.is_some() { 03 } else { 00 });
+                if let Some(bank_num) = bank_num {
+                    v.push(to_u7(*bank_num))
+                }
                 v.push(to_u7(*program_num));
             }
-            UniversalNonRealTimeMsg::TuningBulkDumpReply(tuning) => {
+            UniversalNonRealTimeMsg::KeyBasedTuningDump(tuning) => {
                 v.push(08);
-                v.push(01);
+                v.push(if tuning.tuning_bank_num.is_some() {
+                    04
+                } else {
+                    01
+                });
+                tuning.extend_midi(v);
+            }
+            UniversalNonRealTimeMsg::ScaleTuningDump1Byte(tuning) => {
+                v.push(08);
+                v.push(05);
+                tuning.extend_midi(v);
+            }
+            UniversalNonRealTimeMsg::ScaleTuningDump2Byte(tuning) => {
+                v.push(08);
+                v.push(06);
                 tuning.extend_midi(v);
             }
             UniversalNonRealTimeMsg::TuningNoteChange(tuning) => {
                 v.push(08);
                 v.push(07);
+                if let Some(bank_num) = tuning.tuning_bank_num {
+                    v.push(to_u7(bank_num))
+                } else {
+                    v.push(0); // Fallback to Bank 0
+                }
+                tuning.extend_midi(v);
+            }
+            UniversalNonRealTimeMsg::ScaleTuning1Byte(tuning) => {
+                v.push(08);
+                v.push(08);
+                tuning.extend_midi(v);
+            }
+            UniversalNonRealTimeMsg::ScaleTuning2Byte(tuning) => {
+                v.push(08);
+                v.push(09);
                 tuning.extend_midi(v);
             }
             UniversalNonRealTimeMsg::GeneralMidi(on) => {

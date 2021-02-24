@@ -1,4 +1,6 @@
 #[derive(Debug, Clone, PartialEq)]
+/// A MIDI Show Control command
+/// As defined in MIDI Show Control 1.1.1 (RP002/RP014)
 pub enum ShowControlMsg {
     /// Used to represent all unimplemented MSC messages.
     /// Is inherently not guaranteed to be a valid message.

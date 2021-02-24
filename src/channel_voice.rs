@@ -20,7 +20,7 @@ pub enum ChannelVoiceMsg {
     ControlChange {
         control: ControlChange,
     },
-    /// Max 127
+    /// 0-127. Use `GMSoundSet` when targeting General MIDI
     ProgramChange {
         program: u8,
     },

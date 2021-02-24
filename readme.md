@@ -10,6 +10,18 @@ Since the MIDI spec makes extensive use of non-byte-aligned integers, a Rust rep
 ## To be implemented
 - [ ] Deserialization
 
+## Support 
+The following [MMA documents](MIDI 1.0 Detailed Specification) are supported:
+- MIDI 1.0 Detailed Specification 4.2.1 (The base specification. Reference of types should be assumed to be this document unless otherwise specified)
+- General MIDI System Level 1 (MMA0007 / RP003)
+- MIDI Tuning Updated Specification (CA-020/CA-021/RP-020)
+
+
+The following addenda are not yet fully supported by midi-msg, though hooks are provided to access these messages:
+
+- MIDI Machine Control 1.0 (MMA0016 / RP013) (partial support)
+- MIDI Show Control 1.1.1 (RP002/RP014)
+
 
 ## Other Rust MIDI representation libraries
 - [apres](https://crates.io/crates/apres)

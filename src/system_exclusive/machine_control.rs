@@ -1,5 +1,9 @@
 use crate::time_code::*;
 
+/// A MIDI Machine Control Command
+/// Only partially implemented. The `Unimplemented` value can be used to
+/// represent commands not supported here.
+/// As defined in MIDI Machine Control 1.0 (MMA0016 / RP013)
 #[derive(Debug, Clone, PartialEq)]
 pub enum MachineControlCommandMsg {
     Stop,
@@ -67,6 +71,8 @@ impl MachineControlCommandMsg {
     }
 }
 
+/// A MIDI Machine Control Information Field, which functions something like an address
+/// As defined in MIDI Machine Control 1.0 (MMA0016 / RP013)
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum InformationField {
     SelectedTimeCode = 0x01,
@@ -88,6 +94,9 @@ pub enum InformationField {
     // TODO
 }
 
+/// A MIDI Machine Control Response
+/// Not implemented. The `Unimplemented` value can be used to represent generic responses.
+/// As defined in MIDI Machine Control 1.0 (MMA0016 / RP013)
 #[derive(Debug, Clone, PartialEq)]
 pub enum MachineControlResponseMsg {
     /// Used to represent all unimplemented MCR messages.
@@ -107,6 +116,8 @@ impl MachineControlResponseMsg {
     }
 }
 
+/// TODO
+/// As defined in MIDI Machine Control 1.0 (MMA0016 / RP013)
 pub struct StandardSpeed(f32);
 
 impl StandardSpeed {
@@ -115,6 +126,8 @@ impl StandardSpeed {
     }
 }
 
+/// TODO
+/// As defined in MIDI Machine Control 1.0 (MMA0016 / RP013)
 pub struct StandardTrack {
     pub video_active: bool,
     pub time_code_active: bool,

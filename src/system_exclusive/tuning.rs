@@ -5,6 +5,8 @@ use ascii::AsciiChar;
 pub struct TuningNoteChange {
     /// 0-127
     pub tuning_program_num: u8,
+    /// 0-127
+    pub tuning_bank_num: Option<u8>,
     /// At most 127 (MIDI note number, Option<Tuning>) pairs
     /// None represents "No change"
     pub tunings: Vec<(u8, Option<Tuning>)>,
@@ -12,6 +14,7 @@ pub struct TuningNoteChange {
 
 impl TuningNoteChange {
     pub(crate) fn extend_midi(&self, v: &mut Vec<u8>) {
+        // The tuning_bank_num is pushed by the caller if needed
         push_u7(self.tuning_program_num, v);
         push_u7(self.tunings.len() as u8, v);
         for (note, tuning) in self.tunings.iter() {
@@ -33,11 +36,13 @@ impl TuningNoteChange {
 }
 
 #[derive(Debug, Clone, PartialEq)]
-pub struct TuningBulkDumpReply {
+pub struct KeyBasedTuningDump {
     /// 0-127
     pub tuning_program_num: u8,
+    /// 0-127
+    pub tuning_bank_num: Option<u8>,
     /// An exactly 16 character name
-    name: [AsciiChar; 16],
+    pub name: [AsciiChar; 16],
     /// Should be exactly 128 Tunings with the index of each value = the MIDI note number being tuned.
     /// Excess values will be ignored. If fewer than 128 values are supplied, equal temperament
     /// will be applied to the remaining notes.
@@ -45,8 +50,11 @@ pub struct TuningBulkDumpReply {
     pub tunings: Vec<Option<Tuning>>,
 }
 
-impl TuningBulkDumpReply {
+impl KeyBasedTuningDump {
     pub(crate) fn extend_midi(&self, v: &mut Vec<u8>) {
+        if let Some(bank_num) = self.tuning_bank_num {
+            v.push(to_u7(bank_num))
+        }
         push_u7(self.tuning_program_num, v);
         for ch in self.name.iter() {
             v.push(ch.as_byte());
@@ -119,6 +127,235 @@ impl Tuning {
     }
 }
 
+/// As defined in MIDI Tuning Updated Specification (CA-020/CA-021/RP-020)
+#[derive(Debug, Copy, Clone, PartialEq)]
+pub struct ScaleTuningDump1Byte {
+    /// 0-127
+    pub tuning_program_num: u8,
+    /// 0-127
+    pub tuning_bank_num: u8,
+    /// An exactly 16 character name
+    pub name: [AsciiChar; 16],
+    /// 12 semitones of tuning adjustments repeated over all octaves, starting with C
+    /// Each value represents that number of cents plus the equal temperament tuning,
+    /// from -64 to 63 cents
+    pub tuning: [i8; 12],
+}
+
+impl ScaleTuningDump1Byte {
+    pub(crate) fn extend_midi(&self, v: &mut Vec<u8>) {
+        push_u7(self.tuning_bank_num, v);
+        push_u7(self.tuning_program_num, v);
+        for ch in self.name.iter() {
+            v.push(ch.as_byte());
+        }
+
+        for t in self.tuning.iter() {
+            push_i7(*t, v);
+        }
+
+        v.push(0); // Checksum <- Will be written over by `SystemExclusiveMsg.extend_midi`
+    }
+
+    pub(crate) fn from_midi(_m: &[u8]) -> Result<(Self, usize), &str> {
+        Err("TODO: not implemented")
+    }
+}
+
+/// As defined in MIDI Tuning Updated Specification (CA-020/CA-021/RP-020)
+#[derive(Debug, Copy, Clone, PartialEq)]
+pub struct ScaleTuningDump2Byte {
+    /// 0-127
+    pub tuning_program_num: u8,
+    /// 0-127
+    pub tuning_bank_num: u8,
+    /// An exactly 16 character name
+    pub name: [AsciiChar; 16],
+    /// 12 semitones of tuning adjustments repeated over all octaves, starting with C
+    /// Each value represents that fractional number of cents plus the equal temperament tuning,
+    /// from -8192 to 8192 (steps of .012207 cents)
+    pub tuning: [i16; 12],
+}
+
+impl ScaleTuningDump2Byte {
+    pub(crate) fn extend_midi(&self, v: &mut Vec<u8>) {
+        push_u7(self.tuning_bank_num, v);
+        push_u7(self.tuning_program_num, v);
+        for ch in self.name.iter() {
+            v.push(ch.as_byte());
+        }
+
+        for t in self.tuning.iter() {
+            push_i14(*t, v);
+        }
+
+        v.push(0); // Checksum <- Will be written over by `SystemExclusiveMsg.extend_midi`
+    }
+
+    pub(crate) fn from_midi(_m: &[u8]) -> Result<(Self, usize), &str> {
+        Err("TODO: not implemented")
+    }
+}
+
+/// As defined in MIDI Tuning Updated Specification (CA-020/CA-021/RP-020)
+#[derive(Debug, Copy, Clone, PartialEq)]
+pub struct ScaleTuning1Byte {
+    pub channels: ChannelBitMap,
+    /// 12 semitones of tuning adjustments repeated over all octaves, starting with C
+    /// Each value represents that number of cents plus the equal temperament tuning,
+    /// from -64 to 63 cents
+    pub tuning: [i8; 12],
+}
+
+impl ScaleTuning1Byte {
+    pub(crate) fn extend_midi(&self, v: &mut Vec<u8>) {
+        self.channels.extend_midi(v);
+        for t in self.tuning.iter() {
+            push_i7(*t, v);
+        }
+    }
+
+    pub(crate) fn from_midi(_m: &[u8]) -> Result<(Self, usize), &str> {
+        Err("TODO: not implemented")
+    }
+}
+
+/// As defined in MIDI Tuning Updated Specification (CA-020/CA-021/RP-020)
+#[derive(Debug, Copy, Clone, PartialEq)]
+pub struct ScaleTuning2Byte {
+    pub channels: ChannelBitMap,
+    /// 12 semitones of tuning adjustments repeated over all octaves, starting with C
+    /// Each value represents that fractional number of cents plus the equal temperament tuning,
+    /// from -8192 to 8192 (steps of .012207 cents)
+    pub tuning: [i16; 12],
+}
+
+impl ScaleTuning2Byte {
+    pub(crate) fn extend_midi(&self, v: &mut Vec<u8>) {
+        self.channels.extend_midi(v);
+        for t in self.tuning.iter() {
+            push_i14(*t, v);
+        }
+    }
+
+    pub(crate) fn from_midi(_m: &[u8]) -> Result<(Self, usize), &str> {
+        Err("TODO: not implemented")
+    }
+}
+
+/// The set of channels to apply this tuning message to
+#[derive(Debug, Copy, Clone, PartialEq, Default)]
+pub struct ChannelBitMap {
+    pub channel_1: bool,
+    pub channel_2: bool,
+    pub channel_3: bool,
+    pub channel_4: bool,
+    pub channel_5: bool,
+    pub channel_6: bool,
+    pub channel_7: bool,
+    pub channel_8: bool,
+    pub channel_9: bool,
+    pub channel_10: bool,
+    pub channel_11: bool,
+    pub channel_12: bool,
+    pub channel_13: bool,
+    pub channel_14: bool,
+    pub channel_15: bool,
+    pub channel_16: bool,
+}
+
+impl ChannelBitMap {
+    /// All channels set
+    pub fn all() -> Self {
+        Self {
+            channel_1: true,
+            channel_2: true,
+            channel_3: true,
+            channel_4: true,
+            channel_5: true,
+            channel_6: true,
+            channel_7: true,
+            channel_8: true,
+            channel_9: true,
+            channel_10: true,
+            channel_11: true,
+            channel_12: true,
+            channel_13: true,
+            channel_14: true,
+            channel_15: true,
+            channel_16: true,
+        }
+    }
+
+    /// No channels set
+    pub fn none() -> Self {
+        Self::default()
+    }
+
+    pub(crate) fn extend_midi(&self, v: &mut Vec<u8>) {
+        let mut byte1: u8 = 0;
+        if self.channel_16 {
+            byte1 += 1 << 1;
+        }
+        if self.channel_15 {
+            byte1 += 1 << 0;
+        }
+        v.push(byte1);
+
+        let mut byte2: u8 = 0;
+        if self.channel_14 {
+            byte2 += 1 << 6;
+        }
+        if self.channel_13 {
+            byte2 += 1 << 5;
+        }
+        if self.channel_12 {
+            byte2 += 1 << 4;
+        }
+        if self.channel_11 {
+            byte2 += 1 << 3;
+        }
+        if self.channel_10 {
+            byte2 += 1 << 2;
+        }
+        if self.channel_9 {
+            byte2 += 1 << 1;
+        }
+        if self.channel_8 {
+            byte2 += 1 << 0;
+        }
+        v.push(byte2);
+
+        let mut byte3: u8 = 0;
+        if self.channel_7 {
+            byte3 += 1 << 6;
+        }
+        if self.channel_6 {
+            byte3 += 1 << 5;
+        }
+        if self.channel_5 {
+            byte3 += 1 << 4;
+        }
+        if self.channel_4 {
+            byte3 += 1 << 3;
+        }
+        if self.channel_3 {
+            byte3 += 1 << 2;
+        }
+        if self.channel_2 {
+            byte3 += 1 << 1;
+        }
+        if self.channel_1 {
+            byte3 += 1 << 0;
+        }
+        v.push(byte3);
+    }
+
+    pub(crate) fn from_midi(_m: &[u8]) -> Result<(Self, usize), &str> {
+        Err("TODO: not implemented")
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use crate::*;
@@ -133,6 +370,7 @@ mod tests {
                     device: DeviceID::AllCall,
                     msg: UniversalRealTimeMsg::TuningNoteChange(TuningNoteChange {
                         tuning_program_num: 5,
+                        tuning_bank_num: None,
                         tunings: vec![
                             (
                                 1,
@@ -171,8 +409,9 @@ mod tests {
         let packet_msg = MidiMsg::SystemExclusive {
             msg: SystemExclusiveMsg::UniversalNonRealTime {
                 device: DeviceID::AllCall,
-                msg: UniversalNonRealTimeMsg::TuningBulkDumpReply(TuningBulkDumpReply {
+                msg: UniversalNonRealTimeMsg::KeyBasedTuningDump(KeyBasedTuningDump {
                     tuning_program_num: 5,
+                    tuning_bank_num: None,
                     name: "A tuning program"
                         .as_ascii_str()
                         .unwrap()

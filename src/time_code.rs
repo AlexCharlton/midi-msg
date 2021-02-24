@@ -2,6 +2,7 @@ use super::util::*;
 use crate::MidiMsg;
 use ascii::AsciiString;
 
+/// As defined in the MIDI Time Code spec (MMA0001 / RP004 / RP008)
 #[derive(Debug, Clone, Copy, PartialEq, Default)]
 pub struct TimeCode {
     /// 0-29
@@ -67,7 +68,8 @@ impl Default for TimeCodeType {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Default)]
-/// Like `TimeCode` but includes `fractional_frames`
+/// Like `TimeCode` but includes `fractional_frames`. Used in Time Code Cueing.
+/// As defined in the MIDI Time Code spec (MMA0001 / RP004 / RP008)
 pub struct HighResTimeCode {
     /// 0-99
     pub fractional_frames: u8,
@@ -103,6 +105,8 @@ impl HighResTimeCode {
 
 #[derive(Debug, Clone, Copy, PartialEq, Default)]
 /// Like `TimeCode` but uses `subframes` to optional include status flags, and fractional frames may be negative
+/// As defined in MIDI Machine Control 1.0 (MMA0016 / RP013) and
+/// MIDI Show Control 1.1.1 (RP002/RP014)
 pub struct StandardTimeCode {
     pub subframes: SubFrames,
     /// -29-29
@@ -214,6 +218,7 @@ impl TimeCodeStatus {
     }
 }
 
+/// As defined in the MIDI Time Code spec (MMA0001 / RP004 / RP008)
 #[derive(Debug, Copy, Clone, PartialEq)]
 pub struct UserBits {
     /// Full bytes can be used here. Sent such that the first is considered
@@ -242,6 +247,7 @@ impl UserBits {
     }
 }
 
+/// As defined in MIDI Machine Control 1.0 (MMA0016 / RP013)
 #[derive(Debug, Copy, Clone, PartialEq)]
 pub struct StandardUserBits {
     /// Full bytes can be used here. Sent such that the first is considered
@@ -323,6 +329,8 @@ impl From<UserBits> for StandardUserBits {
     }
 }
 
+/// Non-realtime Time Code Cueing
+/// As defined in the MIDI Time Code spec (MMA0001 / RP004 / RP008)
 #[derive(Debug, Clone, PartialEq)]
 pub enum TimeCodeCueingSetupMsg {
     TimeCodeOffset {
@@ -540,6 +548,8 @@ impl TimeCodeCueingSetupMsg {
     }
 }
 
+/// Realtime Time Code Cueing
+/// As defined in the MIDI Time Code spec (MMA0001 / RP004 / RP008)
 #[derive(Debug, Clone, PartialEq)]
 pub enum TimeCodeCueingMsg {
     SystemStop,

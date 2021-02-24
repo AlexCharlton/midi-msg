@@ -4,21 +4,23 @@ pub use util::{
     midi_note_float_to_freq,
 };
 
-pub mod time_code;
+mod time_code;
 pub use time_code::*;
 
-pub mod channel_voice;
+mod channel_voice;
 pub use channel_voice::*;
-pub mod channel_mode;
+mod channel_mode;
 pub use channel_mode::*;
-pub mod system_common;
+mod general_midi;
+pub use general_midi::*;
+mod system_common;
 pub use system_common::*;
-pub mod system_real_time;
+mod system_real_time;
 pub use system_real_time::*;
-pub mod system_exclusive;
+mod system_exclusive;
 pub use system_exclusive::*;
 
-pub mod message;
+mod message;
 pub use message::*;
 
 // pub fn midi_note_on(conn: &mut MidiOutputConnection, note: &MidiNote) {
