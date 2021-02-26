@@ -158,16 +158,35 @@ pub enum ControlChange {
     /// Max 127
     SoftPedal(u8),
     ToggleLegato(bool),
-    /// Max 127
+    /// Same as SoundControl1
     SoundVariation(u8),
-    /// Max 127
+    /// Same as SoundControl2
     Timbre(u8),
-    /// Max 127
+    /// Same as SoundControl3
     ReleaseTime(u8),
-    /// Max 127
+    /// Same as SoundControl4
     AttachTime(u8),
-    /// Max 127
+    /// Same as SoundControl5, and used as the MPE "third dimension" (usually Timbre) control
+    /// (RP-021, RP-053)
     Brightness(u8),
+    /// Same as SoundControl6 (RP-021)
+    DecayTime(u8),
+    /// Same as SoundControl7 (RP-021)
+    VibratoRate(u8),
+    /// Same as SoundControl8 (RP-021)
+    VibratoDepth(u8),
+    /// Same as SoundControl9 (RP-021)
+    VibratoDelay(u8),
+    /// Max 127
+    SoundControl1(u8),
+    /// Max 127
+    SoundControl2(u8),
+    /// Max 127
+    SoundControl3(u8),
+    /// Max 127
+    SoundControl4(u8),
+    /// Max 127
+    SoundControl5(u8),
     /// Max 127
     SoundControl6(u8),
     /// Max 127
@@ -181,15 +200,25 @@ pub enum ControlChange {
     /// Max 127
     PortamentoControl(u8),
     /// Max 127
-    ExternalFX(u8),
+    Effects1Depth(u8),
     /// Max 127
-    Tremolo(u8),
+    Effects2Depth(u8),
     /// Max 127
-    Chorus(u8),
+    Effects3Depth(u8),
     /// Max 127
-    Celeste(u8),
+    Effects4Depth(u8),
     /// Max 127
-    Phaser(u8),
+    Effects5Depth(u8),
+    /// Same as Effects1Depth (RP-023)
+    ReverbSendLevel(u8),
+    /// Same as Effects2Depth
+    TremoloDepth(u8),
+    /// Same as Effects3Depth (RP-023)
+    ChorusSendLevel(u8),
+    /// Same as Effects4Depth
+    CelesteDepth(u8),
+    /// Same as Effects5Depth
+    PhaserDepth(u8),
 
     /// Registered and Unregistered Parameters
     Parameter(Parameter),
@@ -298,39 +327,39 @@ impl ControlChange {
                 v.push(68);
                 v.push(if on { 127 } else { 0 });
             }
-            ControlChange::SoundVariation(x) => {
+            ControlChange::SoundVariation(x) | ControlChange::SoundControl1(x) => {
                 v.push(70);
                 v.push(to_u7(x));
             }
-            ControlChange::Timbre(x) => {
+            ControlChange::Timbre(x) | ControlChange::SoundControl2(x) => {
                 v.push(71);
                 v.push(to_u7(x));
             }
-            ControlChange::ReleaseTime(x) => {
+            ControlChange::ReleaseTime(x) | ControlChange::SoundControl3(x) => {
                 v.push(72);
                 v.push(to_u7(x));
             }
-            ControlChange::AttachTime(x) => {
+            ControlChange::AttachTime(x) | ControlChange::SoundControl4(x) => {
                 v.push(73);
                 v.push(to_u7(x));
             }
-            ControlChange::Brightness(x) => {
+            ControlChange::Brightness(x) | ControlChange::SoundControl5(x) => {
                 v.push(74);
                 v.push(to_u7(x));
             }
-            ControlChange::SoundControl6(x) => {
+            ControlChange::DecayTime(x) | ControlChange::SoundControl6(x) => {
                 v.push(75);
                 v.push(to_u7(x));
             }
-            ControlChange::SoundControl7(x) => {
+            ControlChange::VibratoRate(x) | ControlChange::SoundControl7(x) => {
                 v.push(76);
                 v.push(to_u7(x));
             }
-            ControlChange::SoundControl8(x) => {
+            ControlChange::VibratoDepth(x) | ControlChange::SoundControl8(x) => {
                 v.push(77);
                 v.push(to_u7(x));
             }
-            ControlChange::SoundControl9(x) => {
+            ControlChange::VibratoDelay(x) | ControlChange::SoundControl9(x) => {
                 v.push(78);
                 v.push(to_u7(x));
             }
@@ -342,23 +371,23 @@ impl ControlChange {
                 v.push(84);
                 v.push(to_u7(x));
             }
-            ControlChange::ExternalFX(x) => {
+            ControlChange::Effects1Depth(x) | ControlChange::ReverbSendLevel(x) => {
                 v.push(91);
                 v.push(to_u7(x));
             }
-            ControlChange::Tremolo(x) => {
+            ControlChange::Effects2Depth(x) | ControlChange::TremoloDepth(x) => {
                 v.push(92);
                 v.push(to_u7(x));
             }
-            ControlChange::Chorus(x) => {
+            ControlChange::Effects3Depth(x) | ControlChange::ChorusSendLevel(x) => {
                 v.push(93);
                 v.push(to_u7(x));
             }
-            ControlChange::Celeste(x) => {
+            ControlChange::Effects4Depth(x) | ControlChange::CelesteDepth(x) => {
                 v.push(94);
                 v.push(to_u7(x));
             }
-            ControlChange::Phaser(x) => {
+            ControlChange::Effects5Depth(x) | ControlChange::PhaserDepth(x) => {
                 v.push(95);
                 v.push(to_u7(x));
             }
@@ -387,6 +416,9 @@ impl ControlChange {
 #[derive(Debug, Clone, Copy, PartialEq)]
 /// "Entry" Parameters can be used to set the given parameters
 pub enum Parameter {
+    /// An registered parameter that does nothing.
+    /// Referred to at least in RP-018
+    Null,
     /// The pitch bend sensitivity in semitones (0-127) and the sensitivity in cents (0-100),
     /// respectively. For example, a value (1, 0) means +/- one semitone (a total range of two
     /// semitones)
@@ -426,6 +458,12 @@ pub enum Parameter {
 impl Parameter {
     fn extend_midi_running(&self, v: &mut Vec<u8>) {
         match self {
+            Parameter::Null => {
+                v.push(100);
+                v.push(0x7F);
+                v.push(101);
+                v.push(0x7F);
+            }
             Parameter::PitchBendSensitivity => {
                 v.push(100);
                 v.push(0);
