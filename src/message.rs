@@ -53,6 +53,13 @@ impl MidiMsg {
                 let p = v.len();
                 msg.extend_midi(v);
                 v[p] += *channel as u8;
+                match msg {
+                    ChannelVoiceMsg::HighResNoteOff { .. }
+                    | ChannelVoiceMsg::HighResNoteOn { .. } => {
+                        v[p + 3] += *channel as u8;
+                    }
+                    _ => (),
+                }
             }
             MidiMsg::RunningChannelVoice { msg, .. } => msg.extend_midi_running(v),
             MidiMsg::ChannelMode { channel, msg } => {

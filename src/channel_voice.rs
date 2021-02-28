@@ -12,6 +12,16 @@ pub enum ChannelVoiceMsg {
         note: u8,
         velocity: u8,
     },
+    /// A note off with a preceding HighResVelocity CC per CA-031
+    HighResNoteOff {
+        note: u8,
+        velocity: u16,
+    },
+    /// A note on with a preceding HighResVelocity CC per CA-031
+    HighResNoteOn {
+        note: u8,
+        velocity: u16,
+    },
     /// Max values are 127
     PolyPressure {
         note: u8,
@@ -51,6 +61,8 @@ impl ChannelVoiceMsg {
         match self {
             ChannelVoiceMsg::NoteOff { .. } => v.push(0x80),
             ChannelVoiceMsg::NoteOn { .. } => v.push(0x90),
+            ChannelVoiceMsg::HighResNoteOff { .. } => v.push(0x80),
+            ChannelVoiceMsg::HighResNoteOn { .. } => v.push(0x90),
             ChannelVoiceMsg::PolyPressure { .. } => v.push(0xA0),
             ChannelVoiceMsg::ControlChange { .. } => v.push(0xB0),
             ChannelVoiceMsg::ProgramChange { .. } => v.push(0xC0),
@@ -60,6 +72,7 @@ impl ChannelVoiceMsg {
         self.extend_midi_running(v);
     }
 
+    /// Out of necessity, pushes a Channel message after the note message for `HighResNoteOn/Off`
     pub fn extend_midi_running(&self, v: &mut Vec<u8>) {
         match *self {
             ChannelVoiceMsg::NoteOff { note, velocity } => {
@@ -69,6 +82,22 @@ impl ChannelVoiceMsg {
             ChannelVoiceMsg::NoteOn { note, velocity } => {
                 v.push(to_u7(note));
                 v.push(to_u7(velocity));
+            }
+            ChannelVoiceMsg::HighResNoteOff { note, velocity } => {
+                let [msb, lsb] = to_u14(velocity);
+                push_u7(note, v);
+                v.push(msb);
+                v.push(0xB0);
+                v.push(0x58);
+                v.push(lsb);
+            }
+            ChannelVoiceMsg::HighResNoteOn { note, velocity } => {
+                let [msb, lsb] = to_u14(velocity);
+                push_u7(note, v);
+                v.push(msb);
+                v.push(0xB0);
+                v.push(0x58);
+                v.push(lsb);
             }
             ChannelVoiceMsg::PolyPressure { note, pressure } => {
                 v.push(to_u7(note));
@@ -197,6 +226,9 @@ pub enum ControlChange {
     SoundControl9(u8),
     /// Max 127
     SoundControl10(u8),
+    /// Used as the LSB of the velocity for the next note on/off message, 0-127
+    /// Defined in CA-031
+    HighResVelocity(u8),
     /// Max 127
     PortamentoControl(u8),
     /// Max 127
@@ -369,6 +401,10 @@ impl ControlChange {
             }
             ControlChange::PortamentoControl(x) => {
                 v.push(84);
+                v.push(to_u7(x));
+            }
+            ControlChange::HighResVelocity(x) => {
+                v.push(88);
                 v.push(to_u7(x));
             }
             ControlChange::Effects1Depth(x) | ControlChange::ReverbSendLevel(x) => {

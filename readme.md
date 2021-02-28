@@ -21,6 +21,7 @@ The following [MMA documents](MIDI 1.0 Detailed Specification) are supported (wi
 - Global Parameter Control (CA-024)
 - Master Fine/Coarse Tuning (CA-025)
 - Modulation Depth Range RPN (CA-026)
+- CC #88 High Resolution Velocity Prefix (CA-031)
 - Response to Data Inc/Dec Controllers (RP-018)
 - Sound Controller Defaults (RP-021)
 - Redefinition of RPN 01/02 (RP-022)
