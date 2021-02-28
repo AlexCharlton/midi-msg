@@ -1,0 +1,154 @@
+use crate::util::*;
+
+/// Global Parameter Control
+/// As defined in CA-024
+/// This C/A is much more permissive than most, and thus has a pretty awkward interface.
+#[derive(Debug, Clone, PartialEq)]
+pub struct GlobalParameterControl {
+    /// Between 0 and 127 `SlotPath`s, with each successive path representing a child
+    /// of the preceding value. No paths refers to the "top level"
+    /// (except if the first value refers to the top level ¯\_(ツ)_/¯)
+    pub slot_paths: Vec<SlotPath>,
+    /// The number of bytes present in the `id`s of `params`, must be greater than 0
+    /// Must line up with the values provided in `params` or output will be massaged
+    pub param_id_width: u8,
+    /// The number of bytes present in the `value`s of `params, must be greater than 0
+    /// Must line up with the values provided in `params` or output will be massaged
+    pub value_width: u8,
+    /// _Any number_ of `GlobalParameter`s
+    pub params: Vec<GlobalParameter>,
+}
+
+impl GlobalParameterControl {
+    pub(crate) fn extend_midi(&self, v: &mut Vec<u8>) {
+        v.push(self.slot_paths.len().min(127) as u8);
+        push_u7(self.param_id_width, v);
+        push_u7(self.value_width, v);
+        for (i, sp) in self.slot_paths.iter().enumerate() {
+            if i > 127 {
+                break;
+            }
+            sp.extend_midi(v);
+        }
+        for p in self.params.iter() {
+            p.extend_midi_with_limits(v, self.param_id_width.max(1), self.value_width.max(1));
+        }
+    }
+
+    pub(crate) fn from_midi(_m: &[u8]) -> Result<(Self, usize), &str> {
+        Err("TODO: not implemented")
+    }
+}
+
+/// The "slot" of the device being referred to. Values other than `Unregistered` come from
+/// the General MIDI 2 spec.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum SlotPath {
+    /// For use in paths not described by the GM2 spec
+    Unregistered(u8, u8),
+    // TODO: MIDI 2 slots
+}
+
+impl SlotPath {
+    pub(crate) fn extend_midi(&self, v: &mut Vec<u8>) {
+        match self {
+            Self::Unregistered(a, b) => {
+                push_u7(*a, v); // MSB first ¯\_(ツ)_/¯
+                push_u7(*b, v);
+            }
+        }
+    }
+
+    pub(crate) fn from_midi(_m: &[u8]) -> Result<(Self, usize), &str> {
+        Err("TODO: not implemented")
+    }
+}
+
+/// An `id`:`value` pair that must line up with the `GlobalParameterControl` that it is placed in
+#[derive(Debug, Clone, PartialEq)]
+pub struct GlobalParameter {
+    pub id: Vec<u8>,
+    pub value: Vec<u8>,
+}
+
+impl GlobalParameter {
+    pub(crate) fn extend_midi_with_limits(
+        &self,
+        v: &mut Vec<u8>,
+        param_id_width: u8,
+        value_width: u8,
+    ) {
+        for i in 0..param_id_width {
+            // MSB first
+            if let Some(x) = self.id.get(i as usize) {
+                push_u7(*x, v);
+            } else {
+                v.push(0);
+            }
+        }
+        for i in (0..value_width).rev() {
+            // LSB first
+            if let Some(x) = self.value.get(i as usize) {
+                push_u7(*x, v);
+            } else {
+                v.push(0);
+            }
+        }
+    }
+
+    pub(crate) fn from_midi(_m: &[u8]) -> Result<(Self, usize), &str> {
+        Err("TODO: not implemented")
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::*;
+
+    #[test]
+    fn serialize_global_parameter() {
+        assert_eq!(
+            MidiMsg::SystemExclusive {
+                msg: SystemExclusiveMsg::UniversalRealTime {
+                    device: DeviceID::AllCall,
+                    msg: UniversalRealTimeMsg::GlobalParameterControl(GlobalParameterControl {
+                        slot_paths: vec![
+                            SlotPath::Unregistered(1, 0x47),
+                            SlotPath::Unregistered(2, 3)
+                        ],
+                        param_id_width: 1,
+                        value_width: 2,
+                        params: vec![
+                            GlobalParameter {
+                                id: vec![4],
+                                value: vec![5, 6, 7] // One byte will be ignored
+                            },
+                            GlobalParameter {
+                                id: vec![4],
+                                value: vec![1] // Only the MSB of two bytes
+                            }
+                        ]
+                    }),
+                },
+            }
+            .to_midi(),
+            vec![
+                0xF0, 0x7F, 0x7F, // Receiver device
+                04, 05, 2,    // Slot path length
+                1,    // Param ID width
+                2,    // Value width
+                1,    // Slot path 1 MSB
+                0x47, // Slot path 1 LSB
+                2,    // Slot path 2 MSB
+                3,    // Slot path 2 LSB
+                4,    // Param number 1
+                6,    // Param value 1 LSB
+                5,    // Param value 1 MSB
+                4,    // Param number 2
+                0,    // Param value 2 LSB
+                1,    // Param value 2 MSB
+                0xF7
+            ]
+        );
+    }
+}

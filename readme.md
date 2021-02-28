@@ -18,6 +18,7 @@ The following [MMA documents](MIDI 1.0 Detailed Specification) are supported (wi
 - General MIDI System Level 1 (MMA0007 / RP003)
 - General MIDI 2 1.2 (RP-024/RP-036/RP-037/RP-045)
 - MIDI Tuning Updated Specification (CA-020/CA-021/RP-020)
+- Global Parameter Control (CA-024)
 - Master Fine/Coarse Tuning (CA-025)
 - Modulation Depth Range RPN (CA-026)
 - Response to Data Inc/Dec Controllers (RP-018)

@@ -1,5 +1,7 @@
 mod file_dump;
 pub use file_dump::*;
+mod global_parameter;
+pub use global_parameter::*;
 mod machine_control;
 pub use machine_control::*;
 mod notation;
@@ -153,11 +155,13 @@ pub enum UniversalRealTimeMsg {
     MasterVolume(u16),
     MasterBalance(u16),
     /// A value from -8192-8191, used like `Parameter::FineTuning`
-    /// Defined in CA 25
+    /// Defined in CA-025
     MasterFineTuning(i16),
     /// A value from -64-63, used like `Parameter::CoarseTuning`
-    /// Defined in CA 25
+    /// Defined in CA-025
     MasterCoarseTuning(i8),
+    /// Defined in CA-024
+    GlobalParameterControl(GlobalParameterControl),
     TimeCodeCueing(TimeCodeCueingMsg),
     MachineControlCommand(MachineControlCommandMsg),
     MachineControlResponse(MachineControlResponseMsg),
@@ -218,6 +222,11 @@ impl UniversalRealTimeMsg {
                 v.push(04);
                 v.push(04);
                 push_i7(*t, v);
+            }
+            UniversalRealTimeMsg::GlobalParameterControl(gp) => {
+                v.push(04);
+                v.push(05);
+                gp.extend_midi(v);
             }
             UniversalRealTimeMsg::TimeCodeCueing(msg) => {
                 v.push(05);
