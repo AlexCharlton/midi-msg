@@ -124,6 +124,91 @@ impl From<&ChannelVoiceMsg> for Vec<u8> {
     }
 }
 
+/// An enum that defines the MIDI numbers associated with Control Changes
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum ControlNumber {
+    BankSelect = 0,
+    BankSelectLSB = 32,
+    ModWheel = 1,
+    ModWheelLSB = 33,
+    Breath = 2,
+    BreathLSB = 34,
+    Foot = 4,
+    FootLSB = 36,
+    Portamento = 5,
+    PortamentoLSB = 37,
+    DataEntry = 6,
+    DataEntryLSB = 38,
+    Volume = 7,
+    VolumeLSB = 39,
+    Balance = 8,
+    BalanceLSB = 40,
+    Pan = 10,
+    PanLSB = 42,
+    Expression = 11,
+    ExpressionLSB = 43,
+    Effect1 = 12,
+    Effect1LSB = 44,
+    Effect2 = 13,
+    Effect2LSB = 45,
+    GeneralPurpose1 = 16,
+    GeneralPurpose1LSB = 48,
+    GeneralPurpose2 = 17,
+    GeneralPurpose2LSB = 49,
+    GeneralPurpose3 = 18,
+    GeneralPurpose3LSB = 50,
+    GeneralPurpose4 = 19,
+    GeneralPurpose4LSB = 51,
+    /// AKA Sustain
+    Hold = 64,
+    TogglePortamento = 65,
+    Sostenuto = 66,
+    SoftPedal = 67,
+    ToggleLegato = 68,
+    Hold2 = 69,
+    /// AKA SoundVariation
+    SoundControl1 = 70,
+    /// AKA Timbre
+    SoundControl2 = 71,
+    /// AKA ReleaseTime
+    SoundControl3 = 72,
+    /// AKA AttackTime
+    SoundControl4 = 73,
+    /// AKA Brightness
+    SoundControl5 = 74,
+    /// AKA DecayTime
+    SoundControl6 = 75,
+    /// AKA VibratoRate
+    SoundControl7 = 76,
+    /// AKA VibratoDepth
+    SoundControl8 = 77,
+    /// AKA VibratoDelay
+    SoundControl9 = 78,
+    SoundControl10 = 79,
+    GeneralPurpose5 = 80,
+    GeneralPurpose6 = 81,
+    GeneralPurpose7 = 82,
+    GeneralPurpose8 = 83,
+    PortamentoControl = 84,
+    HighResVelocity = 88,
+    /// AKA ReverbSendLevel
+    Effects1Depth = 91,
+    /// AKA TremoloDepth
+    Effects2Depth = 92,
+    /// AKA ChorusSendLevel
+    Effects3Depth = 93,
+    /// AKA CelesteDepth
+    Effects4Depth = 94,
+    /// AKA PhaserDepth
+    Effects5Depth = 95,
+    DataIncrement = 96,
+    DataDecrement = 97,
+    NonRegisteredParameterLSB = 98,
+    NonRegisteredParameter = 99,
+    RegisteredParameterLSB = 100,
+    RegisteredParameter = 101,
+}
+
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum ControlChange {
     /// Max 16383
@@ -194,7 +279,7 @@ pub enum ControlChange {
     /// Same as SoundControl3
     ReleaseTime(u8),
     /// Same as SoundControl4
-    AttachTime(u8),
+    AttackTime(u8),
     /// Same as SoundControl5, and used as the MPE "third dimension" (usually Timbre) control
     /// (RP-021, RP-053)
     Brightness(u8),
@@ -371,7 +456,7 @@ impl ControlChange {
                 v.push(72);
                 v.push(to_u7(x));
             }
-            ControlChange::AttachTime(x) | ControlChange::SoundControl4(x) => {
+            ControlChange::AttackTime(x) | ControlChange::SoundControl4(x) => {
                 v.push(73);
                 v.push(to_u7(x));
             }

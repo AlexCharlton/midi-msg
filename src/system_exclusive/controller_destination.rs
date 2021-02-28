@@ -27,11 +27,12 @@ impl ControllerDestination {
 /// Allows for the selection of the destination of a control change message
 #[derive(Debug, Clone, PartialEq)]
 pub struct ControlChangeControllerDestination {
-    channel: Channel,
+    pub channel: Channel,
     /// A control number between 0x01 - 0x1F or 0x40 - 0x5F
-    control_number: u8,
+    /// Values outside these ranges will be coerced
+    pub control_number: u8,
     /// Any number of (ControlledParameter, range) pairs
-    param_ranges: Vec<(ControlledParameter, u8)>,
+    pub param_ranges: Vec<(ControlledParameter, u8)>,
 }
 
 impl ControlChangeControllerDestination {

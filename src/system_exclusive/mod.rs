@@ -4,6 +4,8 @@ mod file_dump;
 pub use file_dump::*;
 mod global_parameter;
 pub use global_parameter::*;
+mod key_based_instrument_control;
+pub use key_based_instrument_control::*;
 mod machine_control;
 pub use machine_control::*;
 mod notation;
@@ -173,6 +175,7 @@ pub enum UniversalRealTimeMsg {
     ChannelPressureControllerDestination(ControllerDestination),
     PolyphonicKeyPressureControllerDestination(ControllerDestination),
     ControlChangeControllerDestination(ControlChangeControllerDestination),
+    KeyBasedInstrumentControl(KeyBasedInstrumentControl),
 }
 
 impl UniversalRealTimeMsg {
@@ -281,6 +284,11 @@ impl UniversalRealTimeMsg {
                 v.push(09);
                 v.push(03);
                 d.extend_midi(v);
+            }
+            UniversalRealTimeMsg::KeyBasedInstrumentControl(control) => {
+                v.push(0x0A);
+                v.push(01);
+                control.extend_midi(v);
             }
         }
     }
