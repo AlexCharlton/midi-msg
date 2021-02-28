@@ -28,6 +28,7 @@ The following [MMA documents](MIDI 1.0 Detailed Specification) are supported (wi
 - Sound Controller Defaults (RP-021)
 - Redefinition of RPN 01/02 (RP-022)
 - Renaming of CC91 and CC93 (RP-023)
+- Three Dimensional Sound Controllers (RP-049)
 - MIDI Polyphonic Expression 1.0 (RP-053)
 
 

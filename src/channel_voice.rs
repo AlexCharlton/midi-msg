@@ -572,6 +572,43 @@ pub enum Parameter {
     /// Defined in RP-053: MIDI Polyphonic Expression
     PolyphonicExpression,
     PolyphonicExpressionEntry(u8),
+    /// A value 0-16383 representing -180.00-179.98 degrees
+    /// Defined in RP-049
+    AzimuthAngle3DSound,
+    AzimuthAngle3DSoundEntry(u16),
+    /// A value 0-16383 representing -180.00-179.98 degrees
+    /// Defined in RP-049
+    ElevationAngle3DSound,
+    ElevationAngle3DSoundEntry(u16),
+    /// A value 1-16383 representing -163.82-0 dB of gain
+    /// 0 indicates "negative infinity"
+    /// Defined in RP-049
+    Gain3DSound,
+    Gain3DSoundEntry(u16),
+    /// A value 0-16383 representing a ratio between -0.000061-1.0
+    /// Defined in RP-049
+    DistanceRatio3DSound,
+    DistanceRatio3DSoundEntry(u16),
+    /// A value 0-16383 representing between 0 and 1000 distance units.
+    /// Defined in RP-049
+    MaxiumumDistance3DSound,
+    MaxiumumDistance3DSoundEntry(u16),
+    /// A value 0-16383 representing -163.83-0 dB of gain
+    /// Defined in RP-049
+    GainAtMaxiumumDistance3DSound,
+    GainAtMaxiumumDistance3DSoundEntry(u16),
+    /// A value 0-16383 representing a ratio between -0.000061-1.0
+    /// Defined in RP-049
+    ReferenceDistanceRatio3DSound,
+    ReferenceDistanceRatio3DSoundEntry(u16),
+    /// A value 0-16383 representing -180.00-179.98 degrees
+    /// Defined in RP-049
+    PanSpreadAngle3DSound,
+    PanSpreadAngle3DSoundEntry(u16),
+    /// A value 0-16383 representing -180.00-179.98 degrees
+    /// Defined in RP-049
+    RollAngle3DSound,
+    RollAngle3DSoundEntry(u16),
     /// 0-16383
     Unregistered(u16),
 }
@@ -579,40 +616,34 @@ pub enum Parameter {
 impl Parameter {
     fn extend_midi_running(&self, v: &mut Vec<u8>) {
         match self {
-            Parameter::Null => {
+            Self::Null => {
                 v.push(100);
                 v.push(0x7F);
                 v.push(101);
                 v.push(0x7F);
             }
-            Parameter::PitchBendSensitivity => {
+            Self::PitchBendSensitivity => {
                 v.push(100);
                 v.push(0);
                 v.push(101);
                 v.push(0);
             }
-            Parameter::PitchBendSensitivityEntry(c, f) => {
-                v.push(100);
-                v.push(0);
-                v.push(101);
-                v.push(0);
+            Self::PitchBendSensitivityEntry(c, f) => {
+                Self::PitchBendSensitivity.extend_midi_running(v);
                 // Data entry:
                 v.push(6);
                 v.push(*c);
                 v.push(6 + 32);
                 v.push((*f).min(100));
             }
-            Parameter::FineTuning => {
+            Self::FineTuning => {
                 v.push(100);
                 v.push(1);
                 v.push(101);
                 v.push(0);
             }
-            Parameter::FineTuningEntry(x) => {
-                v.push(100);
-                v.push(1);
-                v.push(101);
-                v.push(0);
+            Self::FineTuningEntry(x) => {
+                Self::FineTuning.extend_midi_running(v);
                 // Data entry:
                 let [msb, lsb] = to_i14(*x);
                 v.push(6);
@@ -620,17 +651,14 @@ impl Parameter {
                 v.push(6 + 32);
                 v.push(lsb);
             }
-            Parameter::CoarseTuning => {
+            Self::CoarseTuning => {
                 v.push(100);
                 v.push(2);
                 v.push(101);
                 v.push(0);
             }
-            Parameter::CoarseTuningEntry(x) => {
-                v.push(100);
-                v.push(2);
-                v.push(101);
-                v.push(0);
+            Self::CoarseTuningEntry(x) => {
+                Self::CoarseTuning.extend_midi_running(v);
                 // Data entry:
                 let lsb = to_i7(*x);
                 v.push(6);
@@ -638,66 +666,153 @@ impl Parameter {
                 v.push(6 + 32);
                 v.push(lsb);
             }
-            Parameter::TuningProgramSelect => {
+            Self::TuningProgramSelect => {
                 v.push(100);
                 v.push(3);
                 v.push(101);
                 v.push(0);
             }
-            Parameter::TuningProgramSelectEntry(x) => {
-                v.push(100);
-                v.push(3);
-                v.push(101);
-                v.push(0);
+            Self::TuningProgramSelectEntry(x) => {
+                Self::TuningProgramSelect.extend_midi_running(v);
                 // Data entry (MSB only)
                 v.push(6);
                 v.push(*x);
             }
-            Parameter::TuningBankSelect => {
+            Self::TuningBankSelect => {
                 v.push(100);
                 v.push(4);
                 v.push(101);
                 v.push(0);
             }
-            Parameter::TuningBankSelectEntry(x) => {
-                v.push(100);
-                v.push(3);
-                v.push(101);
-                v.push(0);
+            Self::TuningBankSelectEntry(x) => {
+                Self::TuningBankSelect.extend_midi_running(v);
                 // Data entry (MSB only)
                 v.push(6);
                 v.push(*x);
             }
-            Parameter::ModulationDepthRange => {
+            Self::ModulationDepthRange => {
                 v.push(100);
                 v.push(5);
                 v.push(101);
                 v.push(0);
             }
-            Parameter::ModulationDepthRangeEntry(x) => {
-                v.push(100);
-                v.push(5);
-                v.push(101);
-                v.push(0);
+            Self::ModulationDepthRangeEntry(x) => {
+                Self::ModulationDepthRange.extend_midi_running(v);
                 // Data entry
                 ControlChange::high_res_cc(v, 6, *x);
             }
-            Parameter::PolyphonicExpression => {
+            Self::PolyphonicExpression => {
                 v.push(100);
                 v.push(6);
                 v.push(101);
                 v.push(0);
             }
-            Parameter::PolyphonicExpressionEntry(x) => {
-                v.push(100);
-                v.push(6);
-                v.push(101);
-                v.push(0);
+            Self::PolyphonicExpressionEntry(x) => {
+                Self::PolyphonicExpression.extend_midi_running(v);
                 // Data entry (MSB only)
                 v.push(6);
                 v.push((*x).min(16));
             }
-            Parameter::Unregistered(x) => {
+            Self::AzimuthAngle3DSound => {
+                v.push(100);
+                v.push(0);
+                v.push(101);
+                v.push(61); // 3D Sound
+            }
+            Self::AzimuthAngle3DSoundEntry(x) => {
+                Self::AzimuthAngle3DSound.extend_midi_running(v);
+                // Data entry
+                ControlChange::high_res_cc(v, 6, *x);
+            }
+            Self::ElevationAngle3DSound => {
+                v.push(100);
+                v.push(1);
+                v.push(101);
+                v.push(61); // 3D Sound
+            }
+            Self::ElevationAngle3DSoundEntry(x) => {
+                Self::ElevationAngle3DSound.extend_midi_running(v);
+                // Data entry
+                ControlChange::high_res_cc(v, 6, *x);
+            }
+            Self::Gain3DSound => {
+                v.push(100);
+                v.push(2);
+                v.push(101);
+                v.push(61); // 3D Sound
+            }
+            Self::Gain3DSoundEntry(x) => {
+                Self::Gain3DSound.extend_midi_running(v);
+                // Data entry
+                ControlChange::high_res_cc(v, 6, *x);
+            }
+            Self::DistanceRatio3DSound => {
+                v.push(100);
+                v.push(3);
+                v.push(101);
+                v.push(61); // 3D Sound
+            }
+            Self::DistanceRatio3DSoundEntry(x) => {
+                Self::DistanceRatio3DSound.extend_midi_running(v);
+                // Data entry
+                ControlChange::high_res_cc(v, 6, *x);
+            }
+            Self::MaxiumumDistance3DSound => {
+                v.push(100);
+                v.push(4);
+                v.push(101);
+                v.push(61); // 3D Sound
+            }
+            Self::MaxiumumDistance3DSoundEntry(x) => {
+                Self::MaxiumumDistance3DSound.extend_midi_running(v);
+                // Data entry
+                ControlChange::high_res_cc(v, 6, *x);
+            }
+            Self::GainAtMaxiumumDistance3DSound => {
+                v.push(100);
+                v.push(5);
+                v.push(101);
+                v.push(61); // 3D Sound
+            }
+            Self::GainAtMaxiumumDistance3DSoundEntry(x) => {
+                Self::GainAtMaxiumumDistance3DSound.extend_midi_running(v);
+                // Data entry
+                ControlChange::high_res_cc(v, 6, *x);
+            }
+            Self::ReferenceDistanceRatio3DSound => {
+                v.push(100);
+                v.push(6);
+                v.push(101);
+                v.push(61); // 3D Sound
+            }
+            Self::ReferenceDistanceRatio3DSoundEntry(x) => {
+                Self::ReferenceDistanceRatio3DSound.extend_midi_running(v);
+                // Data entry
+                ControlChange::high_res_cc(v, 6, *x);
+            }
+            Self::PanSpreadAngle3DSound => {
+                v.push(100);
+                v.push(7);
+                v.push(101);
+                v.push(61); // 3D Sound
+            }
+            Self::PanSpreadAngle3DSoundEntry(x) => {
+                Self::PanSpreadAngle3DSound.extend_midi_running(v);
+                // Data entry
+                ControlChange::high_res_cc(v, 6, *x);
+            }
+            Self::RollAngle3DSound => {
+                v.push(100);
+                v.push(8);
+                v.push(101);
+                v.push(61); // 3D Sound
+            }
+            Self::RollAngle3DSoundEntry(x) => {
+                Self::RollAngle3DSound.extend_midi_running(v);
+                // Data entry
+                ControlChange::high_res_cc(v, 6, *x);
+            }
+            Self::Unregistered(x) => {
                 let [msb, lsb] = to_u14(*x);
                 v.push(98);
                 v.push(lsb);
