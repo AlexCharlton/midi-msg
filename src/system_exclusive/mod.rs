@@ -1,3 +1,5 @@
+mod controller_destination;
+pub use controller_destination::*;
 mod file_dump;
 pub use file_dump::*;
 mod global_parameter;
@@ -168,6 +170,9 @@ pub enum UniversalRealTimeMsg {
     TuningNoteChange(TuningNoteChange),
     ScaleTuning1Byte(ScaleTuning1Byte),
     ScaleTuning2Byte(ScaleTuning2Byte),
+    ChannelPressureControllerDestination(ControllerDestination),
+    PolyphonicKeyPressureControllerDestination(ControllerDestination),
+    ControlChangeControllerDestination(ControlChangeControllerDestination),
 }
 
 impl UniversalRealTimeMsg {
@@ -261,6 +266,21 @@ impl UniversalRealTimeMsg {
                 v.push(08);
                 v.push(09);
                 tuning.extend_midi(v);
+            }
+            UniversalRealTimeMsg::ChannelPressureControllerDestination(d) => {
+                v.push(09);
+                v.push(01);
+                d.extend_midi(v);
+            }
+            UniversalRealTimeMsg::PolyphonicKeyPressureControllerDestination(d) => {
+                v.push(09);
+                v.push(02);
+                d.extend_midi(v);
+            }
+            UniversalRealTimeMsg::ControlChangeControllerDestination(d) => {
+                v.push(09);
+                v.push(03);
+                d.extend_midi(v);
             }
         }
     }
