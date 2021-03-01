@@ -62,6 +62,21 @@ pub fn to_u28(x: u32) -> [u8; 4] {
 }
 
 #[inline]
+pub fn to_u35(x: u64) -> [u8; 5] {
+    if x > 34359738367 {
+        [0x7f, 0x7f, 0x7f, 0x7f, 0x7f]
+    } else {
+        [
+            (x >> 28) as u8,
+            (x >> 21) as u8 & 0b01111111,
+            (x >> 14) as u8 & 0b01111111,
+            (x >> 7) as u8 & 0b01111111,
+            x as u8 & 0b01111111,
+        ]
+    }
+}
+
+#[inline]
 pub fn to_nibble(x: u8) -> [u8; 2] {
     [x >> 4, x & 0b00001111]
 }
@@ -105,6 +120,16 @@ pub fn push_u28(x: u32, v: &mut Vec<u8>) {
     v.push(lsb);
     v.push(msb);
     v.push(mmsb);
+}
+
+#[inline]
+pub fn push_u35(x: u64, v: &mut Vec<u8>) {
+    let [msb, b2, b3, b4, lsb] = to_u35(x);
+    v.push(lsb);
+    v.push(b4);
+    v.push(b3);
+    v.push(b2);
+    v.push(msb);
 }
 
 pub fn checksum(bytes: &[u8]) -> u8 {

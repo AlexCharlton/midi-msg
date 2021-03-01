@@ -301,6 +301,7 @@ impl UniversalRealTimeMsg {
 #[derive(Debug, Clone, PartialEq)]
 pub enum UniversalNonRealTimeMsg {
     SampleDump(SampleDumpMsg),
+    ExtendedSampleDump(ExtendedSampleDumpMsg),
     TimeCodeCueingSetup(TimeCodeCueingSetupMsg),
     IdentityRequest,
     IdentityReply(IdentityReply),
@@ -337,6 +338,17 @@ impl UniversalNonRealTimeMsg {
                         v.push(05);
                         v.push(02);
                     }
+                }
+                msg.extend_midi(v);
+            }
+            UniversalNonRealTimeMsg::ExtendedSampleDump(msg) => {
+                v.push(05);
+                match msg {
+                    ExtendedSampleDumpMsg::SampleName { .. } => v.push(03),
+                    ExtendedSampleDumpMsg::SampleNameRequest { .. } => v.push(04),
+                    ExtendedSampleDumpMsg::Header { .. } => v.push(05),
+                    ExtendedSampleDumpMsg::MultipleLoopPoints { .. } => v.push(06),
+                    ExtendedSampleDumpMsg::LoopPointsRequest { .. } => v.push(07),
                 }
                 msg.extend_midi(v);
             }
