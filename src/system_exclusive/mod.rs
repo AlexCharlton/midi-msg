@@ -2,6 +2,8 @@ mod controller_destination;
 pub use controller_destination::*;
 mod file_dump;
 pub use file_dump::*;
+mod file_reference;
+pub use file_reference::*;
 mod global_parameter;
 pub use global_parameter::*;
 mod key_based_instrument_control;
@@ -315,6 +317,7 @@ pub enum UniversalNonRealTimeMsg {
     ScaleTuning1Byte(ScaleTuning1Byte),
     ScaleTuning2Byte(ScaleTuning2Byte),
     GeneralMidi(bool),
+    FileReference(FileReferenceMsg),
     EOF,
     Wait,
     Cancel,
@@ -420,6 +423,17 @@ impl UniversalNonRealTimeMsg {
                 v.push(09);
                 v.push(if *on { 01 } else { 02 });
             }
+            UniversalNonRealTimeMsg::FileReference(msg) => {
+                v.push(0x0B);
+                match msg {
+                    FileReferenceMsg::Open { .. } => v.push(01),
+                    FileReferenceMsg::SelectContents { .. } => v.push(02),
+                    FileReferenceMsg::OpenSelectContents { .. } => v.push(03),
+                    FileReferenceMsg::Close { .. } => v.push(04),
+                }
+                msg.extend_midi(v);
+            }
+
             UniversalNonRealTimeMsg::EOF => {
                 v.push(0x7B);
                 v.push(00);

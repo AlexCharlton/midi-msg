@@ -17,6 +17,7 @@ The following [MMA documents](MIDI 1.0 Detailed Specification) are supported (wi
 - MIDI Time Code (MMA0001 / RP004 / RP008)
 - General MIDI System Level 1 (MMA0007 / RP003)
 - General MIDI 2 1.2 (RP-024/RP-036/RP-037/RP-045)
+- File Reference System Exclusive Message (CA-018)
 - Sample Dump Size, Rate and Name Extensions (CA-019)
 - MIDI Tuning Updated Specification (CA-020/CA-021/RP-020)
 - Controller Destination Setting (CA-022)

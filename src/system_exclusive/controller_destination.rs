@@ -53,7 +53,8 @@ impl ControlChangeControllerDestination {
         Err("TODO: not implemented")
     }
 }
-/// The parameters that can be controlled by `ControllerDestination` or `CCControllerDestination`
+/// The parameters that can be controlled by `ControllerDestination` or
+/// `ControlChangeControllerDestination`
 /// CA-022
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum ControlledParameter {
