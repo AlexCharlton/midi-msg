@@ -210,7 +210,24 @@ impl Default for WAVMap {
 #[derive(Debug, Clone, PartialEq)]
 pub enum SelectMap {
     /// Used for DLS or SF2 files. No more than 127 `SoundFileMap`s
+    /// 0 `SoundFileMap`s indicates "use the map provided in the file"
     SoundFile(Vec<SoundFileMap>),
+    /// Used for DLS or SF2 files. Use the mapping provided by the file,
+    /// but offset the given MIDI bank by `bank_offset`
+    /// Defined in CA-028
+    SoundFileBankOffset {
+        bank_offset: u16,
+        /// The selected instrument is a drum instrument
+        src_drum: bool,
+    },
+    /// Used for WAV files. Offset the dest MIDI bank by `bank_offset`.
+    /// Defined in CA-028
+    WAVBankOffset {
+        map: WAVMap,
+        bank_offset: u16,
+        /// The selected instrument is a drum instrument
+        src_drum: bool,
+    },
     /// Used for WAV files
     WAV(WAVMap),
 }
@@ -219,6 +236,38 @@ impl SelectMap {
     fn extend_midi(&self, v: &mut Vec<u8>) {
         match self {
             Self::WAV(m) => m.extend_midi(v),
+            Self::WAVBankOffset {
+                map,
+                bank_offset,
+                src_drum,
+            } => {
+                map.extend_midi(v);
+                v.push(0); // count
+                v.push(0); // Extension ID 1
+                v.push(1); // Extension ID 2
+                v.push(3); // len
+                push_u14(*bank_offset, v);
+                let mut flags: u8 = 0;
+                if *src_drum {
+                    flags += 1 << 0;
+                }
+                push_u7(flags, v);
+            }
+            Self::SoundFileBankOffset {
+                bank_offset,
+                src_drum,
+            } => {
+                v.push(0); // count
+                v.push(0); // Extension ID 1
+                v.push(1); // Extension ID 2
+                v.push(3); // len
+                push_u14(*bank_offset, v);
+                let mut flags: u8 = 0;
+                if *src_drum {
+                    flags += 1 << 0;
+                }
+                push_u7(flags, v);
+            }
             Self::SoundFile(maps) => {
                 let count = maps.len().min(127);
                 push_u7(count as u8, v);
@@ -232,6 +281,8 @@ impl SelectMap {
     fn len(&self) -> usize {
         match self {
             Self::WAV(_) => 9,
+            Self::WAVBankOffset { .. } => 9 + 6,
+            Self::SoundFileBankOffset { .. } => 7,
             Self::SoundFile(maps) => {
                 let count = maps.len().min(127);
                 1 + count * 8
