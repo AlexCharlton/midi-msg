@@ -4,6 +4,11 @@ pub fn to_u7(x: u8) -> u8 {
 }
 
 #[inline]
+pub fn i_to_u7(x: i8) -> u8 {
+    to_u7((x.max(-64) + 64) as u8)
+}
+
+#[inline]
 pub fn to_i7(x: i8) -> u8 {
     if x > 63 {
         0x7f
@@ -21,6 +26,18 @@ pub fn to_u14(x: u16) -> [u8; 2] {
     } else {
         [(x >> 7) as u8, x as u8 & 0b01111111]
     }
+}
+
+#[inline]
+pub fn i_to_u14(x: i16) -> [u8; 2] {
+    to_u14((x.max(-8192) + 8192) as u16)
+}
+
+// TODO: etc
+#[inline]
+pub fn bytes_to_u14(b: [u8; 2]) -> u16 {
+    // TODO
+    0
 }
 
 #[inline]

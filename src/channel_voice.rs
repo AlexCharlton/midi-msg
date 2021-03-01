@@ -645,7 +645,7 @@ impl Parameter {
             Self::FineTuningEntry(x) => {
                 Self::FineTuning.extend_midi_running(v);
                 // Data entry:
-                let [msb, lsb] = to_i14(*x);
+                let [msb, lsb] = i_to_u14(*x);
                 v.push(6);
                 v.push(msb);
                 v.push(6 + 32);
@@ -660,11 +660,11 @@ impl Parameter {
             Self::CoarseTuningEntry(x) => {
                 Self::CoarseTuning.extend_midi_running(v);
                 // Data entry:
-                let lsb = to_i7(*x);
+                let msb = i_to_u7(*x);
                 v.push(6);
-                v.push(0);
+                v.push(msb);
                 v.push(6 + 32);
-                v.push(lsb);
+                v.push(0);
             }
             Self::TuningProgramSelect => {
                 v.push(100);

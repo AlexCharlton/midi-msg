@@ -226,12 +226,14 @@ impl UniversalRealTimeMsg {
             UniversalRealTimeMsg::MasterFineTuning(t) => {
                 v.push(04);
                 v.push(03);
-                push_i14(*t, v);
+                let [msb, lsb] = i_to_u14(*t);
+                v.push(lsb);
+                v.push(msb);
             }
             UniversalRealTimeMsg::MasterCoarseTuning(t) => {
                 v.push(04);
                 v.push(04);
-                push_i7(*t, v);
+                v.push(i_to_u7(*t));
             }
             UniversalRealTimeMsg::GlobalParameterControl(gp) => {
                 v.push(04);

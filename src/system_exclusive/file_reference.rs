@@ -173,8 +173,9 @@ pub struct WAVMap {
     pub lokey: u8,
     /// Highest MIDI note that plays
     pub hikey: u8,
-    /// Fine tuning offset, 0-16383 representing -100-100 cents
-    pub fine: u16,
+    /// Fine tuning offset -8192-8191, representing the fractional cents to shift
+    /// in 1/8192ths of a cent
+    pub fine: i16,
     /// Initial volume 0-127
     pub volume: u8,
 }
@@ -186,7 +187,9 @@ impl WAVMap {
         push_u7(self.base, v);
         push_u7(self.lokey, v);
         push_u7(self.hikey, v);
-        push_u14(self.fine, v);
+        let [msb, lsb] = i_to_u14(self.fine);
+        v.push(lsb);
+        v.push(msb);
         push_u7(self.volume, v);
     }
 }
@@ -199,7 +202,7 @@ impl Default for WAVMap {
             base: 60,
             lokey: 0,
             hikey: 0x7F,
-            fine: 8192, // 0
+            fine: 0,
             volume: 0x7F,
         }
     }

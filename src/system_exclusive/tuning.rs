@@ -151,7 +151,7 @@ impl ScaleTuningDump1Byte {
         }
 
         for t in self.tuning.iter() {
-            push_i7(*t, v);
+            v.push(i_to_u7(*t));
         }
 
         v.push(0); // Checksum <- Will be written over by `SystemExclusiveMsg.extend_midi`
@@ -186,7 +186,9 @@ impl ScaleTuningDump2Byte {
         }
 
         for t in self.tuning.iter() {
-            push_i14(*t, v);
+            let [msb, lsb] = i_to_u14(*t);
+            v.push(lsb);
+            v.push(msb);
         }
 
         v.push(0); // Checksum <- Will be written over by `SystemExclusiveMsg.extend_midi`
@@ -211,7 +213,7 @@ impl ScaleTuning1Byte {
     pub(crate) fn extend_midi(&self, v: &mut Vec<u8>) {
         self.channels.extend_midi(v);
         for t in self.tuning.iter() {
-            push_i7(*t, v);
+            v.push(i_to_u7(*t));
         }
     }
 
@@ -234,7 +236,9 @@ impl ScaleTuning2Byte {
     pub(crate) fn extend_midi(&self, v: &mut Vec<u8>) {
         self.channels.extend_midi(v);
         for t in self.tuning.iter() {
-            push_i14(*t, v);
+            let [msb, lsb] = i_to_u14(*t);
+            v.push(lsb);
+            v.push(msb);
         }
     }
 
