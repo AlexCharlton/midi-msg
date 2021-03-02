@@ -20,6 +20,7 @@ pub use show_control::*;
 mod tuning;
 pub use tuning::*;
 
+use super::general_midi::GeneralMidi;
 use super::time_code::*;
 use super::util::*;
 
@@ -318,7 +319,7 @@ pub enum UniversalNonRealTimeMsg {
     TuningNoteChange(TuningNoteChange),
     ScaleTuning1Byte(ScaleTuning1Byte),
     ScaleTuning2Byte(ScaleTuning2Byte),
-    GeneralMidi(bool),
+    GeneralMidi(GeneralMidi),
     FileReference(FileReferenceMsg),
     EOF,
     Wait,
@@ -421,9 +422,9 @@ impl UniversalNonRealTimeMsg {
                 v.push(09);
                 tuning.extend_midi(v);
             }
-            UniversalNonRealTimeMsg::GeneralMidi(on) => {
+            UniversalNonRealTimeMsg::GeneralMidi(gm) => {
                 v.push(09);
-                v.push(if *on { 01 } else { 02 });
+                v.push(*gm as u8);
             }
             UniversalNonRealTimeMsg::FileReference(msg) => {
                 v.push(0x0B);

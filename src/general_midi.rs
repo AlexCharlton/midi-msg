@@ -1,3 +1,12 @@
+/// Used to turn General MIDI level 1 or 2 on, or turn them off
+/// Used in `UniversalNonRealTimeMsg::GeneralMidi`
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum GeneralMidi {
+    GM1 = 1,
+    GM2 = 3,
+    Off = 2,
+}
+
 /// The instrument that should be played when applying a `ChannelVoiceMsg::ProgramChange`
 /// Use `GMSoundSet::Sound as u8` to use as the program number
 /// Should not be used when targeting channel 10
