@@ -538,7 +538,7 @@ impl ControlChange {
 /// "Entry" Parameters can be used to set the given parameters
 pub enum Parameter {
     /// An registered parameter that does nothing.
-    /// Referred to at least in RP-018
+    /// Defined in GM2
     Null,
     /// The pitch bend sensitivity in semitones (0-127) and the sensitivity in cents (0-100),
     /// respectively. For example, a value (1, 0) means +/- one semitone (a total range of two
@@ -561,7 +561,7 @@ pub enum Parameter {
     TuningBankSelect,
     TuningBankSelectEntry(u8),
     /// The amount of "modulation depth" your mod wheel should apply: 0-16383
-    /// There's no firm definition of what this means. Defined in CA 26
+    /// Defined in CA 26. GM2 defines what this range might mean
     ModulationDepthRange,
     ModulationDepthRangeEntry(u16),
     /// Only valid when sent to channel 1 or channel 16, the former indicating that this

@@ -19,7 +19,112 @@ pub struct GlobalParameterControl {
     pub params: Vec<GlobalParameter>,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq)]
+/// The type of reverb only used by `GlobalParameterControl::reverb`
+pub enum ReverbType {
+    SmallRoom = 0,
+    MediumRoom = 1,
+    LargeRoom = 2,
+    MediumHall = 3,
+    LargeHall = 4,
+    Plate = 8,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq)]
+/// The type of chorus only used by `GlobalParameterControl::chorus`
+pub enum ChorusType {
+    Chorus1 = 0,
+    Chorus2 = 1,
+    Chorus3 = 2,
+    Chorus4 = 3,
+    FBChorus = 4,
+    Flanger = 5,
+}
+
 impl GlobalParameterControl {
+    /// Constructor for a `GlobalParameterControl` directed at a GM2 Reverb slot type.
+    /// `reverb_time` is the time in seconds (0.36 - 9.0) for which the low frequency
+    /// portion of the original sound declines by 60dB
+    pub fn reverb(reverb_type: Option<ReverbType>, reverb_time: Option<f32>) -> Self {
+        let mut params = vec![];
+
+        if let Some(reverb_type) = reverb_type {
+            params.push(GlobalParameter {
+                id: vec![0],
+                value: vec![reverb_type as u8],
+            });
+        }
+        if let Some(reverb_time) = reverb_time {
+            params.push(GlobalParameter {
+                id: vec![1],
+                value: vec![to_u7((reverb_time.ln() / 0.025 + 40.0) as u8)],
+            });
+        }
+        Self {
+            slot_paths: vec![SlotPath::Reverb],
+            param_id_width: 1,
+            value_width: 1,
+            params,
+        }
+    }
+
+    /// Constructor for a `GlobalParameterControl` directed at a GM2 Chorus slot type.
+    /// `mod_rate` is the modulation frequency in Hz (0.0-15.5).
+    /// `mod_depth` is the peak-to-peak swing of the modulation in ms (0.3-40.0).
+    /// `feedback` is the amount of feedback from Chorus output in percent (0.0-97.0).
+    /// `send_to_reverb` is the send level from Chorus to Reverb in percent (0.0-100.0).
+    pub fn chorus(
+        chorus_type: Option<ChorusType>,
+        mod_rate: Option<f32>,
+        mod_depth: Option<f32>,
+        feedback: Option<f32>,
+        send_to_reverb: Option<f32>,
+    ) -> Self {
+        let mut params = vec![];
+
+        if let Some(chorus_type) = chorus_type {
+            params.push(GlobalParameter {
+                id: vec![0],
+                value: vec![chorus_type as u8],
+            });
+        }
+
+        if let Some(mod_rate) = mod_rate {
+            params.push(GlobalParameter {
+                id: vec![1],
+                value: vec![to_u7((mod_rate / 0.122) as u8)],
+            });
+        }
+
+        if let Some(mod_depth) = mod_depth {
+            params.push(GlobalParameter {
+                id: vec![2],
+                value: vec![to_u7(((mod_depth * 3.2) - 1.0) as u8)],
+            });
+        }
+
+        if let Some(feedback) = feedback {
+            params.push(GlobalParameter {
+                id: vec![3],
+                value: vec![to_u7((feedback / 0.763) as u8)],
+            });
+        }
+
+        if let Some(send_to_reverb) = send_to_reverb {
+            params.push(GlobalParameter {
+                id: vec![4],
+                value: vec![to_u7((send_to_reverb / 0.787) as u8)],
+            });
+        }
+
+        Self {
+            slot_paths: vec![SlotPath::Chorus],
+            param_id_width: 1,
+            value_width: 1,
+            params,
+        }
+    }
+
     pub(crate) fn extend_midi(&self, v: &mut Vec<u8>) {
         v.push(self.slot_paths.len().min(127) as u8);
         push_u7(self.param_id_width, v);
@@ -44,14 +149,23 @@ impl GlobalParameterControl {
 /// the General MIDI 2 spec.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum SlotPath {
+    Reverb,
+    Chorus,
     /// For use in paths not described by the GM2 spec
     Unregistered(u8, u8),
-    // TODO: MIDI 2 slots
 }
 
 impl SlotPath {
     pub(crate) fn extend_midi(&self, v: &mut Vec<u8>) {
         match self {
+            Self::Reverb => {
+                v.push(1);
+                v.push(1);
+            }
+            Self::Chorus => {
+                v.push(1);
+                v.push(2);
+            }
             Self::Unregistered(a, b) => {
                 push_u7(*a, v); // MSB first ¯\_(ツ)_/¯
                 push_u7(*b, v);
@@ -147,6 +261,39 @@ mod tests {
                 4,    // Param number 2
                 0,    // Param value 2 LSB
                 1,    // Param value 2 MSB
+                0xF7
+            ]
+        );
+
+        assert_eq!(
+            MidiMsg::SystemExclusive {
+                msg: SystemExclusiveMsg::UniversalRealTime {
+                    device: DeviceID::AllCall,
+                    msg: UniversalRealTimeMsg::GlobalParameterControl(
+                        GlobalParameterControl::chorus(
+                            Some(ChorusType::Flanger),
+                            Some(1.1),
+                            None,
+                            None,
+                            Some(100.0)
+                        )
+                    ),
+                },
+            }
+            .to_midi(),
+            vec![
+                0xF0, 0x7F, 0x7F, // Receiver device
+                04, 05, 1,   // Slot path length
+                1,   // Param ID width
+                1,   // Value width
+                1,   // Slot path 1 MSB
+                2,   // Slot path 1 LSB
+                0,   // Param number 1: chorus type
+                5,   // Param value 1
+                1,   // Param number 2: mod rate
+                9,   // Param value 2
+                4,   // Param number 3: send to reverb
+                127, // Param value 3
                 0xF7
             ]
         );
