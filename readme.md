@@ -1,5 +1,8 @@
 # midi-msg
 
+[![Crates.io](https://img.shields.io/crates/v/midi-msg)](https://crates.io/crates/midi-msg)
+[![Docs.rs](https://docs.rs/midi-msg/badge.svg)](https://docs.rs/midi-msg)
+
 midi-msg aims to be a complete representation of the MIDI 1.0 Detailed Specification and its many extensions and addenda, to allow for the serialization and deserialization of MIDI byte streams to and from a typed representation. MIDI 2.0 may be supported at a later date.
 
 midi-msg types follow the taxonomy detailed in the MIDI spec, and have the goal of being entirely safe. That is to say, any `MidiMsg` can be serialized into a valid MIDI byte sequence. Likewise, as it strives for completeness, any valid MIDI byte sequence can be deserialized into a `MidiMsg`. A corollary to this is that "MIDI-like" messages that do not conform to the spec are mostly not representable. Additionally, midi-msg strives to capture the semantic meaning of MIDI with types that are not simply "bags of bytes". Any values that are not numeric atoms are represented with their meaning in mind. Nonetheless, much of what MIDI achieves is predicated on passing around numeric values and as such they are handled according to the following approach.
