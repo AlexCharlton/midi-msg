@@ -24,19 +24,24 @@ use super::general_midi::GeneralMidi;
 use super::time_code::*;
 use super::util::*;
 
+/// The bulk of the MIDI spec lives here, in "Universal System Exclusive" messages.
+/// Also used for manufacturer-specific messages.
+/// Used in [`MidiMsg`](crate::MidiMsg).
 #[derive(Debug, Clone, PartialEq)]
 pub enum SystemExclusiveMsg {
-    Commercial {
-        id: ManufacturerID,
-        data: Vec<u8>,
-    },
-    NonCommercial {
-        data: Vec<u8>,
-    },
+    /// An arbitrary set of 7-bit "bytes", the meaning of which must be derived from the
+    /// message, the definition of which is determined by the given manufacturer.
+    Commercial { id: ManufacturerID, data: Vec<u8> },
+    /// Similar to `Commercial` but for use in non-commercial situations.
+    NonCommercial { data: Vec<u8> },
+    /// A diverse range of messages, for real-time applications.
+    /// A message is targeted to the given `device`.
     UniversalRealTime {
         device: DeviceID,
         msg: UniversalRealTimeMsg,
     },
+    /// A diverse range of messages, for non-real-time applications.
+    /// A message is targeted to the given `device`.
     UniversalNonRealTime {
         device: DeviceID,
         msg: UniversalNonRealTimeMsg,
@@ -44,13 +49,7 @@ pub enum SystemExclusiveMsg {
 }
 
 impl SystemExclusiveMsg {
-    pub fn to_midi(&self) -> Vec<u8> {
-        let mut r: Vec<u8> = vec![];
-        self.extend_midi(&mut r);
-        r
-    }
-
-    pub fn extend_midi(&self, v: &mut Vec<u8>) {
+    pub(crate) fn extend_midi(&self, v: &mut Vec<u8>) {
         v.push(0xF0);
         match self {
             SystemExclusiveMsg::Commercial { id, data } => {
@@ -96,20 +95,16 @@ impl SystemExclusiveMsg {
         v.push(0xF7);
     }
 
-    /// Ok results return a MidiMsg and the number of bytes consumed from the input
-    pub fn from_midi(_m: &[u8]) -> Result<(Self, usize), &str> {
+    pub(crate) fn from_midi(_m: &[u8]) -> Result<(Self, usize), &str> {
         Err("TODO: not implemented")
     }
 }
 
-impl From<&SystemExclusiveMsg> for Vec<u8> {
-    fn from(m: &SystemExclusiveMsg) -> Vec<u8> {
-        m.to_midi()
-    }
-}
-
-#[derive(Debug, Clone, Copy, PartialEq)]
+/// Two 7-bit "bytes", used to identify the manufacturer for [`SystemExclusiveMsg::Commercial`] messages.
+/// See [the published list of IDs](https://www.midi.org/specifications-old/item/manufacturer-id-numbers).
+///
 /// If second byte is None, it is a one-byte ID
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub struct ManufacturerID(u8, Option<u8>);
 
 impl ManufacturerID {
@@ -136,10 +131,12 @@ impl From<(u8, u8)> for ManufacturerID {
     }
 }
 
+/// The device ID being addressed, either a number between 0-126 or `AllCall` (all devices).
+/// Used by [`SystemExclusiveMsg::UniversalNonRealTime`] and [`SystemExclusiveMsg::UniversalRealTime`].
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum DeviceID {
-    AllCall,
     Device(u8),
+    AllCall,
 }
 
 impl DeviceID {
@@ -151,33 +148,56 @@ impl DeviceID {
     }
 }
 
+/// A diverse range of messages for real-time applications. Used by [`SystemExclusiveMsg::UniversalRealTime`].
 #[derive(Debug, Clone, PartialEq)]
 pub enum UniversalRealTimeMsg {
+    /// For use when a [`SystemCommonMsg::TimeCodeQuarterFrame`](crate::SystemCommonMsg::TimeCodeQuarterFrame1) is not appropriate:
+    /// When rewinding, fast-forwarding, or otherwise locating and cueing, where sending quarter frame
+    /// messages continuously would be excessive.
     TimeCodeFull(TimeCode),
+    /// Provided for sending SMTPE "user bits", which are application specific.
     TimeCodeUserBits(UserBits),
+    /// Used to control equipment for liver performances and installations.
     ShowControl(ShowControlMsg),
+    /// Indicates that the next MIDI clock message is the first clock of a new measure.
     BarMarker(BarMarker),
+    /// Indicates a change in time signature, effective immediately (or on the next MIDI clock).
     TimeSignature(TimeSignature),
+    /// Indicates a change in time signature, effective upon receipt of the next `BarMarker` message.
     TimeSignatureDelayed(TimeSignature),
+    /// Change the volume of all sound, from 0 (volume off) to 16383.
     MasterVolume(u16),
+    /// Change the balance of all sound, from 0 (hard left) to 8192 (center) to 16383 (hard right).
     MasterBalance(u16),
-    /// A value from -8192-8191, used like `Parameter::FineTuning`
-    /// Defined in CA-025
+    /// A value from -8192-8191, used like [`Parameter::FineTuning`](crate::Parameter::FineTuning), but affecting all channels.
+    ///
+    /// Defined in CA-025.
     MasterFineTuning(i16),
-    /// A value from -64-63, used like `Parameter::CoarseTuning`
-    /// Defined in CA-025
+    /// A value from -64-63, used like [`Parameter::CoarseTuning`](crate::Parameter::CoarseTuning), but affecting all channels.
+    ///
+    /// Defined in CA-025.
     MasterCoarseTuning(i8),
-    /// Defined in CA-024
+    /// Used to control parameters on a device that affect all sound, e.g. a global reverb.
     GlobalParameterControl(GlobalParameterControl),
+    /// Used to define a range of time points.
     TimeCodeCueing(TimeCodeCueingMsg),
+    /// Used to control audio recording and production systems.
     MachineControlCommand(MachineControlCommandMsg),
+    /// Responses to `MachineControlCommand`.
     MachineControlResponse(MachineControlResponseMsg),
+    /// Immediately change the tuning of 1 or more notes.
     TuningNoteChange(TuningNoteChange),
+    /// A set of 12 tunings across all octaves targeting a set of channels, to take effect immediately.
     ScaleTuning1Byte(ScaleTuning1Byte),
+    /// A set of 12 high-res tunings across all octaves targeting a set of channels, to take effect immediately.
     ScaleTuning2Byte(ScaleTuning2Byte),
+    /// Select the destination of a [`ChannelPressure`](crate::ChannelVoiceMsg::ChannelPressure) message.
     ChannelPressureControllerDestination(ControllerDestination),
+    /// Select the destination of a [`PolyPressure`](crate::ChannelVoiceMsg::PolyPressure) message.
     PolyphonicKeyPressureControllerDestination(ControllerDestination),
+    /// Select the destination of a [`ControlChange`](crate::ChannelVoiceMsg::ControlChange) message.
     ControlChangeControllerDestination(ControlChangeControllerDestination),
+    /// Intended to act like Control Change messages, but targeted at an individual key for e.g. changing the release time for individual drum sounds.
     KeyBasedInstrumentControl(KeyBasedInstrumentControl),
 }
 
@@ -303,28 +323,53 @@ impl UniversalRealTimeMsg {
     }
 }
 
+/// A diverse range of messages for non-real-time applications. Used by [`SystemExclusiveMsg::UniversalNonRealTime`].
 #[derive(Debug, Clone, PartialEq)]
 pub enum UniversalNonRealTimeMsg {
+    /// Used to transmit sampler data.
     SampleDump(SampleDumpMsg),
+    /// Additional ways/features for transmitting sampler data per CA-019.
     ExtendedSampleDump(ExtendedSampleDumpMsg),
+    /// Used to define a range of time points per MMA0001.
     TimeCodeCueingSetup(TimeCodeCueingSetupMsg),
+    /// Request that the targeted device identify itself.
     IdentityRequest,
+    /// The response to an `IdentityRequest`.
     IdentityReply(IdentityReply),
+    /// Used to transmit general file data.
     FileDump(FileDumpMsg),
-    // Tuning program number, 0-127, and optional tuning bank number, 0-127
+    /// Request a tuning bulk dump for the provided
+    /// tuning program number, 0-127, and optional tuning bank number, 0-127
     TuningBulkDumpRequest(u8, Option<u8>),
+    /// A "key based" tuning dump, with one tuning for every key.
     KeyBasedTuningDump(KeyBasedTuningDump),
+    /// A "1 byte scale" tuning dump, with 12 tunings applied across all octaves.
     ScaleTuningDump1Byte(ScaleTuningDump1Byte),
+    /// A "2 byte scale" tuning dump, with 12 tunings applied across all octaves.
+    /// Like `ScaleTuningDump1Byte` but higher resolution.
     ScaleTuningDump2Byte(ScaleTuningDump2Byte),
+    /// Change the tuning of 1 or more notes for the next sounding of those notes.
     TuningNoteChange(TuningNoteChange),
+    /// Similar to `ScaleTuningDump1Byte`, but targets a channel, to take effect the next time a note is sounded.
     ScaleTuning1Byte(ScaleTuning1Byte),
+    /// Similar to `ScaleTuningDump2Byte`, but targets a channel, to take effect the next time a note is sounded.
     ScaleTuning2Byte(ScaleTuning2Byte),
+    /// Turn on or off General MIDI 1 or 2.
     GeneralMidi(GeneralMidi),
+    /// Messages for accessing files on a shared network or filesystem.
     FileReference(FileReferenceMsg),
+    /// Used by both `SampleDump` and `FileDump` to indicate all packets have been sent.
     EOF,
+    /// Used by both `SampleDump` and `FileDump` from the receiver to request that the sender
+    /// does not send any more packets until an `ACK` or `NAK` is sent.
     Wait,
+    /// Used to abort an ongoing `SampleDump` or `FileDump`.
     Cancel,
+    /// Used by both `SampleDump` and `FileDump` from the receiver to indicate that it did not
+    /// receive the last packet correctly.
     NAK(u8),
+    /// Used by both `SampleDump` and `FileDump` from the receiver to indicate that it
+    /// received the last packet correctly.
     ACK(u8),
 }
 
@@ -336,7 +381,7 @@ impl UniversalNonRealTimeMsg {
                     SampleDumpMsg::Header { .. } => v.push(01),
                     SampleDumpMsg::Packet { .. } => v.push(02),
                     SampleDumpMsg::Request { .. } => v.push(03),
-                    SampleDumpMsg::MultipleLoopPoints { .. } => {
+                    SampleDumpMsg::LoopPointTransmission { .. } => {
                         v.push(05);
                         v.push(01);
                     }
@@ -353,7 +398,7 @@ impl UniversalNonRealTimeMsg {
                     ExtendedSampleDumpMsg::SampleName { .. } => v.push(03),
                     ExtendedSampleDumpMsg::SampleNameRequest { .. } => v.push(04),
                     ExtendedSampleDumpMsg::Header { .. } => v.push(05),
-                    ExtendedSampleDumpMsg::MultipleLoopPoints { .. } => v.push(06),
+                    ExtendedSampleDumpMsg::LoopPointTransmission { .. } => v.push(06),
                     ExtendedSampleDumpMsg::LoopPointsRequest { .. } => v.push(07),
                 }
                 msg.extend_midi(v);
@@ -465,6 +510,9 @@ impl UniversalNonRealTimeMsg {
     }
 }
 
+/// A response to [`UniversalNonRealTimeMsg::IdentityRequest`], meant to indicate the type of device
+/// that this message is sent from.
+/// Used by [`UniversalNonRealTimeMsg::IdentityReply`].
 #[derive(Debug, Copy, Clone, PartialEq)]
 pub struct IdentityReply {
     pub id: ManufacturerID,

@@ -2,8 +2,17 @@ use super::DeviceID;
 use crate::util::*;
 use ascii::{AsciiChar, AsciiString};
 
+/// Used to transmit general file data.
+/// Used by [`UniversalNonRealTimeMsg`](crate::UniversalNonRealTimeMsg).
 #[derive(Debug, Clone, PartialEq)]
 pub enum FileDumpMsg {
+    /// Request that the file with `name` be sent.
+    Request {
+        requester_device: DeviceID,
+        file_type: FileType,
+        name: AsciiString,
+    },
+    /// The header of the file about to be sent.
     Header {
         sender_device: DeviceID,
         file_type: FileType,
@@ -11,17 +20,14 @@ pub enum FileDumpMsg {
         length: u32,
         name: AsciiString,
     },
-    /// Use `packet` to construct
+    /// A packet of the file being sent.
+    ///
+    /// Use `FileDumpMsg::packet` to construct
     Packet {
         /// Running packet count, 0-127. Wraps back to 0
         running_count: u8,
         /// At most 112 bytes (full 8 bits may be used)
         data: Vec<u8>,
-    },
-    Request {
-        requester_device: DeviceID,
-        file_type: FileType,
-        name: AsciiString,
     },
 }
 
@@ -69,6 +75,8 @@ impl FileDumpMsg {
         }
     }
 
+    /// Construct a packet of up to 112 (full) bytes.
+    /// `num` is the number of this packet.
     pub fn packet(num: u32, data: Vec<u8>) -> Self {
         Self::Packet {
             running_count: (num % 128) as u8,
@@ -106,6 +114,7 @@ impl FileDumpMsg {
     }
 }
 
+/// A four-character file type used by [`FileDumpMsg`].
 #[derive(Debug, Copy, Clone, PartialEq)]
 pub enum FileType {
     MIDI,

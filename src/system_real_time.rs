@@ -1,21 +1,24 @@
+/// A fairly limited set of messages used for device synchronization.
+/// Used in [`MidiMsg`](crate::MidiMsg).
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum SystemRealTimeMsg {
+    /// Used to synchronize clocks. Sent at a rate of 24 per quarter note.
     TimingClock,
+    /// Start at the beginning of the song or sequence.
     Start,
+    /// Continue from the current location in the song or sequence.
     Continue,
+    /// Stop playback.
     Stop,
+    /// Sent every 300ms or less whenever other MIDI data is not sent.
+    /// Used to indicate that the given device is still connected.
     ActiveSensing,
+    /// Request that all devices are reset to their power-up state.
     SystemReset,
 }
 
 impl SystemRealTimeMsg {
-    pub fn to_midi(&self) -> Vec<u8> {
-        let mut r: Vec<u8> = vec![];
-        self.extend_midi(&mut r);
-        r
-    }
-
-    pub fn extend_midi(&self, v: &mut Vec<u8>) {
+    pub(crate) fn extend_midi(&self, v: &mut Vec<u8>) {
         match self {
             SystemRealTimeMsg::TimingClock => v.push(0xF8),
             SystemRealTimeMsg::Start => v.push(0xFA),
@@ -25,11 +28,9 @@ impl SystemRealTimeMsg {
             SystemRealTimeMsg::SystemReset => v.push(0xFF),
         }
     }
-}
 
-impl From<&SystemRealTimeMsg> for Vec<u8> {
-    fn from(m: &SystemRealTimeMsg) -> Vec<u8> {
-        m.to_midi()
+    pub(crate) fn from_midi(_m: &[u8]) -> Result<(Self, usize), &str> {
+        Err("TODO: not implemented")
     }
 }
 

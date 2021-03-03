@@ -1,13 +1,17 @@
 use crate::util::*;
 
+/// Indicates that the next MIDI clock message is the first clock of a new measure. Which bar
+/// is optionally indicated by this message.
+/// Used by [`UniversalRealTimeMsg::BarMarker`](crate::UniversalRealTimeMsg::BarMarker).
 #[derive(Debug, Copy, Clone, PartialEq)]
 pub enum BarMarker {
+    /// "Actually, we're not running right now, so there is no bar." Don't know why this is used.
     NotRunning,
-    /// Negative numbers. 8191-0
+    /// The bar is a count-in and are thus negative numbers from 8191-0.
     CountIn(u16), // ?
-    /// 1-8191
+    /// A regular bar numbered 1-8191.
     Number(u16),
-    /// Next clock message will be a new bar, but unknown what its number is
+    /// Next clock message will be a new bar, but it's not known what its number is.
     RunningUnknown,
 }
 
@@ -38,8 +42,11 @@ impl BarMarker {
     }
 }
 
+/// Used to communicate a new time signature to the receiver.
+/// Used by [`UniversalRealTimeMsg`](crate::UniversalRealTimeMsg).
 #[derive(Debug, Clone, PartialEq)]
 pub struct TimeSignature {
+    /// The base time signature.
     pub signature: Signature,
     /// How many MIDI clock events per metronome click.
     /// 24 indicates one click per quarter note (unless specified otherwise by `thirty_second_notes_in_midi_quarter_note`)
@@ -83,10 +90,12 @@ impl TimeSignature {
     }
 }
 
+/// A [time signature](https://en.wikipedia.org/wiki/Time_signature). Used by [`TimeSignature`].
 #[derive(Debug, Copy, Clone, PartialEq)]
 pub struct Signature {
-    /// Number of beats in a bar
+    /// Number of beats in a bar.
     pub beats: u8,
+    /// The note value for each beat.
     pub beat_value: BeatValue,
 }
 
@@ -110,6 +119,7 @@ impl Default for Signature {
     }
 }
 
+/// The note value of a beat, used by [`Signature`].
 #[derive(Debug, Copy, Clone, PartialEq)]
 pub enum BeatValue {
     Whole,

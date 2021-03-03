@@ -1,8 +1,10 @@
 use crate::message::Channel;
 use crate::util::*;
 
-/// Allows for the selection of the destination of a channel pressure/poly key pressure message
-/// CA-022
+/// Allows for the selection of the destination of a channel pressure/poly key pressure message.
+/// Used by [`UniversalRealTimeMsg`](crate::UniversalRealTimeMsg).
+///
+/// Defined in CA-022.
 #[derive(Debug, Clone, PartialEq)]
 pub struct ControllerDestination {
     pub channel: Channel,
@@ -24,11 +26,14 @@ impl ControllerDestination {
     }
 }
 
-/// Allows for the selection of the destination of a control change message
+/// Allows for the selection of the destination of a control change message.
+/// Used by [`UniversalRealTimeMsg::GlobalParameterControl`](crate::UniversalRealTimeMsg::GlobalParameterControl).
+///
+/// Defined in CA-022.
 #[derive(Debug, Clone, PartialEq)]
 pub struct ControlChangeControllerDestination {
     pub channel: Channel,
-    /// A control number between 0x01 - 0x1F or 0x40 - 0x5F
+    /// A control number between `0x01` - `0x1F` or `0x40` - `0x5F`
     /// Values outside these ranges will be coerced
     pub control_number: u8,
     /// Any number of (ControlledParameter, range) pairs
@@ -53,9 +58,8 @@ impl ControlChangeControllerDestination {
         Err("TODO: not implemented")
     }
 }
-/// The parameters that can be controlled by `ControllerDestination` or
-/// `ControlChangeControllerDestination`
-/// CA-022
+/// The parameters that can be controlled by [`ControllerDestination`] or
+/// [`ControlChangeControllerDestination`].
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum ControlledParameter {
     PitchControl = 0,

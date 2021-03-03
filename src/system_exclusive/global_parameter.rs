@@ -1,7 +1,11 @@
 use crate::util::*;
 
-/// Global Parameter Control
-/// As defined in CA-024
+/// Global Parameter Control, to control parameters on a device that affect all sound.
+/// E.g. a global reverb.
+/// Used by [`UniversalRealTimeMsg::GlobalParameterControl`](crate::UniversalRealTimeMsg::GlobalParameterControl).
+///
+/// As defined in CA-024.
+///
 /// This C/A is much more permissive than most, and thus has a pretty awkward interface.
 #[derive(Debug, Clone, PartialEq)]
 pub struct GlobalParameterControl {
@@ -20,7 +24,7 @@ pub struct GlobalParameterControl {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]
-/// The type of reverb only used by `GlobalParameterControl::reverb`
+/// The type of reverb, used by [`GlobalParameterControl::reverb`].
 pub enum ReverbType {
     SmallRoom = 0,
     MediumRoom = 1,
@@ -31,7 +35,7 @@ pub enum ReverbType {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]
-/// The type of chorus only used by `GlobalParameterControl::chorus`
+/// The type of chorus, used by [`GlobalParameterControl::chorus`].
 pub enum ChorusType {
     Chorus1 = 0,
     Chorus2 = 1,
@@ -43,6 +47,7 @@ pub enum ChorusType {
 
 impl GlobalParameterControl {
     /// Constructor for a `GlobalParameterControl` directed at a GM2 Reverb slot type.
+    ///
     /// `reverb_time` is the time in seconds (0.36 - 9.0) for which the low frequency
     /// portion of the original sound declines by 60dB
     pub fn reverb(reverb_type: Option<ReverbType>, reverb_time: Option<f32>) -> Self {
@@ -69,9 +74,13 @@ impl GlobalParameterControl {
     }
 
     /// Constructor for a `GlobalParameterControl` directed at a GM2 Chorus slot type.
+    ///
     /// `mod_rate` is the modulation frequency in Hz (0.0-15.5).
+    ///
     /// `mod_depth` is the peak-to-peak swing of the modulation in ms (0.3-40.0).
+    ///
     /// `feedback` is the amount of feedback from Chorus output in percent (0.0-97.0).
+    ///
     /// `send_to_reverb` is the send level from Chorus to Reverb in percent (0.0-100.0).
     pub fn chorus(
         chorus_type: Option<ChorusType>,
@@ -145,8 +154,8 @@ impl GlobalParameterControl {
     }
 }
 
-/// The "slot" of the device being referred to. Values other than `Unregistered` come from
-/// the General MIDI 2 spec.
+/// The "slot" of the device being referred to by [`GlobalParameterControl`].
+/// Values other than `Unregistered` come from the General MIDI 2 spec.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum SlotPath {
     Reverb,
@@ -178,7 +187,7 @@ impl SlotPath {
     }
 }
 
-/// An `id`:`value` pair that must line up with the `GlobalParameterControl` that it is placed in
+/// An `id`:`value` pair that must line up with the [`GlobalParameterControl`] that it is placed in.
 #[derive(Debug, Clone, PartialEq)]
 pub struct GlobalParameter {
     pub id: Vec<u8>,

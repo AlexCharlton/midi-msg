@@ -1,63 +1,51 @@
 use super::util::*;
 
+/// Channel-level messages that act on a voice. For instance, turning notes on off,
+/// or modifying sounding notes. Used in [`MidiMsg`](crate::MidiMsg).
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum ChannelVoiceMsg {
-    /// Max values are 127
-    NoteOff {
-        note: u8,
-        velocity: u8,
-    },
-    /// Max values are 127
+    /// Turn on a note
     NoteOn {
+        /// A MIDI note number 0-127. Per GM1, 69 = A440
         note: u8,
+        /// The velocity the note should be played at, 0-127
         velocity: u8,
     },
-    /// A note off with a preceding HighResVelocity CC per CA-031
-    HighResNoteOff {
+    /// Turn off a note
+    NoteOff {
+        /// Stop playing the given MIDI note at this channel, 0-127
         note: u8,
-        velocity: u16,
+        /// The velocity the note should stop being played at, 0-127
+        velocity: u8,
     },
+    /// Generally used for modifying the tones being played. Frequently shortened to 'CC'
+    ControlChange { control: ControlChange },
     /// A note on with a preceding HighResVelocity CC per CA-031
-    HighResNoteOn {
-        note: u8,
-        velocity: u16,
-    },
-    /// Max values are 127
+    HighResNoteOn { note: u8, velocity: u16 },
+    /// A note off with a preceding HighResVelocity CC per CA-031
+    HighResNoteOff { note: u8, velocity: u16 },
+    /// The amount of pressure being applied to a given note, which is a signal some controllers
+    /// after an initial `NoteOn`.
+    /// Can act on multiple notes at a time, thus it is "polyphonic".
     PolyPressure {
+        /// The note to apply this pressure signal to, 0-127
         note: u8,
+        /// The amount of pressure to apply, 0-127
         pressure: u8,
     },
-    ControlChange {
-        control: ControlChange,
-    },
-    /// 0-127. Use `GMSoundSet` when targeting General MIDI
-    ProgramChange {
-        program: u8,
-    },
-    /// Max 127
-    ChannelPressure {
-        pressure: u8,
-    },
-    /// Max 16383
-    PitchBend {
-        bend: u16,
-    },
+    /// Similar to `PolyPressure`, but only applies at the channel-level.
+    ChannelPressure { pressure: u8 },
+    /// Which "program", "patch" or "sound" to use when playing any preceding notes, 0-127.
+    /// Use [`GMSoundSet`](crate::GMSoundSet) when targeting General MIDI
+    ProgramChange { program: u8 },
+    /// Apply a pitch bend to all sounding notes. 0-8191 represent negative bends,
+    /// 8192 is no bend and8193-16383 are positive bends, with the standard bend rang
+    /// being +/-2 semitones per GM2. See [`Parameter::PitchBendSensitivity`]
+    PitchBend { bend: u16 },
 }
 
 impl ChannelVoiceMsg {
-    pub fn to_midi(&self) -> Vec<u8> {
-        let mut r: Vec<u8> = vec![];
-        self.extend_midi(&mut r);
-        r
-    }
-
-    pub fn to_midi_running(&self) -> Vec<u8> {
-        let mut r: Vec<u8> = vec![];
-        self.extend_midi_running(&mut r);
-        r
-    }
-
-    pub fn extend_midi(&self, v: &mut Vec<u8>) {
+    pub(crate) fn extend_midi(&self, v: &mut Vec<u8>) {
         match self {
             ChannelVoiceMsg::NoteOff { .. } => v.push(0x80),
             ChannelVoiceMsg::NoteOn { .. } => v.push(0x90),
@@ -73,7 +61,7 @@ impl ChannelVoiceMsg {
     }
 
     /// Out of necessity, pushes a Channel message after the note message for `HighResNoteOn/Off`
-    pub fn extend_midi_running(&self, v: &mut Vec<u8>) {
+    pub(crate) fn extend_midi_running(&self, v: &mut Vec<u8>) {
         match *self {
             ChannelVoiceMsg::NoteOff { note, velocity } => {
                 v.push(to_u7(note));
@@ -112,19 +100,12 @@ impl ChannelVoiceMsg {
         }
     }
 
-    /// Ok results return a MidiMsg and the number of bytes consumed from the input
-    pub fn from_midi(_m: &[u8]) -> Result<(Self, usize), &str> {
+    pub(crate) fn from_midi(_m: &[u8]) -> Result<(Self, usize), &str> {
         Err("TODO: not implemented")
     }
 }
 
-impl From<&ChannelVoiceMsg> for Vec<u8> {
-    fn from(m: &ChannelVoiceMsg) -> Vec<u8> {
-        m.to_midi()
-    }
-}
-
-/// An enum that defines the MIDI numbers associated with Control Changes
+/// An enum that defines the MIDI numbers associated with Control Changes.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum ControlNumber {
     BankSelect = 0,
@@ -209,68 +190,72 @@ pub enum ControlNumber {
     RegisteredParameter = 101,
 }
 
+/// Used by [`ChannelVoiceMsg::ControlChange`] to modify sounds.
+/// Each control targets a particular [`ControlNumber`], the meaning of which is given by convention.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum ControlChange {
-    /// Max 16383
+    /// 0-16383
     BankSelect(u16),
-    /// Max 16383
+    /// 0-16383
     ModWheel(u16),
-    /// Max 16383
+    /// 0-16383
     Breath(u16),
     /// Control number may be any valid Midi CC Control number. May not be > 119.
-    /// Max value is 127
     Undefined {
         control: u8,
+        /// 0-127
         value: u8,
     },
-    /// `control1` is associated with the MSB, `control2` with the LSB. Neither may be > 119.
-    /// Max value is 16383
+    /// `control1` is associated with the MSB of the value, `control2` with the LSB. Neither `controls` may be > 119.
     UndefinedHighRes {
         control1: u8,
         control2: u8,
+        /// 0-16383
         value: u16,
     },
-    /// Max 16383
+    /// 0-16383
     Foot(u16),
-    /// Max 16383
+    /// 0-16383
     Portamento(u16),
-    /// Max 16383
+    /// 0-16383
     Volume(u16),
-    /// Max 16383
+    /// 0-16383
     Balance(u16),
-    /// Max 16383
+    /// 0-16383
     Pan(u16),
-    /// Max 16383
+    /// 0-16383
     Expression(u16),
-    /// Max 16383
+    /// 0-16383
     Effect1(u16),
-    /// Max 16383
+    /// 0-16383
     Effect2(u16),
-    /// Max 16383
+    /// 0-16383
     GeneralPurpose1(u16),
-    /// Max 16383
+    /// 0-16383
     GeneralPurpose2(u16),
-    /// Max 16383
+    /// 0-16383
     GeneralPurpose3(u16),
-    /// Max 16383
+    /// 0-16383
     GeneralPurpose4(u16),
-    /// Max 127
+    /// 0-127
     GeneralPurpose5(u8),
-    /// Max 127
+    /// 0-127
     GeneralPurpose6(u8),
-    /// Max 127
+    /// 0-127
     GeneralPurpose7(u8),
-    /// Max 127
+    /// 0-127
     GeneralPurpose8(u8),
-    /// Max 127
+    /// 0-127
     Hold(u8),
-    /// Max 127
+    /// 0-127
     Hold2(u8),
+    /// Turn portamento on or off
     TogglePortamento(bool),
-    /// Max 127
+    /// 0-127
     Sostenuto(u8),
-    /// Max 127
+    /// 0-127
     SoftPedal(u8),
+    /// Turn legato on or off
     ToggleLegato(bool),
     /// Same as SoundControl1
     SoundVariation(u8),
@@ -291,40 +276,40 @@ pub enum ControlChange {
     VibratoDepth(u8),
     /// Same as SoundControl9 (RP-021)
     VibratoDelay(u8),
-    /// Max 127
+    /// 0-127
     SoundControl1(u8),
-    /// Max 127
+    /// 0-127
     SoundControl2(u8),
-    /// Max 127
+    /// 0-127
     SoundControl3(u8),
-    /// Max 127
+    /// 0-127
     SoundControl4(u8),
-    /// Max 127
+    /// 0-127
     SoundControl5(u8),
-    /// Max 127
+    /// 0-127
     SoundControl6(u8),
-    /// Max 127
+    /// 0-127
     SoundControl7(u8),
-    /// Max 127
+    /// 0-127
     SoundControl8(u8),
-    /// Max 127
+    /// 0-127
     SoundControl9(u8),
-    /// Max 127
+    /// 0-127
     SoundControl10(u8),
-    /// Used as the LSB of the velocity for the next note on/off message, 0-127
+    /// Used as the LSB of the velocity for the next note on/off message, 0-127.
     /// Defined in CA-031
     HighResVelocity(u8),
-    /// Max 127
+    /// 0-127
     PortamentoControl(u8),
-    /// Max 127
+    /// 0-127
     Effects1Depth(u8),
-    /// Max 127
+    /// 0-127
     Effects2Depth(u8),
-    /// Max 127
+    /// 0-127
     Effects3Depth(u8),
-    /// Max 127
+    /// 0-127
     Effects4Depth(u8),
-    /// Max 127
+    /// 0-127
     Effects5Depth(u8),
     /// Same as Effects1Depth (RP-023)
     ReverbSendLevel(u8),
@@ -336,16 +321,15 @@ pub enum ControlChange {
     CelesteDepth(u8),
     /// Same as Effects5Depth
     PhaserDepth(u8),
-
     /// Registered and Unregistered Parameters
     Parameter(Parameter),
-    /// Set the value of the last-set Parameter 0-16383
+    /// Set the value of the last-set Parameter. 0-16383
     DataEntry(u16),
-    /// Set the MSB and LSB of the last-set parameter separately
+    /// Set the MSB and LSB of the last-set parameter separately.
     DataEntry2(u8, u8),
-    /// Increment the value of the last-set Parameter 0-127
+    /// Increment the value of the last-set Parameter. 0-127
     DataIncrement(u8),
-    /// Decrement the value of the last-set Parameter 0-127
+    /// Decrement the value of the last-set Parameter. 0-127
     DataDecrement(u8),
 }
 
@@ -535,10 +519,13 @@ impl ControlChange {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]
-/// "Entry" Parameters can be used to set the given parameters
+/// Used by [`ControlChange::Parameter`]. "Entry" Parameters can be used to set the given parameters:
+/// they will first select that parameter, then send a [`ControlChange::DataEntry`] with the given value.
 pub enum Parameter {
-    /// An registered parameter that does nothing.
-    /// Defined in GM2
+    /// A whole bunch of parameters defined by the given number 0-16383, that can be used for whatever.
+    Unregistered(u16),
+    /// A registered parameter that does nothing.
+    /// Defined in GM2.
     Null,
     /// The pitch bend sensitivity in semitones (0-127) and the sensitivity in cents (0-100),
     /// respectively. For example, a value (1, 0) means +/- one semitone (a total range of two
@@ -546,21 +533,24 @@ pub enum Parameter {
     PitchBendSensitivity,
     PitchBendSensitivityEntry(u8, u8),
     /// A value from -8192-8191, representing the fractional cents to shift away from A440
-    /// in 1/8192ths of a cent
+    /// in 1/8192ths of a cent.
     FineTuning,
     FineTuningEntry(i16),
-    /// A value from -64-63, the number of semitones to shift away from A44
+    /// A value from -64-63, the number of semitones to shift away from A44.
     CoarseTuning,
     CoarseTuningEntry(i8),
-    /// Which "Tuning Program" to select from: 0-127
+    /// Which "Tuning Program" to select from: 0-127.
+    ///
     /// Defined in the MIDI Tuning Standard (Updated Specification)
     TuningProgramSelect,
     TuningProgramSelectEntry(u8),
-    /// Which "Tuning Bank" to select from: 0-127
+    /// Which "Tuning Bank" to select from: 0-127.
+    ///
     /// Defined in the MIDI Tuning Standard (Updated Specification)
     TuningBankSelect,
     TuningBankSelectEntry(u8),
-    /// The amount of "modulation depth" your mod wheel should apply: 0-16383
+    /// The amount of "modulation depth" your mod wheel should apply: 0-16383.
+    ///
     /// Defined in CA 26. GM2 defines what this range might mean
     ModulationDepthRange,
     ModulationDepthRangeEntry(u16),
@@ -569,23 +559,29 @@ pub enum Parameter {
     /// "upper zone". A value between 0 (zone is not configured to be MPE) and 16 (zone has
     /// 16 channels in it). There can be no more than lower zone channels + upper zone channels
     /// active at a given time.
+    ///
     /// Defined in RP-053: MIDI Polyphonic Expression
     PolyphonicExpression,
     PolyphonicExpressionEntry(u8),
-    /// A value 0-16383 representing -180.00-179.98 degrees
+    /// A value 0-16383 representing -180.00-179.98 degrees.
+    ///
     /// Defined in RP-049
     AzimuthAngle3DSound,
     AzimuthAngle3DSoundEntry(u16),
-    /// A value 0-16383 representing -180.00-179.98 degrees
+    /// A value 0-16383 representing -180.00-179.98 degrees.
+    ///
     /// Defined in RP-049
     ElevationAngle3DSound,
     ElevationAngle3DSoundEntry(u16),
-    /// A value 1-16383 representing -163.82-0 dB of gain
-    /// 0 indicates "negative infinity"
+    /// A value 1-16383 representing -163.82-0 dB of gain.
+    ///
+    /// 0 indicates "negative infinity".
+    ///
     /// Defined in RP-049
     Gain3DSound,
     Gain3DSoundEntry(u16),
-    /// A value 0-16383 representing a ratio between -0.000061-1.0
+    /// A value 0-16383 representing a ratio between -0.000061-1.0.
+    ///
     /// Defined in RP-049
     DistanceRatio3DSound,
     DistanceRatio3DSoundEntry(u16),
@@ -609,8 +605,6 @@ pub enum Parameter {
     /// Defined in RP-049
     RollAngle3DSound,
     RollAngle3DSoundEntry(u16),
-    /// 0-16383
-    Unregistered(u16),
 }
 
 impl Parameter {

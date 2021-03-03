@@ -8,16 +8,16 @@ pub fn i_to_u7(x: i8) -> u8 {
     to_u7((x.max(-64) + 64) as u8)
 }
 
-#[inline]
-pub fn to_i7(x: i8) -> u8 {
-    if x > 63 {
-        0x7f
-    } else if x < -64 {
-        0x40
-    } else {
-        x as u8 & 0b01111111
-    }
-}
+// #[inline]
+// pub fn to_i7(x: i8) -> u8 {
+//     if x > 63 {
+//         0x7f
+//     } else if x < -64 {
+//         0x40
+//     } else {
+//         x as u8 & 0b01111111
+//     }
+// }
 
 #[inline]
 pub fn to_u14(x: u16) -> [u8; 2] {
@@ -35,7 +35,7 @@ pub fn i_to_u14(x: i16) -> [u8; 2] {
 
 // TODO: etc
 #[inline]
-pub fn bytes_to_u14(b: [u8; 2]) -> u16 {
+pub fn bytes_to_u14(_b: [u8; 2]) -> u16 {
     // TODO
     0
 }
@@ -103,10 +103,10 @@ pub fn push_u7(x: u8, v: &mut Vec<u8>) {
     v.push(to_u7(x));
 }
 
-#[inline]
-pub fn push_i7(x: i8, v: &mut Vec<u8>) {
-    v.push(to_i7(x));
-}
+// #[inline]
+// pub fn push_i7(x: i8, v: &mut Vec<u8>) {
+//     v.push(to_i7(x));
+// }
 
 #[inline]
 pub fn push_u14(x: u16, v: &mut Vec<u8>) {
@@ -162,7 +162,7 @@ pub fn freq_to_midi_note_float(freq: f32) -> f32 {
     12.0 * (freq / 440.0).log2() + 69.0
 }
 
-/// Returns (midi_note_number, additional cents from semitone)
+/// Given a frequency in Hertz, returns (midi_note_number, additional cents from semitone)
 pub fn freq_to_midi_note_cents(freq: f32) -> (u8, f32) {
     let semitone = freq_to_midi_note_float(freq);
     (semitone as u8, semitone.fract() * 100.0)

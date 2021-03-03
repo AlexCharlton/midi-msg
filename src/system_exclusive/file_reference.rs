@@ -2,10 +2,14 @@ use crate::util::*;
 use ascii::{AsciiChar, AsciiString};
 
 /// The set of messages used for accessing files on a shared file system or network
-/// so they can be used to play sounds without transferring the file contents
-/// CA-018
+/// so they can be used to play sounds without transferring the file contents.
+/// Used by [`UniversalNonRealTimeMsg::FileReference`](crate::UniversalNonRealTimeMsg::FileReference).
+///
+/// As defined in CA-018.
 #[derive(Debug, Clone, PartialEq)]
 pub enum FileReferenceMsg {
+    /// Describe where a file is located for opening, but must be followed by a `SelectContents`
+    /// message if any sounds are to play.
     Open {
         /// A number 0-16383 used to distinguish between multiple file operations on the same device
         ctx: u16,
@@ -13,19 +17,25 @@ pub enum FileReferenceMsg {
         /// Max 260 character url.
         url: AsciiString,
     },
+    /// Given the pointer to a file, prepare it so its sounds can be loaded.
     SelectContents {
         /// A number 0-16383 used to distinguish between multiple file operations on the same device
         ctx: u16,
+        /// How to map the file's sounds onto MIDI banks/programs.
         map: SelectMap,
     },
+    /// The equivalent of an `Open` and `SelectContents` messages in succession.
     OpenSelectContents {
         /// A number 0-16383 used to distinguish between multiple file operations on the same device
         ctx: u16,
         file_type: FileReferenceType,
         /// Max 260 character url.
         url: AsciiString,
+        /// How to map the file's sounds onto MIDI banks/programs.
         map: SelectMap,
     },
+    /// Close the file and deallocate the data related to it, such that its sounds should
+    /// no longer play.
     Close {
         /// A number 0-16383 used to distinguish between multiple file operations on the same device
         ctx: u16,
@@ -79,6 +89,7 @@ impl FileReferenceMsg {
     }
 }
 
+/// The file type of a given file, as used by [`FileReferenceMsg`].
 #[derive(Debug, Copy, Clone, PartialEq)]
 pub enum FileReferenceType {
     DLS,
@@ -111,6 +122,7 @@ impl FileReferenceType {
     }
 }
 
+/// How to map a `DLS` or `SF2` file for MIDI reference. Used by [`SelectMap`].
 #[derive(Debug, Copy, Clone, PartialEq)]
 pub struct SoundFileMap {
     /// MIDI bank number required to select sound for playing. 0-16383
@@ -161,6 +173,7 @@ impl SoundFileMap {
     }
 }
 
+/// How to map a `WAV` file for MIDI reference. Used by [`SelectMap`].
 #[derive(Debug, Copy, Clone, PartialEq)]
 pub struct WAVMap {
     /// MIDI bank number required to select sound for playing. 0-16383
@@ -207,13 +220,19 @@ impl Default for WAVMap {
         }
     }
 }
+
+/// How to map a file for MIDI reference. Used by [`FileReferenceMsg::SelectContents`].
 #[derive(Debug, Clone, PartialEq)]
 pub enum SelectMap {
-    /// Used for DLS or SF2 files. No more than 127 `SoundFileMap`s
-    /// 0 `SoundFileMap`s indicates "use the map provided in the file"
+    /// Used for DLS or SF2 files. No more than 127 `SoundFileMap`s.
+    ///
+    /// 0 `SoundFileMap`s indicates "use the map provided in the file".
     SoundFile(Vec<SoundFileMap>),
+    /// Used for WAV files.
+    WAV(WAVMap),
     /// Used for DLS or SF2 files. Use the mapping provided by the file,
-    /// but offset the given MIDI bank by `bank_offset`
+    /// but offset the given MIDI bank by `bank_offset`.
+    ///
     /// Defined in CA-028
     SoundFileBankOffset {
         bank_offset: u16,
@@ -221,15 +240,14 @@ pub enum SelectMap {
         src_drum: bool,
     },
     /// Used for WAV files. Offset the dest MIDI bank by `bank_offset`.
-    /// Defined in CA-028
+    ///
+    /// Defined in CA-028.
     WAVBankOffset {
         map: WAVMap,
         bank_offset: u16,
         /// The selected instrument is a drum instrument
         src_drum: bool,
     },
-    /// Used for WAV files
-    WAV(WAVMap),
 }
 
 impl SelectMap {

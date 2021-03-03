@@ -1,12 +1,20 @@
 use crate::util::*;
 use ascii::AsciiString;
 
+/// Used to request and transmit sampler data.
+/// Used by [`UniversalNonRealTimeMsg::SampleDump`](crate::UniversalNonRealTimeMsg::SampleDump).
 #[derive(Debug, Clone, PartialEq)]
 pub enum SampleDumpMsg {
-    Header {
-        /// 0-16383
+    /// Request that the receiver send the given sample.
+    Request {
+        /// The ID of the sample, between 0-16383.
         sample_num: u16,
-        /// # of significant bits from 8-28
+    },
+    /// The first message in a sample dump, used to describe the data contained in the following packets.
+    Header {
+        /// The ID of the sample, between 0-16383.
+        sample_num: u16,
+        /// # of significant bits from 8-28.
         format: u8,
         /// Sample period (1/sample rate) in nanoseconds, 0-2097151
         period: u32,
@@ -18,30 +26,31 @@ pub enum SampleDumpMsg {
         sustain_loop_end: u32,
         loop_type: LoopType,
     },
-    /// Use `packet` to construct
+    /// A single packet of sample data.
+    ///
+    /// Use [`SampleDumpMsg::packet`] to construct.
     Packet {
         /// Running packet count, 0-127. Wraps back to 0
         running_count: u8,
         /// At most 120 7 bit words
         data: Vec<u8>,
     },
-    Request {
+    /// Request that the receiver return data about the loop points for a given sample.
+    LoopPointsRequest {
+        /// The ID of the sample, between 0-16383.
         sample_num: u16,
+        loop_num: LoopNumber,
     },
-    MultipleLoopPoints {
+    /// Used to send additional loop points for a given sample.
+    LoopPointTransmission {
+        /// The ID of the sample, between 0-16383.
         sample_num: u16,
-        /// 0-126. 127 indicates "delete all loops"
         loop_num: LoopNumber,
         loop_type: LoopType,
         /// Loop start address (in samples)
         start_addr: u32,
         /// Loop end address (in samples)
         end_addr: u32,
-    },
-    LoopPointsRequest {
-        sample_num: u16,
-        /// 0-126. 127 indicates "request all loops"
-        loop_num: LoopNumber,
     },
 }
 
@@ -83,7 +92,7 @@ impl SampleDumpMsg {
             Self::Request { sample_num } => {
                 push_u14(*sample_num, v);
             }
-            Self::MultipleLoopPoints {
+            Self::LoopPointTransmission {
                 sample_num,
                 loop_num,
                 loop_type,
@@ -110,6 +119,8 @@ impl SampleDumpMsg {
         Err("TODO: not implemented")
     }
 
+    /// Construct a packet of exactly 120 7-bit "bytes".
+    /// `num` is the number of this packet.
     pub fn packet(num: u32, mut data: [u8; 120]) -> Self {
         for d in data.iter_mut() {
             *d = to_u7(*d);
@@ -122,12 +133,15 @@ impl SampleDumpMsg {
     }
 }
 
+/// What loop a [`SampleDumpMsg`] or [`ExtendedSampleDumpMsg`] is referring to.
 #[derive(Debug, Copy, Clone, PartialEq)]
 pub enum LoopNumber {
-    RequestAll,
-    DeleteAll,
-    /// 0-16382
+    /// A loop with the given ID, 0-16382.
     Loop(u16),
+    /// Used by [`SampleDumpMsg::LoopPointsRequest`] to request all loops.
+    RequestAll,
+    /// Used by [`SampleDumpMsg::LoopPointTransmission`] to indicate that all loops should be deleted.
+    DeleteAll,
 }
 
 impl LoopNumber {
@@ -146,22 +160,27 @@ impl LoopNumber {
     }
 }
 
+/// The type of loop being described by a [`SampleDumpMsg`].
 #[derive(Debug, Copy, Clone, PartialEq)]
 pub enum LoopType {
+    /// Forward only
     Forward = 0,
+    /// Backward forward
     BiDirectional = 1,
+    /// Do not loop
     Off = 127,
 }
 
-/// The extended sample dump messages described in CA-019
+/// The extended sample dump messages described in CA-019, used to allow for longer, named samples.
+/// Used by [`UniversalNonRealTimeMsg::SampleDump`](crate::UniversalNonRealTimeMsg::SampleDump).
 #[derive(Debug, Clone, PartialEq)]
 pub enum ExtendedSampleDumpMsg {
     Header {
-        /// 0-16383
+        /// The ID of the sample, between 0-16383.
         sample_num: u16,
         /// # of significant bits from 8-28
         format: u8,
-        /// Sample rate in Hz. The f64 is used to approximate the two 28bit fixed point used
+        /// Sample rate in Hz. The f64 is used to approximate the two 28bit fixed point sent over the wire.
         sample_rate: f64,
         /// Sample length in words, 0-34359738368
         length: u64,
@@ -173,26 +192,34 @@ pub enum ExtendedSampleDumpMsg {
         /// Number of audio channels, 0-127
         num_channels: u8,
     },
-    MultipleLoopPoints {
+    /// Request the given sample's name.
+    SampleNameRequest {
+        /// The ID of the sample, between 0-16383.
         sample_num: u16,
-        /// 0-126. 127 indicates "delete all loops"
+    },
+    /// Describe the name of a given sample.
+    SampleName {
+        /// The ID of the sample, between 0-16383.
+        sample_num: u16,
+        /// An up to 127 character name.
+        name: AsciiString,
+    },
+    /// Request that the receiver return data about the loop points for a given sample.
+    LoopPointsRequest {
+        /// The ID of the sample, between 0-16383.
+        sample_num: u16,
+        loop_num: LoopNumber,
+    },
+    /// Used to send additional loop points for a given sample.
+    LoopPointTransmission {
+        /// The ID of the sample, between 0-16383.
+        sample_num: u16,
         loop_num: LoopNumber,
         loop_type: ExtendedLoopType,
         /// Loop start address (in samples)
         start_addr: u64,
         /// Loop end address (in samples)
         end_addr: u64,
-    },
-    LoopPointsRequest {
-        sample_num: u16,
-        loop_num: LoopNumber,
-    },
-    SampleName {
-        sample_num: u16,
-        name: AsciiString,
-    },
-    SampleNameRequest {
-        sample_num: u16,
     },
 }
 
@@ -224,7 +251,7 @@ impl ExtendedSampleDumpMsg {
                 v.push(*loop_type as u8);
                 push_u7(*num_channels, v);
             }
-            Self::MultipleLoopPoints {
+            Self::LoopPointTransmission {
                 sample_num,
                 loop_num,
                 loop_type,
@@ -262,17 +289,28 @@ impl ExtendedSampleDumpMsg {
     }
 }
 
+/// The type of loop being described by a [`SampleDumpMsg`].
 #[derive(Debug, Copy, Clone, PartialEq)]
 pub enum ExtendedLoopType {
+    /// A forward, unidirectional loop
     Forward = 0x00,
+    /// Loop starts playing forward, gets to end and plays backward, repeating
     BiDirectional = 0x01,
+    /// A unidirectional loop, upon key release the rest of the sample is played
     ForwardRelease = 0x02,
+    /// A bidirectional loop, upon key release the rest of the sample is played
     BiDirectionalRelease = 0x03,
+    /// A backward, unidirectional loop
     Backward = 0x40,
+    /// Like BiDirectional, but starts playing in reverse
     BackwardBiDirectional = 0x41,
+    /// A backward unidirectional loop, upon key release the rest of the sample after the loop is played backwards
     BackwardRelease = 0x42,
+    /// A bidirectional loop, starting from the end playing backward, upon key release the rest of the sample after the loop is played backwards
     BackwardBiDirectionalRelease = 0x43,
+    /// Backwards one-shot, no looping
     BackwardOneShot = 0x7E,
+    /// Forwards one-shot, no looping
     OneShot = 0x7F,
 }
 

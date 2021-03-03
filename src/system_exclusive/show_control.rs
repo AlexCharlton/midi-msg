@@ -1,5 +1,10 @@
 #[derive(Debug, Clone, PartialEq)]
-/// A MIDI Show Control command
+/// A MIDI Show Control command.
+/// Used by [`UniversalRealTimeMsg::ShowControl`](crate::UniversalRealTimeMsg::ShowControl).
+///
+/// Unimplemented, though the `Unimplemented` value can be used to
+/// represent the commands not supported here.
+///
 /// As defined in MIDI Show Control 1.1.1 (RP002/RP014)
 pub enum ShowControlMsg {
     /// Used to represent all unimplemented MSC messages.

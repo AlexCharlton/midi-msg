@@ -1,8 +1,11 @@
 use crate::time_code::*;
 
-/// A MIDI Machine Control Command
+/// A MIDI Machine Control Command.
+/// Used by [`UniversalRealTimeMsg::MachineControlCommand`](crate::UniversalRealTimeMsg::MachineControlCommand).
+///
 /// Only partially implemented. The `Unimplemented` value can be used to
 /// represent commands not supported here.
+///
 /// As defined in MIDI Machine Control 1.0 (MMA0016 / RP013)
 #[derive(Debug, Clone, PartialEq)]
 pub enum MachineControlCommandMsg {
@@ -20,7 +23,7 @@ pub enum MachineControlCommandMsg {
     CommandErrorReset,
     MMCReset,
     // Write(), TODO
-    /// Only GPO-GP7 are valid
+    /// Only `InformationField::GPO-GP7` are valid
     LocateInformationField(InformationField),
     LocateTarget(StandardTimeCode),
     // Move(InformationField, InformationField), TODO
@@ -72,6 +75,7 @@ impl MachineControlCommandMsg {
 }
 
 /// A MIDI Machine Control Information Field, which functions something like an address
+///
 /// As defined in MIDI Machine Control 1.0 (MMA0016 / RP013)
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum InformationField {
@@ -94,8 +98,11 @@ pub enum InformationField {
     // TODO
 }
 
-/// A MIDI Machine Control Response
+/// A MIDI Machine Control Response>
+/// Used by [`UniversalRealTimeMsg::MachineControlResponse`](crate::UniversalRealTimeMsg::MachineControlResponse).
+///
 /// Not implemented. The `Unimplemented` value can be used to represent generic responses.
+///
 /// As defined in MIDI Machine Control 1.0 (MMA0016 / RP013)
 #[derive(Debug, Clone, PartialEq)]
 pub enum MachineControlResponseMsg {
@@ -116,7 +123,7 @@ impl MachineControlResponseMsg {
     }
 }
 
-/// TODO
+#[doc(hidden)]
 /// As defined in MIDI Machine Control 1.0 (MMA0016 / RP013)
 pub struct StandardSpeed(f32);
 
@@ -126,7 +133,7 @@ impl StandardSpeed {
     }
 }
 
-/// TODO
+#[doc(hidden)]
 /// As defined in MIDI Machine Control 1.0 (MMA0016 / RP013)
 pub struct StandardTrack {
     pub video_active: bool,

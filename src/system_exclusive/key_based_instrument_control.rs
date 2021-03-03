@@ -3,16 +3,21 @@ use crate::util::*;
 
 /// Intended to act like Control Change messages, but targeted at an individual key.
 /// For e.g. Drum sounds that have configurable attack/release/decay per key.
-/// Defined in CA-023
+/// Used by [`UniversalRealTimeMsg::KeyBasedInstrumentControl`](crate::UniversalRealTimeMsg::KeyBasedInstrumentControl).
+///
+/// Defined in CA-023.
 #[derive(Debug, Clone, PartialEq)]
 pub struct KeyBasedInstrumentControl {
     pub channel: Channel,
+    /// The MIDI key number.
     pub key: u8,
-    /// Any number of (control number, value) pairs
-    /// Any controller number may be used except Bank Select MSB/LSB (0x00, 0x20),
-    /// Data Entry MSB/LSB (0x06, 0x26), RPN/NRPN messages (0x60 – 0x65),
-    /// and Mode Change messages(0x78-0x7F)
-    /// Disallowed values will be set to 0x01
+    /// Any number of (control number, value) pairs.
+    ///
+    /// Any controller number may be used except Bank Select MSB/LSB (`0x00`, `0x20`),
+    /// Data Entry MSB/LSB (`0x06`, `0x26`), RPN/NRPN messages (`0x60` – `0x65`),
+    /// and Mode Change messages(`0x78`-`0x7F`).
+    ///
+    /// Disallowed values will be set to `0x01` (targeting the mod wheel, which probably has no meaning).
     pub control_values: Vec<(u8, u8)>,
 }
 

@@ -1,14 +1,16 @@
 use crate::util::*;
 use ascii::AsciiChar;
 
+/// Change the tunings of one or more notes, either real-time or not.
+/// Used by [`UniversalNonRealTimeMsg`](crate::UniversalNonRealTimeMsg) and [`UniversalRealTimeMsg`](crate::UniversalRealTimeMsg).
 #[derive(Debug, Clone, PartialEq)]
 pub struct TuningNoteChange {
-    /// 0-127
+    /// Which tuning program is targeted, 0-127. See [`Parameter::TuningProgramSelect`](crate::Parameter::TuningProgramSelect).
     pub tuning_program_num: u8,
-    /// 0-127
+    /// Which tuning bank is targeted, 0-127. See [`Parameter::TuningBankSelect`](crate::Parameter::TuningBankSelect).
     pub tuning_bank_num: Option<u8>,
-    /// At most 127 (MIDI note number, Option<Tuning>) pairs
-    /// None represents "No change"
+    /// At most 127 (MIDI note number, Option<Tuning>) pairs.
+    /// A `None` value represents "No change".
     pub tunings: Vec<(u8, Option<Tuning>)>,
 }
 
@@ -35,18 +37,20 @@ impl TuningNoteChange {
     }
 }
 
+/// Set the tunings of all 128 notes.
+/// Used by [`UniversalNonRealTimeMsg`](crate::UniversalNonRealTimeMsg).
 #[derive(Debug, Clone, PartialEq)]
 pub struct KeyBasedTuningDump {
-    /// 0-127
+    /// Which tuning program is targeted, 0-127. See [`Parameter::TuningProgramSelect`](crate::Parameter::TuningProgramSelect).
     pub tuning_program_num: u8,
-    /// 0-127
+    /// Which tuning bank is targeted, 0-127. See [`Parameter::TuningBankSelect`](crate::Parameter::TuningBankSelect).
     pub tuning_bank_num: Option<u8>,
     /// An exactly 16 character name
     pub name: [AsciiChar; 16],
     /// Should be exactly 128 Tunings with the index of each value = the MIDI note number being tuned.
     /// Excess values will be ignored. If fewer than 128 values are supplied, equal temperament
     /// will be applied to the remaining notes.
-    /// None represents "No change"
+    /// A `None` value represents "No change".
     pub tunings: Vec<Option<Tuning>>,
 }
 
@@ -89,6 +93,7 @@ impl KeyBasedTuningDump {
     }
 }
 
+/// Used to represent a tuning by [`TuningNoteChange`] and [`KeyBasedTuningDump`].
 #[derive(Debug, Copy, Clone, PartialEq)]
 pub struct Tuning {
     /// The semitone corresponding with the same MIDI note number, 0-127
@@ -127,14 +132,17 @@ impl Tuning {
     }
 }
 
+/// Set the tuning of all octaves for a tuning program/bank.
+/// Used by [`UniversalNonRealTimeMsg`](crate::UniversalNonRealTimeMsg).
+///
 /// As defined in MIDI Tuning Updated Specification (CA-020/CA-021/RP-020)
 #[derive(Debug, Copy, Clone, PartialEq)]
 pub struct ScaleTuningDump1Byte {
-    /// 0-127
+    /// Which tuning program is targeted, 0-127. See [`Parameter::TuningProgramSelect`](crate::Parameter::TuningProgramSelect).
     pub tuning_program_num: u8,
-    /// 0-127
+    /// Which tuning bank is targeted, 0-127. See [`Parameter::TuningBankSelect`](crate::Parameter::TuningBankSelect).
     pub tuning_bank_num: u8,
-    /// An exactly 16 character name
+    /// An exactly 16 character name.
     pub name: [AsciiChar; 16],
     /// 12 semitones of tuning adjustments repeated over all octaves, starting with C
     /// Each value represents that number of cents plus the equal temperament tuning,
@@ -162,14 +170,17 @@ impl ScaleTuningDump1Byte {
     }
 }
 
+/// Set the high-res tuning of all octaves for a tuning program/bank.
+/// Used by [`UniversalNonRealTimeMsg`](crate::UniversalNonRealTimeMsg).
+///
 /// As defined in MIDI Tuning Updated Specification (CA-020/CA-021/RP-020)
 #[derive(Debug, Copy, Clone, PartialEq)]
 pub struct ScaleTuningDump2Byte {
-    /// 0-127
+    /// Which tuning program is targeted, 0-127. See [`Parameter::TuningProgramSelect`](crate::Parameter::TuningProgramSelect).
     pub tuning_program_num: u8,
-    /// 0-127
+    /// Which tuning bank is targeted, 0-127. See [`Parameter::TuningBankSelect`](crate::Parameter::TuningBankSelect).
     pub tuning_bank_num: u8,
-    /// An exactly 16 character name
+    /// An exactly 16 character name.
     pub name: [AsciiChar; 16],
     /// 12 semitones of tuning adjustments repeated over all octaves, starting with C
     /// Each value represents that fractional number of cents plus the equal temperament tuning,
@@ -199,6 +210,9 @@ impl ScaleTuningDump2Byte {
     }
 }
 
+/// Set the tuning of all octaves for a set of channels.
+/// Used by [`UniversalNonRealTimeMsg`](crate::UniversalNonRealTimeMsg) and [`UniversalRealTimeMsg`](crate::UniversalRealTimeMsg).
+///
 /// As defined in MIDI Tuning Updated Specification (CA-020/CA-021/RP-020)
 #[derive(Debug, Copy, Clone, PartialEq)]
 pub struct ScaleTuning1Byte {
@@ -222,6 +236,9 @@ impl ScaleTuning1Byte {
     }
 }
 
+/// Set the high-res tuning of all octaves for a set of channels.
+/// Used by [`UniversalNonRealTimeMsg`](crate::UniversalNonRealTimeMsg) and [`UniversalRealTimeMsg`](crate::UniversalRealTimeMsg).
+///
 /// As defined in MIDI Tuning Updated Specification (CA-020/CA-021/RP-020)
 #[derive(Debug, Copy, Clone, PartialEq)]
 pub struct ScaleTuning2Byte {
@@ -247,7 +264,7 @@ impl ScaleTuning2Byte {
     }
 }
 
-/// The set of channels to apply this tuning message to
+/// The set of channels to apply this tuning message to. Used by [`ScaleTuning1Byte`] and [`ScaleTuning2Byte`].
 #[derive(Debug, Copy, Clone, PartialEq, Default)]
 pub struct ChannelBitMap {
     pub channel_1: bool,

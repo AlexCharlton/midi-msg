@@ -2,16 +2,21 @@ use super::util::*;
 use crate::MidiMsg;
 use ascii::AsciiString;
 
+/// Used to synchronize device positions, by [`SystemCommonMsg::TimeCodeQuarterFrameX`](crate::SystemCommonMsg::TimeCodeQuarterFrame1)
+/// as well as [`UniversalRealTimeMsg::TimeCodeFull`](crate::UniversalRealTimeMsg::TimeCodeFull).
+///
+/// Based on [the SMTPE time code standard](https://en.wikipedia.org/wiki/SMPTE_timecode).
+///
 /// As defined in the MIDI Time Code spec (MMA0001 / RP004 / RP008)
 #[derive(Debug, Clone, Copy, PartialEq, Default)]
 pub struct TimeCode {
-    /// 0-29
+    /// The position in frames, 0-29
     pub frames: u8,
-    /// 0-59
+    /// The position in seconds, 0-59
     pub seconds: u8,
-    /// 0-59
+    /// The position in minutes, 0-59
     pub minutes: u8,
-    /// 0-23
+    /// The position in hours, 0-23
     pub hours: u8,
     pub code_type: TimeCodeType,
 }
@@ -53,11 +58,18 @@ impl TimeCode {
     }
 }
 
+/// Indicates the frame rate of the given [`TimeCode`].
+///
+/// See [the SMTPE time code standard](https://en.wikipedia.org/wiki/SMPTE_timecode).
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum TimeCodeType {
+    /// 24 Frames per second
     FPS24 = 0,
+    /// 25 Frames per second
     FPS25 = 1,
+    /// 30 Frames per second, Drop Frame
     DF30 = 2,
+    /// 30 Frames per second, Non-Drop Frame
     NDF30 = 3,
 }
 
@@ -68,7 +80,8 @@ impl Default for TimeCodeType {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Default)]
-/// Like `TimeCode` but includes `fractional_frames`. Used in Time Code Cueing.
+/// Like [`TimeCode`] but includes `fractional_frames`. Used in `TimeCodeCueingSetupMsg`.
+///
 /// As defined in the MIDI Time Code spec (MMA0001 / RP004 / RP008)
 pub struct HighResTimeCode {
     /// 0-99
@@ -104,18 +117,20 @@ impl HighResTimeCode {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Default)]
-/// Like `TimeCode` but uses `subframes` to optional include status flags, and fractional frames may be negative
+/// Like [`TimeCode`] but uses `subframes` to optionally include status flags, and fractional frames.
+/// Also may be negative. Used in [`MachineControlCommandMsg`](crate::MachineControlCommandMsg).
+///
 /// As defined in MIDI Machine Control 1.0 (MMA0016 / RP013) and
 /// MIDI Show Control 1.1.1 (RP002/RP014)
 pub struct StandardTimeCode {
     pub subframes: SubFrames,
-    /// -29-29
+    /// The position in frames, where a negative value indicates a negative TimeCode, -29-29
     pub frames: i8,
-    /// 0-59
+    /// The position in seconds, 0-59
     pub seconds: u8,
-    /// 0-59
+    /// The position in minutes, 0-59
     pub minutes: u8,
-    /// 0-23
+    /// The position in hours, 0-23
     pub hours: u8,
     pub code_type: TimeCodeType,
 }
@@ -134,6 +149,8 @@ impl StandardTimeCode {
         ]
     }
 
+    /// The two byte representation of the frame:
+    /// [fractional_frames, frames]
     pub fn to_bytes_short(self) -> [u8; 2] {
         let mut frames = self.frames.abs().min(29) as u8;
         if let SubFrames::Status(_) = self.subframes {
@@ -169,10 +186,12 @@ impl From<TimeCode> for StandardTimeCode {
     }
 }
 
+/// Used by [`StandardTimeCode`].
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum SubFrames {
-    /// 0-99
+    /// The position in fractional frames, 0-99
     FractionalFrames(u8),
+    /// Additional flags describing the status of this timecode.
     Status(TimeCodeStatus),
 }
 
@@ -191,6 +210,7 @@ impl SubFrames {
     }
 }
 
+/// Used by [`StandardTimeCode`].
 #[derive(Debug, Clone, Copy, PartialEq, Default)]
 pub struct TimeCodeStatus {
     pub estimated_code: bool,
@@ -218,6 +238,9 @@ impl TimeCodeStatus {
     }
 }
 
+/// 32 bits defined by SMPTE for "special functions". Used in [`UniversalRealTimeMsg::TimeCodeUserBits`](crate::UniversalRealTimeMsg::TimeCodeUserBits).
+/// See [the SMTPE time code standard](https://en.wikipedia.org/wiki/SMPTE_timecode).
+///
 /// As defined in the MIDI Time Code spec (MMA0001 / RP004 / RP008)
 #[derive(Debug, Copy, Clone, PartialEq)]
 pub struct UserBits {
@@ -231,6 +254,8 @@ pub struct UserBits {
 }
 
 impl UserBits {
+    /// Turn the `UserBits` into its 9 nibble representation:
+    /// [nibble_1, nibble_2, nibble_3, nibble_4, nibble_5, nibble_6, nibble_7, nibble_8, nibble_9, nibble_flags]
     pub fn to_nibbles(&self) -> [u8; 9] {
         let [uh, ug] = to_nibble(self.bytes.0);
         let [uf, ue] = to_nibble(self.bytes.1);
@@ -247,6 +272,8 @@ impl UserBits {
     }
 }
 
+/// Like [`UserBits`] but allows for the embedding of a "secondary time code".
+///
 /// As defined in MIDI Machine Control 1.0 (MMA0016 / RP013)
 #[derive(Debug, Copy, Clone, PartialEq)]
 pub struct StandardUserBits {
@@ -262,6 +289,8 @@ pub struct StandardUserBits {
 }
 
 impl StandardUserBits {
+    /// Turn the `UserBits` into its 9 nibble representation:
+    /// [nibble_1, nibble_2, nibble_3, nibble_4, nibble_5, nibble_6, nibble_7, nibble_8, nibble_9, nibble_flags]
     pub fn to_nibbles(&self) -> [u8; 9] {
         let [uh, ug] = to_nibble(self.bytes.0);
         let [uf, ue] = to_nibble(self.bytes.1);
@@ -329,7 +358,8 @@ impl From<UserBits> for StandardUserBits {
     }
 }
 
-/// Non-realtime Time Code Cueing
+/// Non-realtime Time Code Cueing. Used by [`UniversalNonRealTimeMsg::TimeCodeCueingSetup`](crate::UniversalNonRealTimeMsg::TimeCodeCueingSetup).
+///
 /// As defined in the MIDI Time Code spec (MMA0001 / RP004 / RP008)
 #[derive(Debug, Clone, PartialEq)]
 pub enum TimeCodeCueingSetupMsg {
@@ -548,7 +578,8 @@ impl TimeCodeCueingSetupMsg {
     }
 }
 
-/// Realtime Time Code Cueing
+/// Realtime Time Code Cueing. Used by [`UniversalRealTimeMsg::TimeCodeCueing`](crate::UniversalRealTimeMsg::TimeCodeCueing).
+///
 /// As defined in the MIDI Time Code spec (MMA0001 / RP004 / RP008)
 #[derive(Debug, Clone, PartialEq)]
 pub enum TimeCodeCueingMsg {

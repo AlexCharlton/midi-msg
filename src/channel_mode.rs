@@ -1,34 +1,30 @@
 use super::util::*;
 
 #[derive(Debug, Clone, Copy, PartialEq)]
+/// Channel-level messages that should alter the mode of the receiver. Used in [`MidiMsg`](crate::MidiMsg).
 pub enum ChannelModeMsg {
+    /// Sound playing on the channel should be stopped as soon as possible, per GM2.
     AllSoundOff,
-    ResetAllControllers,
-    LocalControl(bool),
+    /// Stop sounding all notes on the channel.
     AllNotesOff,
+    /// All controllers should be reset to their default values. GM specifies some of these defaults.
+    ResetAllControllers,
+    /// An instrument set to `OmniMode(true)` should respond to MIDI messages sent over all channels.
     OmniMode(bool),
+    /// Request that the receiver set itself to be monophonic/polyphonic.
     PolyMode(PolyMode),
+    /// Used to turn on or off "local control" of a MIDI synthesizer instrument. When the instrument
+    /// does not have local control, its controller should only send out MIDI signals while the synthesizer should only respond to remote MIDI messages.
+    LocalControl(bool),
 }
 
 impl ChannelModeMsg {
-    pub fn to_midi(&self) -> Vec<u8> {
-        let mut r: Vec<u8> = vec![];
-        self.extend_midi(&mut r);
-        r
-    }
-
-    pub fn to_midi_running(&self) -> Vec<u8> {
-        let mut r: Vec<u8> = vec![];
-        self.extend_midi_running(&mut r);
-        r
-    }
-
-    pub fn extend_midi(&self, v: &mut Vec<u8>) {
+    pub(crate) fn extend_midi(&self, v: &mut Vec<u8>) {
         v.push(0xB0);
         self.extend_midi_running(v);
     }
 
-    pub fn extend_midi_running(&self, v: &mut Vec<u8>) {
+    pub(crate) fn extend_midi_running(&self, v: &mut Vec<u8>) {
         match self {
             ChannelModeMsg::AllSoundOff => {
                 v.push(120);
@@ -54,27 +50,27 @@ impl ChannelModeMsg {
                 v.push(if *m == PolyMode::Poly { 127 } else { 126 });
                 v.push(match *m {
                     PolyMode::Poly => 0,
-                    PolyMode::Mono(n) => to_u7(n),
+                    PolyMode::Mono(n) => n.min(16),
                 })
             }
         }
     }
 
-    /// Ok results return a MidiMsg and the number of bytes consumed from the input
-    pub fn from_midi(_m: &[u8]) -> Result<(Self, usize), &str> {
+    pub(crate) fn from_midi(_m: &[u8]) -> Result<(Self, usize), &str> {
         Err("TODO: not implemented")
     }
 }
 
-impl From<&ChannelModeMsg> for Vec<u8> {
-    fn from(m: &ChannelModeMsg) -> Vec<u8> {
-        m.to_midi()
-    }
-}
-
+/// Used by [`ChannelModeMsg::PolyMode`].
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum PolyMode {
+    /// Request that the receiver be monophonic, with the given number M representing the
+    /// number of channels that should be dedicated. Since this is sent with a `ChannelModeMsg`
+    /// there is already a "base" channel associated with it, and the number of requested channels
+    /// should be from this base channel N to N+M. `0` is a special case that directing the receiver
+    /// to assign the voices to as many channels as it can receive.
     Mono(u8),
+    /// Request the receiver to be polyphonic
     Poly,
 }
 

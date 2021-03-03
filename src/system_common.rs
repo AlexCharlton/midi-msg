@@ -1,8 +1,16 @@
 use super::time_code::*;
 use super::util::*;
 
+/// A fairly limited set of messages, generally for device synchronization.
+/// Used in [`MidiMsg`](crate::MidiMsg).
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum SystemCommonMsg {
+    /// The first of 8 "quarter frame" messages, which are meant to be sent 4 per "frame".
+    /// These messages function similarly to [`SystemRealTimeMsg::TimingClock`](crate::SystemRealTimeMsg::TimingClock)
+    /// but additionally indicate the specific point in the playback that they refer to, as well
+    /// as the frame rate. This means that a full `TimeCode` is send over the course of two frames.
+    ///
+    /// They are sent in reverse order if time is playing in reverse.
     TimeCodeQuarterFrame1(TimeCode),
     TimeCodeQuarterFrame2(TimeCode),
     TimeCodeQuarterFrame3(TimeCode),
@@ -11,21 +19,16 @@ pub enum SystemCommonMsg {
     TimeCodeQuarterFrame6(TimeCode),
     TimeCodeQuarterFrame7(TimeCode),
     TimeCodeQuarterFrame8(TimeCode),
-    /// Max 16383
+    /// Indicate the song position, in MIDI beats, where 1 MIDI beat = 6 MIDI clocks. 0-16383
     SongPosition(u16),
-    /// Max 127
+    /// Select a song numbered 0-127.
     SongSelect(u8),
+    /// Request that the oscillators of an analog synth be tuned.
     TuneRequest,
 }
 
 impl SystemCommonMsg {
-    pub fn to_midi(&self) -> Vec<u8> {
-        let mut r: Vec<u8> = vec![];
-        self.extend_midi(&mut r);
-        r
-    }
-
-    pub fn extend_midi(&self, v: &mut Vec<u8>) {
+    pub(crate) fn extend_midi(&self, v: &mut Vec<u8>) {
         match self {
             SystemCommonMsg::TimeCodeQuarterFrame1(qf) => {
                 v.push(0xF1);
@@ -71,15 +74,8 @@ impl SystemCommonMsg {
         }
     }
 
-    /// Ok results return a MidiMsg and the number of bytes consumed from the input
-    pub fn from_midi(_m: &[u8]) -> Result<(Self, usize), &str> {
+    pub(crate) fn from_midi(_m: &[u8]) -> Result<(Self, usize), &str> {
         Err("TODO: not implemented")
-    }
-}
-
-impl From<&SystemCommonMsg> for Vec<u8> {
-    fn from(m: &SystemCommonMsg) -> Vec<u8> {
-        m.to_midi()
     }
 }
 

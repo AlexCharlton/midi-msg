@@ -15,11 +15,11 @@ Since the MIDI spec makes extensive use of non-byte-aligned integers, a Rust rep
 
 
 ## Support 
-MIDI messages described by the following [MMA documents](MIDI 1.0 Detailed Specification) are supported (with their corresponded Midi Manufacturer Association [MMA] publication number, Recommended Practice [RP] number, or Changes/Additions [CA] number as noted):
+MIDI messages described by the following [Midi Manufacturer Association (MMA) documents](https://www.midi.org/specifications/midi1-specifications) are supported (with their corresponding Midi Manufacturer Association [MMA] publication number, Recommended Practice [RP] number, or Changes/Additions [CA] number as noted):
 - MIDI 1.0 Detailed Specification 4.2.1 (The base specification. Reference of types should be assumed to be this document unless otherwise specified)
-- MIDI Time Code (MMA-001 / RP-004 / RP-008)
-- General MIDI System Level 1 (MMA-007 / RP-003)
-- General MIDI 2 1.2 (RP-024/RP-036/RP-037/RP-045)
+- MIDI Time Code (MTC) (MMA-001 / RP-004 / RP-008)
+- General MIDI System Level 1 (GM1) (MMA-007 / RP-003)
+- General MIDI 2 1.2 (GM2) (RP-024/RP-036/RP-037/RP-045)
 - File Reference System Exclusive Message (CA-018)
 - Sample Dump Size, Rate and Name Extensions (CA-019)
 - MIDI Tuning Updated Specification (CA-020/CA-021/RP-020)
@@ -40,8 +40,8 @@ MIDI messages described by the following [MMA documents](MIDI 1.0 Detailed Speci
 
 The following addenda are not yet fully supported by midi-msg, though hooks are provided to access these messages:
 
-- MIDI Machine Control 1.0 (MMA-016 / RP-013) (partial support)
-- MIDI Show Control 1.1.1 (RP-002/RP-014)
+- MIDI Machine Control 1.0 (MMC) (MMA-016 / RP-013) (partial support)
+- MIDI Show Control 1.1.1 (MSC) (RP-002/RP-014)
 
 
 The following addenda were consulted but considered not relevant to this library:
