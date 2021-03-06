@@ -10,13 +10,20 @@ midi-msg types follow the taxonomy detailed in the MIDI spec, and have the goal 
 Since the MIDI spec makes extensive use of non-byte-aligned integers, a Rust representation could either be achieved by introducing "exotic" integer types or by clamping Rust's primitive types to the desired range. For the sake of ergonomics, the latter approach was taken, though this does make this typed representation slightly "lossy". Any overflows between these representations are treated as max values (or min, for negative signed values). Other libraries, which have taken other approaches with respect to these design decisions, can be found below.
 
 
+## Installing
+Add the following line to your Cargo.toml file:
+
+```
+midi-msg = "0.2"
+```
+
 ## To be implemented
 - [ ] Deserialization
 
 
 ## Support 
 MIDI messages described by the following [Midi Manufacturer Association (MMA) documents](https://www.midi.org/specifications/midi1-specifications) are supported (with their corresponding Midi Manufacturer Association [MMA] publication number, Recommended Practice [RP] number, or Changes/Additions [CA] number as noted):
-- MIDI 1.0 Detailed Specification 4.2.1 (The base specification. Reference of types should be assumed to be this document unless otherwise specified)
+- MIDI 1.0 Detailed Specification 4.2.1 (The base specification. All types should be assumed to be defined by this document unless otherwise specified)
 - MIDI Time Code (MTC) (MMA-001 / RP-004 / RP-008)
 - General MIDI System Level 1 (GM1) (MMA-007 / RP-003)
 - General MIDI 2 1.2 (GM2) (RP-024/RP-036/RP-037/RP-045)
@@ -62,4 +69,4 @@ Support for the Standard MIDI Files specification may be added.
 
 
 ## Contributing
-Pull requests for the features listed above as not-yet supported, for bug fixes (any omissions from the spec are considered bugs), or for documentation additions are most welcome.
+[Pull requests](https://github.com/AlexCharlton/midi-msg/pulls) for the features listed above as not-yet supported, for bug fixes (any omissions from the spec are considered bugs), or for documentation additions are most welcome, as are [bug reports](https://github.com/AlexCharlton/midi-msg/issues).
