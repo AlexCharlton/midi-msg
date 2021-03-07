@@ -1,12 +1,12 @@
 use super::{
-    ChannelModeMsg, ChannelVoiceMsg, SystemCommonMsg, SystemExclusiveMsg, SystemRealTimeMsg,
+    ChannelModeMsg, ChannelVoiceMsg, ParseError, ReceiverContext, SystemCommonMsg,
+    SystemExclusiveMsg, SystemRealTimeMsg,
 };
-use num_derive::FromPrimitive;
 
 /// The primary interface of this library. Used to encode MIDI messages.
 #[derive(Debug, Clone, PartialEq)]
 pub enum MidiMsg {
-    /// Channel-level messages that act on a voice.
+    /// Channel-level messages that act on a voice, such as turning notes on and off.
     ChannelVoice {
         channel: Channel,
         msg: ChannelVoiceMsg,
@@ -53,8 +53,65 @@ impl MidiMsg {
     /// Turn a series of bytes into a `MidiMsg`.
     ///
     /// Ok results return a MidiMsg and the number of bytes consumed from the input.
-    pub fn from_midi(_m: &[u8]) -> Result<(Self, usize), &str> {
-        Err("TODO: not implemented")
+    pub fn from_midi(m: &[u8]) -> Result<(Self, usize), ParseError> {
+        Self::from_midi_with_context(m, &mut ReceiverContext::default())
+    }
+
+    #[doc(hidden)]
+    /// Turn a series of bytes into a `MidiMsg`, given a [`ReceiverContext`](crate::ReceiverContext).
+    ///
+    /// Ok results return a MidiMsg and the number of bytes consumed from the input.
+    pub fn from_midi_with_context(
+        m: &[u8],
+        ctx: &mut ReceiverContext,
+    ) -> Result<(Self, usize), ParseError> {
+        match m.first() {
+            Some(b) => match b >> 4 {
+                0x8 | 0x9 | 0xA | 0xC | 0xD | 0xE => {
+                    let (msg, len) = ChannelVoiceMsg::from_midi(m)?;
+                    let channel = Channel::from_u8(b & 0x0F);
+                    let midi_msg = Self::ChannelVoice { channel, msg };
+                    ctx.previous_channel_message = Some(midi_msg.clone());
+                    Ok((midi_msg, len))
+                }
+                0xB => {
+                    // Could either be a Channel Mode or CC message
+                    let channel = Channel::from_u8(b & 0x0F);
+                    let (midi_msg, len) = if let Some(b2) = m.get(1) {
+                        if b2 >= &120 {
+                            let (msg, len) = ChannelModeMsg::from_midi(m)?;
+                            (Self::ChannelMode { channel, msg }, len)
+                        } else {
+                            let (msg, len) = ChannelVoiceMsg::from_midi(m)?;
+                            (Self::ChannelVoice { channel, msg }, len)
+                        }
+                    } else {
+                        return Err(ParseError::UnexpectedEnd);
+                    };
+                    ctx.previous_channel_message = Some(midi_msg.clone());
+                    Ok((midi_msg, len))
+                }
+                0xF => Err(ParseError::Invalid("TODO".to_string())),
+                _ => {
+                    if let Some(p) = &ctx.previous_channel_message {
+                        match p {
+                            Self::ChannelVoice {channel, msg} => {
+                                let (msg, len) = ChannelVoiceMsg::from_midi_running(m, msg)?;
+                                Ok((Self::ChannelVoice { channel: *channel, msg}, len))
+                            }
+                            Self::ChannelMode {channel, ..} => {
+                                let (msg, len) = ChannelModeMsg::from_midi_running(m)?;
+                                Ok((Self::ChannelMode { channel: *channel, msg}, len))
+                            }
+                            _ => Err(ParseError::Invalid(format!("ReceiverContext::previous_channel_message may only be a ChannelMode or ChannelVoice message.")))
+                        }
+                    } else {
+                        Err(ParseError::ContextlessRunningStatus)
+                    }
+                }
+            },
+            None => Err(ParseError::UnexpectedEnd),
+        }
     }
 
     /// Turn a set of `MidiMsg`s into a series of bytes, with fewer allocations than
@@ -103,7 +160,7 @@ impl From<&MidiMsg> for Vec<u8> {
 }
 
 /// The MIDI channel, 1-16. Used by [`MidiMsg`] and elsewhere.
-#[derive(Debug, Clone, Copy, PartialEq, FromPrimitive)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub enum Channel {
     Ch1,
     Ch2,
@@ -121,4 +178,27 @@ pub enum Channel {
     Ch14,
     Ch15,
     Ch16,
+}
+
+impl Channel {
+    pub fn from_u8(x: u8) -> Self {
+        match x {
+            0 => Self::Ch1,
+            1 => Self::Ch2,
+            2 => Self::Ch3,
+            3 => Self::Ch4,
+            4 => Self::Ch5,
+            5 => Self::Ch6,
+            6 => Self::Ch7,
+            7 => Self::Ch8,
+            8 => Self::Ch9,
+            9 => Self::Ch10,
+            10 => Self::Ch11,
+            11 => Self::Ch12,
+            12 => Self::Ch13,
+            13 => Self::Ch14,
+            14 => Self::Ch15,
+            _ => Self::Ch16,
+        }
+    }
 }

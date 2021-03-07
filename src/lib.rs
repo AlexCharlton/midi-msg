@@ -26,6 +26,10 @@ pub use util::{
     midi_note_float_to_freq,
 };
 
+mod parse_error;
+pub use parse_error::*;
+mod context;
+pub use context::*;
 mod time_code;
 pub use time_code::*;
 
@@ -44,3 +48,14 @@ pub use system_exclusive::*;
 
 mod message;
 pub use message::*;
+
+#[cfg(test)]
+pub fn test_serialization(msg: MidiMsg, ctx: &mut ReceiverContext) {
+    let midi = msg.to_midi();
+    let (msg2, len) = MidiMsg::from_midi_with_context(&midi, ctx).expect(&format!(
+        "The input message {:?} should be serialized into a deserializable stream",
+        &msg
+    ));
+    assert_eq!(midi.len(), len);
+    assert_eq!(msg, msg2);
+}

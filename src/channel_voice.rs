@@ -100,8 +100,17 @@ impl ChannelVoiceMsg {
         }
     }
 
-    pub(crate) fn from_midi(_m: &[u8]) -> Result<(Self, usize), &str> {
-        Err("TODO: not implemented")
+    pub(crate) fn from_midi(_m: &[u8]) -> Result<(Self, usize), crate::ParseError> {
+        // let (msg, len) = ChannelModeMsg::from_midi_running(m[1..], TODO)?;
+        // Ok((msg, len + 1))
+        Err(crate::ParseError::Invalid("TODO".to_string()))
+    }
+
+    pub(crate) fn from_midi_running(
+        _m: &[u8],
+        msg: &Self,
+    ) -> Result<(Self, usize), crate::ParseError> {
+        Err(crate::ParseError::Invalid("TODO".to_string()))
     }
 }
 
@@ -819,7 +828,7 @@ impl Parameter {
 
 #[cfg(test)]
 mod tests {
-    use super::super::*;
+    use crate::*;
 
     #[test]
     fn serialize_channel_voice_msg() {
@@ -925,5 +934,21 @@ mod tests {
             .to_midi(),
             vec![0xB1, 98, 0x68, 99, 0x07]
         );
+    }
+
+    #[test]
+    fn deserialize_channel_voice_msg() {
+        let mut ctx = ReceiverContext::default();
+
+        // test_serialization(
+        //     MidiMsg::ChannelVoice {
+        //         channel: Channel::Ch1,
+        //         msg: ChannelVoiceMsg::NoteOn {
+        //             note: 0x88,
+        //             velocity: 0xff,
+        //         },
+        //     },
+        //     &mut ctx,
+        // );
     }
 }

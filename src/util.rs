@@ -1,3 +1,5 @@
+use super::ParseError;
+
 #[inline]
 pub fn to_u7(x: u8) -> u8 {
     x.min(127)
@@ -6,6 +8,24 @@ pub fn to_u7(x: u8) -> u8 {
 #[inline]
 pub fn i_to_u7(x: i8) -> u8 {
     to_u7((x.max(-64) + 64) as u8)
+}
+
+#[inline]
+pub fn bool_from_u7(x: u8) -> Result<bool, ParseError> {
+    if x > 127 {
+        Err(ParseError::Overflow("0-127", x as i64))
+    } else {
+        Ok(x >= 0x40)
+    }
+}
+
+#[inline]
+pub fn u8_from_u7(x: u8) -> Result<u8, ParseError> {
+    if x > 127 {
+        Err(ParseError::Overflow("0-127", x as i64))
+    } else {
+        Ok(x)
+    }
 }
 
 // #[inline]

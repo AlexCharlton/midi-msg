@@ -1,4 +1,4 @@
-use super::util::*;
+use crate::util::*;
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 /// Channel-level messages that should alter the mode of the receiver. Used in [`MidiMsg`](crate::MidiMsg).
@@ -56,8 +56,30 @@ impl ChannelModeMsg {
         }
     }
 
-    pub(crate) fn from_midi(_m: &[u8]) -> Result<(Self, usize), &str> {
-        Err("TODO: not implemented")
+    pub(crate) fn from_midi(m: &[u8]) -> Result<(Self, usize), crate::ParseError> {
+        // Skip the status byte since it's already been parsed
+        let (msg, len) = ChannelModeMsg::from_midi_running(&m[1..])?;
+        Ok((msg, len + 1))
+    }
+
+    pub(crate) fn from_midi_running(m: &[u8]) -> Result<(Self, usize), crate::ParseError> {
+        if let (Some(b1), Some(b2)) = (m.get(0), m.get(1)) {
+            match (b1, b2) {
+                (120, _) => Ok((Self::AllSoundOff, 2)),
+                (121, _) => Ok((Self::ResetAllControllers, 2)),
+                (122, b2) => Ok((Self::LocalControl(bool_from_u7(*b2)?), 2)),
+                (123, _) => Ok((Self::AllNotesOff, 2)),
+                (124, _) => Ok((Self::OmniMode(false), 2)),
+                (125, _) => Ok((Self::OmniMode(true), 2)),
+                (126, b2) => Ok((Self::PolyMode(PolyMode::Mono(u8_from_u7(*b2)?)), 2)),
+                (127, _) => Ok((Self::PolyMode(PolyMode::Poly), 2)),
+                _ => Err(crate::ParseError::Invalid(format!(
+                    "This shouldn't be possible"
+                ))),
+            }
+        } else {
+            Err(crate::ParseError::UnexpectedEnd)
+        }
     }
 }
 
@@ -76,7 +98,7 @@ pub enum PolyMode {
 
 #[cfg(test)]
 mod tests {
-    use super::super::*;
+    use crate::*;
 
     #[test]
     fn serialize_channel_mode_msg() {
@@ -141,6 +163,59 @@ mod tests {
             }
             .to_midi(),
             vec![0xB2, 126, 4]
+        );
+    }
+
+    #[test]
+    fn deserialize_channel_mode_msg() {
+        let mut ctx = ReceiverContext::default();
+
+        test_serialization(
+            MidiMsg::ChannelMode {
+                channel: Channel::Ch3,
+                msg: ChannelModeMsg::AllSoundOff,
+            },
+            &mut ctx,
+        );
+
+        test_serialization(
+            MidiMsg::ChannelMode {
+                channel: Channel::Ch3,
+                msg: ChannelModeMsg::LocalControl(true),
+            },
+            &mut ctx,
+        );
+
+        test_serialization(
+            MidiMsg::ChannelMode {
+                channel: Channel::Ch3,
+                msg: ChannelModeMsg::OmniMode(true),
+            },
+            &mut ctx,
+        );
+
+        test_serialization(
+            MidiMsg::ChannelMode {
+                channel: Channel::Ch3,
+                msg: ChannelModeMsg::OmniMode(false),
+            },
+            &mut ctx,
+        );
+
+        test_serialization(
+            MidiMsg::ChannelMode {
+                channel: Channel::Ch3,
+                msg: ChannelModeMsg::PolyMode(PolyMode::Poly),
+            },
+            &mut ctx,
+        );
+
+        test_serialization(
+            MidiMsg::ChannelMode {
+                channel: Channel::Ch3,
+                msg: ChannelModeMsg::PolyMode(PolyMode::Mono(4)),
+            },
+            &mut ctx,
         );
     }
 }
