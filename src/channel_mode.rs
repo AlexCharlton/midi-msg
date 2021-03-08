@@ -1,3 +1,4 @@
+use super::parse_error::*;
 use crate::util::*;
 
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -56,14 +57,17 @@ impl ChannelModeMsg {
         }
     }
 
-    pub(crate) fn from_midi(m: &[u8]) -> Result<(Self, usize), crate::ParseError> {
+    pub(crate) fn from_midi(m: &[u8]) -> Result<(Self, usize), ParseError> {
         // Skip the status byte since it's already been parsed
         let (msg, len) = ChannelModeMsg::from_midi_running(&m[1..])?;
         Ok((msg, len + 1))
     }
 
-    pub(crate) fn from_midi_running(m: &[u8]) -> Result<(Self, usize), crate::ParseError> {
+    pub(crate) fn from_midi_running(m: &[u8]) -> Result<(Self, usize), ParseError> {
         if let (Some(b1), Some(b2)) = (m.get(0), m.get(1)) {
+            if *b2 > 127 {
+                return Err(ParseError::ByteOverflow);
+            }
             match (b1, b2) {
                 (120, _) => Ok((Self::AllSoundOff, 2)),
                 (121, _) => Ok((Self::ResetAllControllers, 2)),
@@ -73,12 +77,10 @@ impl ChannelModeMsg {
                 (125, _) => Ok((Self::OmniMode(true), 2)),
                 (126, b2) => Ok((Self::PolyMode(PolyMode::Mono(u8_from_u7(*b2)?)), 2)),
                 (127, _) => Ok((Self::PolyMode(PolyMode::Poly), 2)),
-                _ => Err(crate::ParseError::Invalid(format!(
-                    "This shouldn't be possible"
-                ))),
+                _ => Err(ParseError::Invalid(format!("This shouldn't be possible"))),
             }
         } else {
-            Err(crate::ParseError::UnexpectedEnd)
+            Err(ParseError::UnexpectedEnd)
         }
     }
 }

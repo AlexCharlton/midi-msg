@@ -13,7 +13,7 @@ pub fn i_to_u7(x: i8) -> u8 {
 #[inline]
 pub fn bool_from_u7(x: u8) -> Result<bool, ParseError> {
     if x > 127 {
-        Err(ParseError::Overflow("0-127", x as i64))
+        Err(ParseError::ByteOverflow)
     } else {
         Ok(x >= 0x40)
     }
@@ -22,9 +22,18 @@ pub fn bool_from_u7(x: u8) -> Result<bool, ParseError> {
 #[inline]
 pub fn u8_from_u7(x: u8) -> Result<u8, ParseError> {
     if x > 127 {
-        Err(ParseError::Overflow("0-127", x as i64))
+        Err(ParseError::ByteOverflow)
     } else {
         Ok(x)
+    }
+}
+
+#[inline]
+pub fn u7_from_midi(m: &[u8]) -> Result<u8, ParseError> {
+    if m.len() < 1 {
+        Err(crate::ParseError::UnexpectedEnd)
+    } else {
+        u8_from_u7(m[0])
     }
 }
 
@@ -53,11 +62,20 @@ pub fn i_to_u14(x: i16) -> [u8; 2] {
     to_u14((x.max(-8192) + 8192) as u16)
 }
 
-// TODO: etc
 #[inline]
-pub fn bytes_to_u14(_b: [u8; 2]) -> u16 {
-    // TODO
-    0
+pub fn u14_from_midi(m: &[u8]) -> Result<u16, ParseError> {
+    if m.len() < 2 {
+        Err(crate::ParseError::UnexpectedEnd)
+    } else {
+        let (lsb, msb) = (m[0], m[1]);
+        if lsb > 127 || msb > 127 {
+            Err(ParseError::ByteOverflow)
+        } else {
+            let mut x = lsb as u16;
+            x += (msb as u16) << 7;
+            Ok(x)
+        }
+    }
 }
 
 #[inline]

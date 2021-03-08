@@ -53,7 +53,8 @@ pub use message::*;
 pub fn test_serialization(msg: MidiMsg, ctx: &mut ReceiverContext) {
     let midi = msg.to_midi();
     let (msg2, len) = MidiMsg::from_midi_with_context(&midi, ctx).expect(&format!(
-        "The input message {:?} should be serialized into a deserializable stream",
+        "The input message should be serialized into a deserializable stream\nInput: {:?}\nGot: {:#?}",
+        &midi,
         &msg
     ));
     assert_eq!(midi.len(), len);

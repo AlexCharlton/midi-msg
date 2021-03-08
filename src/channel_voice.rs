@@ -1,3 +1,4 @@
+use super::parse_error::*;
 use super::util::*;
 
 /// Channel-level messages that act on a voice. For instance, turning notes on off,
@@ -100,17 +101,93 @@ impl ChannelVoiceMsg {
         }
     }
 
-    pub(crate) fn from_midi(_m: &[u8]) -> Result<(Self, usize), crate::ParseError> {
-        // let (msg, len) = ChannelModeMsg::from_midi_running(m[1..], TODO)?;
-        // Ok((msg, len + 1))
-        Err(crate::ParseError::Invalid("TODO".to_string()))
+    pub(crate) fn from_midi(m: &[u8]) -> Result<(Self, usize), ParseError> {
+        let status = match m.first() {
+            Some(b) => match b >> 4 {
+                0x8 => Self::NoteOff {
+                    note: 0,
+                    velocity: 0,
+                },
+                0x9 => Self::NoteOn {
+                    note: 0,
+                    velocity: 0,
+                },
+                0xA => Self::PolyPressure {
+                    note: 0,
+                    pressure: 0,
+                },
+                0xB => Self::ControlChange {
+                    control: ControlChange::BankSelect(0),
+                },
+                0xC => Self::ProgramChange { program: 0 },
+                0xD => Self::ChannelPressure { pressure: 0 },
+                0xE => Self::PitchBend { bend: 0 },
+                _ => return Err(ParseError::Invalid(format!("This shouldn't be possible"))),
+            },
+            None => return Err(ParseError::UnexpectedEnd),
+        };
+        let (msg, len) = Self::from_midi_running(&m[1..], &status)?;
+        Ok((msg, len + 1))
     }
 
-    pub(crate) fn from_midi_running(
-        _m: &[u8],
-        msg: &Self,
-    ) -> Result<(Self, usize), crate::ParseError> {
-        Err(crate::ParseError::Invalid("TODO".to_string()))
+    pub(crate) fn from_midi_running(m: &[u8], msg: &Self) -> Result<(Self, usize), ParseError> {
+        match msg {
+            Self::NoteOff { .. } => Ok((
+                Self::NoteOff {
+                    note: u7_from_midi(m)?,
+                    velocity: u7_from_midi(&m[1..])?,
+                },
+                2,
+            )),
+            Self::NoteOn { .. } => Ok((
+                Self::NoteOn {
+                    note: u7_from_midi(m)?,
+                    velocity: u7_from_midi(&m[1..])?,
+                },
+                2,
+            )),
+            Self::PolyPressure { .. } => Ok((
+                Self::PolyPressure {
+                    note: u7_from_midi(m)?,
+                    pressure: u7_from_midi(&m[1..])?,
+                },
+                2,
+            )),
+            Self::ControlChange { .. } => Ok((
+                Self::ControlChange {
+                    control: ControlChange::from_midi(m)?,
+                },
+                2,
+            )),
+            Self::ProgramChange { .. } => Ok((
+                Self::ProgramChange {
+                    program: u7_from_midi(m)?,
+                },
+                1,
+            )),
+            Self::ChannelPressure { .. } => Ok((
+                Self::ChannelPressure {
+                    pressure: u7_from_midi(m)?,
+                },
+                1,
+            )),
+            Self::PitchBend { .. } => Ok((
+                Self::PitchBend {
+                    bend: u14_from_midi(m)?,
+                },
+                2,
+            )),
+            Self::HighResNoteOn { .. } | Self::HighResNoteOff { .. } => {
+                // This shouldn't really be used as a running message, but if it is, the last
+                // midi msg sent would have been a CC.
+                Ok((
+                    Self::ControlChange {
+                        control: ControlChange::from_midi(m)?,
+                    },
+                    2,
+                ))
+            }
+        }
     }
 }
 
@@ -363,9 +440,7 @@ impl ControlChange {
         v.push(control2.min(119));
         v.push(lsb);
     }
-}
 
-impl ControlChange {
     pub fn to_midi_running(&self) -> Vec<u8> {
         let mut r: Vec<u8> = vec![];
         self.extend_midi_running(&mut r);
@@ -524,6 +599,78 @@ impl ControlChange {
                 v.push(to_u7(x));
             }
         }
+    }
+
+    fn from_midi(m: &[u8]) -> Result<Self, ParseError> {
+        if m.len() < 2 {
+            return Err(crate::ParseError::UnexpectedEnd);
+        }
+
+        if m[0] > 119 {
+            return Err(ParseError::Invalid(format!(
+                "Tried to parse a control change message, but it looks like a channel mode message"
+            )));
+        }
+
+        let value = u8_from_u7(m[1])?;
+        Ok(match m[0] {
+            // 14 bit controls
+            0 => Self::BankSelect((value as u16) << 7),
+            1 => Self::ModWheel((value as u16) << 7),
+            2 => Self::Breath((value as u16) << 7),
+            4 => Self::Foot((value as u16) << 7),
+            5 => Self::Portamento((value as u16) << 7),
+            6 => Self::DataEntry((value as u16) << 7),
+            7 => Self::Volume((value as u16) << 7),
+            8 => Self::Balance((value as u16) << 7),
+            10 => Self::Pan((value as u16) << 7),
+            11 => Self::Expression((value as u16) << 7),
+            12 => Self::Effect1((value as u16) << 7),
+            13 => Self::Effect2((value as u16) << 7),
+            16 => Self::GeneralPurpose1((value as u16) << 7),
+            17 => Self::GeneralPurpose2((value as u16) << 7),
+            18 => Self::GeneralPurpose3((value as u16) << 7),
+            19 => Self::GeneralPurpose4((value as u16) << 7),
+            // 7 bit controls
+            64 => Self::Hold(value),
+            65 => Self::TogglePortamento(bool_from_u7(m[1])?),
+            66 => Self::Sostenuto(value),
+            67 => Self::SoftPedal(value),
+            68 => Self::ToggleLegato(bool_from_u7(m[1])?),
+            69 => Self::Hold2(value),
+            70 => Self::SoundControl1(value),
+            71 => Self::SoundControl2(value),
+            72 => Self::SoundControl3(value),
+            73 => Self::SoundControl4(value),
+            74 => Self::SoundControl5(value),
+            75 => Self::SoundControl6(value),
+            76 => Self::SoundControl7(value),
+            77 => Self::SoundControl8(value),
+            78 => Self::SoundControl9(value),
+            79 => Self::SoundControl10(value),
+            80 => Self::GeneralPurpose5(value),
+            81 => Self::GeneralPurpose6(value),
+            82 => Self::GeneralPurpose7(value),
+            83 => Self::GeneralPurpose8(value),
+            84 => Self::PortamentoControl(value),
+            88 => Self::HighResVelocity(value),
+            91 => Self::Effects1Depth(value),
+            92 => Self::Effects2Depth(value),
+            93 => Self::Effects3Depth(value),
+            94 => Self::Effects4Depth(value),
+            95 => Self::Effects5Depth(value),
+            96 => Self::DataIncrement(value),
+            97 => Self::DataDecrement(value),
+            // Undefined controls (including parameters)
+            3 | 9 | 14 | 15 | 20 | 21 | 22 | 23 | 24 | 25 | 26 | 27 | 28 | 29 | 30 | 31 => {
+                Self::UndefinedHighRes {
+                    control1: m[0],
+                    control2: m[0] + 32,
+                    value: (value as u16) << 7,
+                }
+            }
+            control => Self::Undefined { control, value },
+        })
     }
 }
 
@@ -824,6 +971,10 @@ impl Parameter {
             }
         }
     }
+
+    fn from_midi(m: &[u8]) -> Result<Self, ParseError> {
+        Err(ParseError::Invalid(format!("TODO")))
+    }
 }
 
 #[cfg(test)]
@@ -940,12 +1091,86 @@ mod tests {
     fn deserialize_channel_voice_msg() {
         let mut ctx = ReceiverContext::default();
 
+        test_serialization(
+            MidiMsg::ChannelVoice {
+                channel: Channel::Ch1,
+                msg: ChannelVoiceMsg::NoteOn {
+                    note: 0x7f,
+                    velocity: 0x7f,
+                },
+            },
+            &mut ctx,
+        );
+
+        test_serialization(
+            MidiMsg::ChannelVoice {
+                channel: Channel::Ch10,
+                msg: ChannelVoiceMsg::PitchBend { bend: 1000 },
+            },
+            &mut ctx,
+        );
+
         // test_serialization(
         //     MidiMsg::ChannelVoice {
-        //         channel: Channel::Ch1,
-        //         msg: ChannelVoiceMsg::NoteOn {
-        //             note: 0x88,
-        //             velocity: 0xff,
+        //         channel: Channel::Ch2,
+        //         msg: ChannelVoiceMsg::ControlChange {
+        //             control: ControlChange::Volume(1000)
+        //         }
+        //     }, &mut ctx
+        // );
+
+        test_serialization(
+            MidiMsg::ChannelVoice {
+                channel: Channel::Ch4,
+                msg: ChannelVoiceMsg::ControlChange {
+                    control: ControlChange::Undefined {
+                        control: 85,
+                        value: 77,
+                    },
+                },
+            },
+            &mut ctx,
+        );
+
+        // test_serialization(
+        //     MidiMsg::ChannelVoice {
+        //         channel: Channel::Ch2,
+        //         msg: ChannelVoiceMsg::ControlChange {
+        //             control: ControlChange::UndefinedHighRes {
+        //                 control1: 3,
+        //                 control2: 35,
+        //                 value: 1000,
+        //             },
+        //         },
+        //     },
+        //     &mut ctx,
+        // );
+
+        test_serialization(
+            MidiMsg::ChannelVoice {
+                channel: Channel::Ch3,
+                msg: ChannelVoiceMsg::ControlChange {
+                    control: ControlChange::TogglePortamento(true),
+                },
+            },
+            &mut ctx,
+        );
+
+        // test_serialization(
+        //     MidiMsg::ChannelVoice {
+        //         channel: Channel::Ch2,
+        //         msg: ChannelVoiceMsg::ControlChange {
+        //             control: ControlChange::Parameter(Parameter::FineTuning),
+        //         },
+        //     },
+        //     &mut ctx,
+        // );
+
+        // test_serialization(
+        //     MidiMsg::ChannelVoice {
+        //         channel: Channel::Ch2,
+        //         msg: ChannelVoiceMsg::ControlChange {
+        //             control: ControlChange::Parameter(Parameter::Unregistered(1000)),
         //         },
         //     },
         //     &mut ctx,
