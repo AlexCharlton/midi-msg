@@ -170,7 +170,7 @@ mod tests {
 
     #[test]
     fn deserialize_channel_mode_msg() {
-        let mut ctx = ReceiverContext::default();
+        let mut ctx = ReceiverContext::new();
 
         test_serialization(
             MidiMsg::ChannelMode {

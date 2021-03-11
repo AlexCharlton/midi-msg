@@ -57,6 +57,14 @@ pub fn test_serialization(msg: MidiMsg, ctx: &mut ReceiverContext) {
         &midi,
         &msg
     ));
-    assert_eq!(midi.len(), len);
+    assert_eq!(
+        midi.len(),
+        len,
+        "Expected deserializing of {:?} to be of length {} but got {:?} which has length {}",
+        &msg,
+        midi.len(),
+        &msg2,
+        len
+    );
     assert_eq!(msg, msg2);
 }

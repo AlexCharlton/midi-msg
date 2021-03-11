@@ -79,6 +79,16 @@ pub fn u14_from_midi(m: &[u8]) -> Result<u16, ParseError> {
 }
 
 #[inline]
+pub fn replace_u14_lsb(msb: u16, lsb: u8) -> u16 {
+    (msb & 0b11111110000000) + (lsb as u16)
+}
+
+#[inline]
+pub fn u14_from_u7s(msb: u8, lsb: u8) -> u16 {
+    ((msb as u16) << 7) + (lsb as u16)
+}
+
+#[inline]
 pub fn to_i14(x: i16) -> [u8; 2] {
     if x > 8191 {
         [0x3f, 0x7f]

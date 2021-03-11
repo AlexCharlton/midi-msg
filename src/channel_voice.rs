@@ -61,6 +61,77 @@ impl ChannelVoiceMsg {
         self.extend_midi_running(v);
     }
 
+    // Can this message be extended by another?
+    pub(crate) fn is_extensible(&self) -> bool {
+        match self {
+            Self::NoteOff { .. }
+            | Self::NoteOn { .. }
+            | Self::HighResNoteOff { .. }
+            | Self::HighResNoteOn { .. } => true,
+            Self::ControlChange { control } => control.is_lsb() || control.is_msb(),
+            _ => false,
+        }
+    }
+
+    // Can this message function as an extension to another?
+    pub(crate) fn is_extension(&self) -> bool {
+        match self {
+            Self::ControlChange { control } => match control {
+                ControlChange::HighResVelocity(_) => true,
+                control => control.is_lsb() || control.is_msb(),
+            },
+            _ => false,
+        }
+    }
+
+    pub(crate) fn maybe_extend(&self, other: &Self) -> Result<Self, ()> {
+        match (self, other) {
+            (
+                Self::NoteOff { note, velocity },
+                Self::ControlChange {
+                    control: ControlChange::HighResVelocity(v),
+                },
+            ) => Ok(Self::HighResNoteOff {
+                note: *note,
+                velocity: u14_from_u7s(*velocity, *v),
+            }),
+            (
+                Self::NoteOn { note, velocity },
+                Self::ControlChange {
+                    control: ControlChange::HighResVelocity(v),
+                },
+            ) => Ok(Self::HighResNoteOn {
+                note: *note,
+                velocity: u14_from_u7s(*velocity, *v),
+            }),
+            (
+                Self::HighResNoteOff { note, velocity },
+                Self::ControlChange {
+                    control: ControlChange::HighResVelocity(v),
+                },
+            ) => Ok(Self::HighResNoteOff {
+                note: *note,
+                velocity: replace_u14_lsb(*velocity, *v),
+            }),
+            (
+                Self::HighResNoteOn { note, velocity },
+                Self::ControlChange {
+                    control: ControlChange::HighResVelocity(v),
+                },
+            ) => Ok(Self::HighResNoteOn {
+                note: *note,
+                velocity: replace_u14_lsb(*velocity, *v),
+            }),
+            (Self::ControlChange { control: ctrl1 }, Self::ControlChange { control: ctrl2 }) => {
+                match ctrl1.maybe_extend(ctrl2) {
+                    Ok(control) => Ok(Self::ControlChange { control }),
+                    Err(()) => Err(()),
+                }
+            }
+            _ => Err(()),
+        }
+    }
+
     /// Out of necessity, pushes a Channel message after the note message for `HighResNoteOn/Off`
     pub(crate) fn extend_midi_running(&self, v: &mut Vec<u8>) {
         match *self {
@@ -441,6 +512,45 @@ impl ControlChange {
         v.push(lsb);
     }
 
+    fn is_msb(&self) -> bool {
+        match self {
+            Self::BankSelect(_)
+            | Self::ModWheel(_)
+            | Self::Breath(_)
+            | Self::DataEntry(_)
+            | Self::UndefinedHighRes { .. }
+            | Self::Foot(_)
+            | Self::Portamento(_)
+            | Self::Volume(_)
+            | Self::Balance(_)
+            | Self::Pan(_)
+            | Self::Expression(_)
+            | Self::Effect1(_)
+            | Self::Effect2(_)
+            | Self::GeneralPurpose1(_)
+            | Self::GeneralPurpose2(_)
+            | Self::GeneralPurpose3(_)
+            | Self::GeneralPurpose4(_) => true,
+            Self::Undefined { control, .. }
+                if control < &32 || control == &99 || control == &101 =>
+            {
+                true
+            }
+            _ => false,
+        }
+    }
+
+    fn is_lsb(&self) -> bool {
+        match self {
+            Self::Undefined { control, .. }
+                if control >= &32 && control < &64 || control == &98 || control == &100 =>
+            {
+                true
+            }
+            _ => false,
+        }
+    }
+
     pub fn to_midi_running(&self) -> Vec<u8> {
         let mut r: Vec<u8> = vec![];
         self.extend_midi_running(&mut r);
@@ -671,6 +781,129 @@ impl ControlChange {
             }
             control => Self::Undefined { control, value },
         })
+    }
+
+    fn maybe_extend(&self, other: &Self) -> Result<Self, ()> {
+        match (self, other) {
+            (Self::BankSelect(msb), Self::Undefined { control, value })
+            | (Self::Undefined { control, value }, Self::BankSelect(msb))
+                if *control == ControlNumber::BankSelectLSB as u8 =>
+            {
+                Ok(Self::BankSelect(replace_u14_lsb(*msb, *value)))
+            }
+            (Self::ModWheel(msb), Self::Undefined { control, value })
+            | (Self::Undefined { control, value }, Self::ModWheel(msb))
+                if *control == ControlNumber::ModWheelLSB as u8 =>
+            {
+                Ok(Self::ModWheel(replace_u14_lsb(*msb, *value)))
+            }
+            (Self::Breath(msb), Self::Undefined { control, value })
+            | (Self::Undefined { control, value }, Self::Breath(msb))
+                if *control == ControlNumber::BreathLSB as u8 =>
+            {
+                Ok(Self::Breath(replace_u14_lsb(*msb, *value)))
+            }
+            (Self::Foot(msb), Self::Undefined { control, value })
+            | (Self::Undefined { control, value }, Self::Foot(msb))
+                if *control == ControlNumber::FootLSB as u8 =>
+            {
+                Ok(Self::Foot(replace_u14_lsb(*msb, *value)))
+            }
+            (Self::Portamento(msb), Self::Undefined { control, value })
+            | (Self::Undefined { control, value }, Self::Portamento(msb))
+                if *control == ControlNumber::PortamentoLSB as u8 =>
+            {
+                Ok(Self::Portamento(replace_u14_lsb(*msb, *value)))
+            }
+            (Self::DataEntry(msb), Self::Undefined { control, value })
+            | (Self::Undefined { control, value }, Self::DataEntry(msb))
+                if *control == ControlNumber::DataEntryLSB as u8 =>
+            {
+                Ok(Self::DataEntry(replace_u14_lsb(*msb, *value)))
+            }
+            (Self::Volume(msb), Self::Undefined { control, value })
+            | (Self::Undefined { control, value }, Self::Volume(msb))
+                if *control == ControlNumber::VolumeLSB as u8 =>
+            {
+                Ok(Self::Volume(replace_u14_lsb(*msb, *value)))
+            }
+            (Self::Balance(msb), Self::Undefined { control, value })
+            | (Self::Undefined { control, value }, Self::Balance(msb))
+                if *control == ControlNumber::BalanceLSB as u8 =>
+            {
+                Ok(Self::Balance(replace_u14_lsb(*msb, *value)))
+            }
+            (Self::Pan(msb), Self::Undefined { control, value })
+            | (Self::Undefined { control, value }, Self::Pan(msb))
+                if *control == ControlNumber::PanLSB as u8 =>
+            {
+                Ok(Self::Pan(replace_u14_lsb(*msb, *value)))
+            }
+            (Self::Expression(msb), Self::Undefined { control, value })
+            | (Self::Undefined { control, value }, Self::Expression(msb))
+                if *control == ControlNumber::ExpressionLSB as u8 =>
+            {
+                Ok(Self::Expression(replace_u14_lsb(*msb, *value)))
+            }
+            (Self::Effect1(msb), Self::Undefined { control, value })
+            | (Self::Undefined { control, value }, Self::Effect1(msb))
+                if *control == ControlNumber::Effect1LSB as u8 =>
+            {
+                Ok(Self::Effect1(replace_u14_lsb(*msb, *value)))
+            }
+            (Self::Effect2(msb), Self::Undefined { control, value })
+            | (Self::Undefined { control, value }, Self::Effect2(msb))
+                if *control == ControlNumber::Effect2LSB as u8 =>
+            {
+                Ok(Self::Effect2(replace_u14_lsb(*msb, *value)))
+            }
+            (Self::GeneralPurpose1(msb), Self::Undefined { control, value })
+            | (Self::Undefined { control, value }, Self::GeneralPurpose1(msb))
+                if *control == ControlNumber::GeneralPurpose1LSB as u8 =>
+            {
+                Ok(Self::GeneralPurpose1(replace_u14_lsb(*msb, *value)))
+            }
+            (Self::GeneralPurpose2(msb), Self::Undefined { control, value })
+            | (Self::Undefined { control, value }, Self::GeneralPurpose2(msb))
+                if *control == ControlNumber::GeneralPurpose2LSB as u8 =>
+            {
+                Ok(Self::GeneralPurpose2(replace_u14_lsb(*msb, *value)))
+            }
+            (Self::GeneralPurpose3(msb), Self::Undefined { control, value })
+            | (Self::Undefined { control, value }, Self::GeneralPurpose3(msb))
+                if *control == ControlNumber::GeneralPurpose3LSB as u8 =>
+            {
+                Ok(Self::GeneralPurpose3(replace_u14_lsb(*msb, *value)))
+            }
+            (Self::GeneralPurpose4(msb), Self::Undefined { control, value })
+            | (Self::Undefined { control, value }, Self::GeneralPurpose4(msb))
+                if *control == ControlNumber::GeneralPurpose4LSB as u8 =>
+            {
+                Ok(Self::GeneralPurpose4(replace_u14_lsb(*msb, *value)))
+            }
+            (
+                Self::UndefinedHighRes {
+                    control1,
+                    control2,
+                    value: msb,
+                },
+                Self::Undefined { control, value },
+            )
+            | (
+                Self::Undefined { control, value },
+                Self::UndefinedHighRes {
+                    control1,
+                    control2,
+                    value: msb,
+                },
+            ) if control == control2 => Ok(Self::UndefinedHighRes {
+                control1: *control1,
+                control2: *control2,
+                value: replace_u14_lsb(*msb, *value),
+            }),
+            // TODO: Parameters
+            _ => Err(()),
+        }
     }
 }
 
@@ -1089,7 +1322,7 @@ mod tests {
 
     #[test]
     fn deserialize_channel_voice_msg() {
-        let mut ctx = ReceiverContext::default();
+        let mut ctx = ReceiverContext::new();
 
         test_serialization(
             MidiMsg::ChannelVoice {
@@ -1110,14 +1343,15 @@ mod tests {
             &mut ctx,
         );
 
-        // test_serialization(
-        //     MidiMsg::ChannelVoice {
-        //         channel: Channel::Ch2,
-        //         msg: ChannelVoiceMsg::ControlChange {
-        //             control: ControlChange::Volume(1000)
-        //         }
-        //     }, &mut ctx
-        // );
+        test_serialization(
+            MidiMsg::ChannelVoice {
+                channel: Channel::Ch2,
+                msg: ChannelVoiceMsg::ControlChange {
+                    control: ControlChange::Volume(1000),
+                },
+            },
+            &mut ctx,
+        );
 
         test_serialization(
             MidiMsg::ChannelVoice {
@@ -1132,19 +1366,19 @@ mod tests {
             &mut ctx,
         );
 
-        // test_serialization(
-        //     MidiMsg::ChannelVoice {
-        //         channel: Channel::Ch2,
-        //         msg: ChannelVoiceMsg::ControlChange {
-        //             control: ControlChange::UndefinedHighRes {
-        //                 control1: 3,
-        //                 control2: 35,
-        //                 value: 1000,
-        //             },
-        //         },
-        //     },
-        //     &mut ctx,
-        // );
+        test_serialization(
+            MidiMsg::ChannelVoice {
+                channel: Channel::Ch2,
+                msg: ChannelVoiceMsg::ControlChange {
+                    control: ControlChange::UndefinedHighRes {
+                        control1: 3,
+                        control2: 35,
+                        value: 1000,
+                    },
+                },
+            },
+            &mut ctx,
+        );
 
         test_serialization(
             MidiMsg::ChannelVoice {
@@ -1175,5 +1409,16 @@ mod tests {
         //     },
         //     &mut ctx,
         // );
+
+        test_serialization(
+            MidiMsg::ChannelVoice {
+                channel: Channel::Ch3,
+                msg: ChannelVoiceMsg::HighResNoteOn {
+                    note: 77,
+                    velocity: 1000,
+                },
+            },
+            &mut ctx,
+        );
     }
 }

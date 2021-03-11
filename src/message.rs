@@ -49,7 +49,6 @@ impl MidiMsg {
         r
     }
 
-    #[doc(hidden)]
     /// Turn a series of bytes into a `MidiMsg`.
     ///
     /// Ok results return a MidiMsg and the number of bytes consumed from the input.
@@ -57,20 +56,43 @@ impl MidiMsg {
         Self::from_midi_with_context(m, &mut ReceiverContext::default())
     }
 
-    #[doc(hidden)]
     /// Turn a series of bytes into a `MidiMsg`, given a [`ReceiverContext`](crate::ReceiverContext).
+    ///
+    /// Consecutive messages that relate to each other will be collapsed into one
+    /// `MidiMsg`. E.g. a `ChannelVoiceMsg::ControlChange` where the CC is the MSB and LSB
+    /// of `ControlChange::Volume` will turn into a single `ControlChange::Volume` with both
+    /// bytes turned into one. Use [`from_midi_with_context_no_extensions`] to disable this
+    /// behavior.
     ///
     /// Ok results return a MidiMsg and the number of bytes consumed from the input.
     pub fn from_midi_with_context(
         m: &[u8],
         ctx: &mut ReceiverContext,
     ) -> Result<(Self, usize), ParseError> {
-        match m.first() {
+        Self::_from_midi_with_context(m, ctx, true)
+    }
+
+    /// Like [`from_midi_with_context`] but does not turn multiple related consecutive messages
+    /// into one `MidiMsg`.
+    pub fn from_midi_with_context_no_extensions(
+        m: &[u8],
+        ctx: &mut ReceiverContext,
+    ) -> Result<(Self, usize), ParseError> {
+        Self::_from_midi_with_context(m, ctx, false)
+    }
+
+    fn _from_midi_with_context(
+        m: &[u8],
+        ctx: &mut ReceiverContext,
+        allow_extensions: bool,
+    ) -> Result<(Self, usize), ParseError> {
+        let (mut midi_msg, mut len) = match m.first() {
             Some(b) => match b >> 4 {
                 0x8 | 0x9 | 0xA | 0xC | 0xD | 0xE => {
                     let (msg, len) = ChannelVoiceMsg::from_midi(m)?;
                     let channel = Channel::from_u8(b & 0x0F);
                     let midi_msg = Self::ChannelVoice { channel, msg };
+
                     ctx.previous_channel_message = Some(midi_msg.clone());
                     Ok((midi_msg, len))
                 }
@@ -82,12 +104,37 @@ impl MidiMsg {
                             let (msg, len) = ChannelModeMsg::from_midi(m)?;
                             (Self::ChannelMode { channel, msg }, len)
                         } else {
-                            let (msg, len) = ChannelVoiceMsg::from_midi(m)?;
+                            let (mut msg, len) = ChannelVoiceMsg::from_midi(m)?;
+
+                            if allow_extensions {
+                                // If we can interpret this message as an extension to the previous
+                                // one, do it.
+                                match ctx.previous_channel_message {
+                                    Some(Self::ChannelVoice {
+                                        channel: prev_channel,
+                                        msg: prev_msg,
+                                    }) => {
+                                        if channel == prev_channel
+                                            && prev_msg.is_extensible()
+                                            && msg.is_extension()
+                                        {
+                                            match prev_msg.maybe_extend(&msg) {
+                                                Ok(updated_msg) => {
+                                                    msg = updated_msg;
+                                                }
+                                                _ => (),
+                                            }
+                                        }
+                                    }
+                                    _ => (),
+                                }
+                            }
                             (Self::ChannelVoice { channel, msg }, len)
                         }
                     } else {
                         return Err(ParseError::UnexpectedEnd);
                     };
+
                     ctx.previous_channel_message = Some(midi_msg.clone());
                     Ok((midi_msg, len))
                 }
@@ -95,10 +142,26 @@ impl MidiMsg {
                 _ => {
                     if let Some(p) = &ctx.previous_channel_message {
                         match p {
-                            Self::ChannelVoice {channel, msg} => {
-                                let (msg, len) = ChannelVoiceMsg::from_midi_running(m, msg)?;
+                            Self::ChannelVoice {channel, msg: prev_msg} => {
+                                let (mut msg, len) = ChannelVoiceMsg::from_midi_running(m, prev_msg)?;
+
+                                if allow_extensions {
+                                    // If we can interpret this message as an extension to the previous
+                                    // one, do it.
+                                    if prev_msg.is_extensible()
+                                        && msg.is_extension()
+                                    {
+                                        match prev_msg.maybe_extend(&msg) {
+                                            Ok(updated_msg) => {
+                                                msg = updated_msg;
+                                            }
+                                            _ => (),
+                                        }
+                                    }
+                                }
                                 Ok((Self::ChannelVoice { channel: *channel, msg}, len))
                             }
+
                             Self::ChannelMode {channel, ..} => {
                                 let (msg, len) = ChannelModeMsg::from_midi_running(m)?;
                                 Ok((Self::ChannelMode { channel: *channel, msg}, len))
@@ -111,7 +174,51 @@ impl MidiMsg {
                 }
             },
             None => Err(ParseError::UnexpectedEnd),
+        }?;
+
+        if allow_extensions {
+            // If this is an extensible message, try to extend it
+            loop {
+                if let Self::ChannelVoice { channel, msg } = midi_msg {
+                    if msg.is_extensible() {
+                        // Shadow the context;
+                        let mut ctx = ctx.clone();
+                        // Try to extend an extensible message
+                        match Self::_from_midi_with_context(&m[len..], &mut ctx, false) {
+                            Ok((
+                                Self::ChannelVoice {
+                                    channel: next_channel,
+                                    msg: next_msg,
+                                },
+                                next_len,
+                            )) => {
+                                if channel == next_channel && next_msg.is_extension() {
+                                    match msg.maybe_extend(&next_msg) {
+                                        Ok(updated_msg) => {
+                                            midi_msg = Self::ChannelVoice {
+                                                channel,
+                                                msg: updated_msg,
+                                            };
+                                            len += next_len;
+                                        }
+                                        _ => break,
+                                    }
+                                } else {
+                                    break;
+                                }
+                            }
+                            _ => break,
+                        }
+                    } else {
+                        break;
+                    }
+                } else {
+                    break;
+                }
+            }
         }
+
+        Ok((midi_msg, len))
     }
 
     /// Turn a set of `MidiMsg`s into a series of bytes, with fewer allocations than
