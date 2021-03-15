@@ -11,6 +11,11 @@ pub fn i_to_u7(x: i8) -> u8 {
 }
 
 #[inline]
+pub fn u7_to_i(x: u8) -> i8 {
+    x as i8 - 64
+}
+
+#[inline]
 pub fn bool_from_u7(x: u8) -> Result<bool, ParseError> {
     if x > 127 {
         Err(ParseError::ByteOverflow)
@@ -86,6 +91,11 @@ pub fn replace_u14_lsb(msb: u16, lsb: u8) -> u16 {
 #[inline]
 pub fn u14_from_u7s(msb: u8, lsb: u8) -> u16 {
     ((msb as u16) << 7) + (lsb as u16)
+}
+
+#[inline]
+pub fn i14_from_u7s(msb: u8, lsb: u8) -> i16 {
+    u14_from_u7s(msb, lsb) as i16 - 8192
 }
 
 #[inline]
@@ -278,6 +288,28 @@ mod tests {
             to_u21(0b1000011010100000),
             [0b00000010, 0b00001101, 0b00100000]
         );
+    }
+
+    #[test]
+    fn test_i_to_u() {
+        assert_eq!(i_to_u7(63), 127);
+        assert_eq!(i_to_u7(0), 64);
+        assert_eq!(i_to_u7(-64), 0);
+
+        assert_eq!(i_to_u14(0), to_u14(8192));
+        assert_eq!(i_to_u14(-8192), to_u14(0));
+        assert_eq!(i_to_u14(8191), to_u14(16383));
+    }
+
+    #[test]
+    fn test_u_to_i() {
+        assert_eq!(u7_to_i(127), 63);
+        assert_eq!(u7_to_i(64), 0);
+        assert_eq!(u7_to_i(0), -64);
+
+        assert_eq!(i14_from_u7s(to_u14(8192)[0], to_u14(8192)[1]), 0);
+        assert_eq!(i14_from_u7s(0, 0), -8192);
+        assert_eq!(i14_from_u7s(to_u14(16383)[0], to_u14(16383)[1]), 8191);
     }
 
     #[test]

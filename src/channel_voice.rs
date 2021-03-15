@@ -68,6 +68,9 @@ impl ChannelVoiceMsg {
             | Self::NoteOn { .. }
             | Self::HighResNoteOff { .. }
             | Self::HighResNoteOn { .. } => true,
+            Self::ControlChange {
+                control: ControlChange::Parameter(_),
+            } => true,
             Self::ControlChange { control } => control.is_lsb() || control.is_msb(),
             _ => false,
         }
@@ -901,7 +904,50 @@ impl ControlChange {
                 control2: *control2,
                 value: replace_u14_lsb(*msb, *value),
             }),
-            // TODO: Parameters
+            // Parameters
+            (
+                Self::Undefined {
+                    control: ctrl1,
+                    value: val1,
+                },
+                Self::Undefined {
+                    control: ctrl2,
+                    value: val2,
+                },
+            ) => {
+                let ((ctrl_lsb, ctrl_msb), (val_lsb, val_msb)) = if ctrl1 < ctrl2 {
+                    ((*ctrl1, *ctrl2), (*val1, *val2))
+                } else {
+                    ((*ctrl2, *ctrl1), (*val2, *val1))
+                };
+
+                if ctrl_lsb == ControlNumber::NonRegisteredParameterLSB as u8
+                    && ctrl_msb == ControlNumber::NonRegisteredParameter as u8
+                {
+                    Ok(Self::Parameter(Parameter::Unregistered(u14_from_u7s(
+                        val_msb, val_lsb,
+                    ))))
+                } else if ctrl_lsb == ControlNumber::RegisteredParameterLSB as u8
+                    && ctrl_msb == ControlNumber::RegisteredParameter as u8
+                {
+                    Ok(Self::Parameter(Parameter::maybe_extend_cc(
+                        val_msb, val_lsb,
+                    )?))
+                } else {
+                    Err(())
+                }
+            }
+            (Self::Parameter(param), Self::Undefined { control, value })
+            | (Self::Undefined { control, value }, Self::Parameter(param))
+                if *control == ControlNumber::DataEntryLSB as u8 =>
+            {
+                Ok(Self::Parameter(param.maybe_extend(None, Some(*value))?))
+            }
+
+            (Self::Parameter(param), Self::DataEntry(value))
+            | (Self::DataEntry(value), Self::Parameter(param)) => {
+                Ok(Self::Parameter(param.maybe_extend(Some(*value), None)?))
+            }
             _ => Err(()),
         }
     }
@@ -1205,8 +1251,144 @@ impl Parameter {
         }
     }
 
-    fn from_midi(m: &[u8]) -> Result<Self, ParseError> {
-        Err(ParseError::Invalid(format!("TODO")))
+    fn maybe_extend_cc(msb: u8, lsb: u8) -> Result<Self, ()> {
+        match (msb, lsb) {
+            (0x7F, 0x7F) => Ok(Self::Null),
+            (0, 0) => Ok(Self::PitchBendSensitivity),
+            (0, 1) => Ok(Self::FineTuning),
+            (0, 2) => Ok(Self::CoarseTuning),
+            (0, 3) => Ok(Self::TuningProgramSelect),
+            (0, 4) => Ok(Self::TuningBankSelect),
+            (0, 5) => Ok(Self::ModulationDepthRange),
+            (0, 6) => Ok(Self::PolyphonicExpression),
+            (61, 0) => Ok(Self::AzimuthAngle3DSound),
+            (61, 1) => Ok(Self::ElevationAngle3DSound),
+            (61, 2) => Ok(Self::Gain3DSound),
+            (61, 3) => Ok(Self::DistanceRatio3DSound),
+            (61, 4) => Ok(Self::MaxiumumDistance3DSound),
+            (61, 5) => Ok(Self::GainAtMaxiumumDistance3DSound),
+            (61, 6) => Ok(Self::ReferenceDistanceRatio3DSound),
+            (61, 7) => Ok(Self::PanSpreadAngle3DSound),
+            (61, 8) => Ok(Self::RollAngle3DSound),
+            _ => Err(()),
+        }
+    }
+
+    fn maybe_extend(&self, msb: Option<u16>, lsb: Option<u8>) -> Result<Self, ()> {
+        match self {
+            Self::PitchBendSensitivity => Ok(Self::PitchBendSensitivityEntry(
+                msb.map_or(0, |v| (v >> 7) as u8),
+                lsb.unwrap_or(0),
+            )),
+            Self::PitchBendSensitivityEntry(v1, v2) => Ok(Self::PitchBendSensitivityEntry(
+                msb.map_or(*v1, |v| v as u8),
+                lsb.unwrap_or(*v2),
+            )),
+            Self::FineTuning => Ok(Self::FineTuningEntry(i14_from_u7s(
+                msb.map_or(0, |v| (v >> 7) as u8),
+                lsb.unwrap_or(0),
+            ))),
+            Self::FineTuningEntry(v) => Ok(Self::FineTuningEntry(i14_from_u7s(
+                msb.map_or(i_to_u14(*v)[0], |v| v as u8),
+                lsb.unwrap_or(i_to_u14(*v)[1]),
+            ))),
+            Self::CoarseTuning => Ok(Self::CoarseTuningEntry(msb.map_or(0, |v| u7_to_i(v as u8)))),
+            Self::CoarseTuningEntry(v) => Ok(Self::CoarseTuningEntry(
+                msb.map_or(*v, |v| u7_to_i(v as u8)),
+            )),
+            Self::TuningProgramSelect => {
+                Ok(Self::TuningProgramSelectEntry(msb.map_or(0, |v| v as u8)))
+            }
+            Self::TuningProgramSelectEntry(v) => {
+                Ok(Self::TuningProgramSelectEntry(msb.map_or(*v, |v| v as u8)))
+            }
+            Self::TuningBankSelect => Ok(Self::TuningBankSelectEntry(msb.map_or(0, |v| v as u8))),
+            Self::TuningBankSelectEntry(v) => {
+                Ok(Self::TuningBankSelectEntry(msb.map_or(*v, |v| v as u8)))
+            }
+            Self::ModulationDepthRange => Ok(Self::ModulationDepthRangeEntry(replace_u14_lsb(
+                msb.unwrap_or(0),
+                lsb.unwrap_or(0),
+            ))),
+            Self::ModulationDepthRangeEntry(v) => Ok(Self::ModulationDepthRangeEntry(
+                replace_u14_lsb(msb.unwrap_or(*v), lsb.unwrap_or((*v as u8) & 0b01111111)),
+            )),
+            Self::PolyphonicExpression => {
+                Ok(Self::PolyphonicExpressionEntry(msb.map_or(0, |v| v as u8)))
+            }
+            Self::PolyphonicExpressionEntry(v) => {
+                Ok(Self::PolyphonicExpressionEntry(msb.map_or(*v, |v| v as u8)))
+            }
+            Self::AzimuthAngle3DSound => Ok(Self::AzimuthAngle3DSoundEntry(replace_u14_lsb(
+                msb.unwrap_or(0),
+                lsb.unwrap_or(0),
+            ))),
+            Self::AzimuthAngle3DSoundEntry(v) => Ok(Self::AzimuthAngle3DSoundEntry(
+                replace_u14_lsb(msb.unwrap_or(*v), lsb.unwrap_or((*v as u8) & 0b01111111)),
+            )),
+            Self::ElevationAngle3DSound => Ok(Self::ElevationAngle3DSoundEntry(replace_u14_lsb(
+                msb.unwrap_or(0),
+                lsb.unwrap_or(0),
+            ))),
+            Self::ElevationAngle3DSoundEntry(v) => Ok(Self::ElevationAngle3DSoundEntry(
+                replace_u14_lsb(msb.unwrap_or(*v), lsb.unwrap_or((*v as u8) & 0b01111111)),
+            )),
+            Self::Gain3DSound => Ok(Self::Gain3DSoundEntry(replace_u14_lsb(
+                msb.unwrap_or(0),
+                lsb.unwrap_or(0),
+            ))),
+            Self::Gain3DSoundEntry(v) => Ok(Self::Gain3DSoundEntry(replace_u14_lsb(
+                msb.unwrap_or(*v),
+                lsb.unwrap_or((*v as u8) & 0b01111111),
+            ))),
+            Self::DistanceRatio3DSound => Ok(Self::DistanceRatio3DSoundEntry(replace_u14_lsb(
+                msb.unwrap_or(0),
+                lsb.unwrap_or(0),
+            ))),
+            Self::DistanceRatio3DSoundEntry(v) => Ok(Self::DistanceRatio3DSoundEntry(
+                replace_u14_lsb(msb.unwrap_or(*v), lsb.unwrap_or((*v as u8) & 0b01111111)),
+            )),
+            Self::MaxiumumDistance3DSound => Ok(Self::MaxiumumDistance3DSoundEntry(
+                replace_u14_lsb(msb.unwrap_or(0), lsb.unwrap_or(0)),
+            )),
+            Self::MaxiumumDistance3DSoundEntry(v) => Ok(Self::MaxiumumDistance3DSoundEntry(
+                replace_u14_lsb(msb.unwrap_or(*v), lsb.unwrap_or((*v as u8) & 0b01111111)),
+            )),
+            Self::GainAtMaxiumumDistance3DSound => Ok(Self::GainAtMaxiumumDistance3DSoundEntry(
+                replace_u14_lsb(msb.unwrap_or(0), lsb.unwrap_or(0)),
+            )),
+            Self::GainAtMaxiumumDistance3DSoundEntry(v) => {
+                Ok(Self::GainAtMaxiumumDistance3DSoundEntry(replace_u14_lsb(
+                    msb.unwrap_or(*v),
+                    lsb.unwrap_or((*v as u8) & 0b01111111),
+                )))
+            }
+            Self::ReferenceDistanceRatio3DSound => Ok(Self::ReferenceDistanceRatio3DSoundEntry(
+                replace_u14_lsb(msb.unwrap_or(0), lsb.unwrap_or(0)),
+            )),
+            Self::ReferenceDistanceRatio3DSoundEntry(v) => {
+                Ok(Self::ReferenceDistanceRatio3DSoundEntry(replace_u14_lsb(
+                    msb.unwrap_or(*v),
+                    lsb.unwrap_or((*v as u8) & 0b01111111),
+                )))
+            }
+            Self::PanSpreadAngle3DSound => Ok(Self::PanSpreadAngle3DSoundEntry(replace_u14_lsb(
+                msb.unwrap_or(0),
+                lsb.unwrap_or(0),
+            ))),
+            Self::PanSpreadAngle3DSoundEntry(v) => Ok(Self::PanSpreadAngle3DSoundEntry(
+                replace_u14_lsb(msb.unwrap_or(*v), lsb.unwrap_or((*v as u8) & 0b01111111)),
+            )),
+            Self::RollAngle3DSound => Ok(Self::RollAngle3DSoundEntry(replace_u14_lsb(
+                msb.unwrap_or(0),
+                lsb.unwrap_or(0),
+            ))),
+            Self::RollAngle3DSoundEntry(v) => Ok(Self::RollAngle3DSoundEntry(replace_u14_lsb(
+                msb.unwrap_or(*v),
+                lsb.unwrap_or((*v as u8) & 0b01111111),
+            ))),
+            _ => Err(()),
+        }
     }
 }
 
@@ -1390,25 +1572,25 @@ mod tests {
             &mut ctx,
         );
 
-        // test_serialization(
-        //     MidiMsg::ChannelVoice {
-        //         channel: Channel::Ch2,
-        //         msg: ChannelVoiceMsg::ControlChange {
-        //             control: ControlChange::Parameter(Parameter::FineTuning),
-        //         },
-        //     },
-        //     &mut ctx,
-        // );
+        test_serialization(
+            MidiMsg::ChannelVoice {
+                channel: Channel::Ch2,
+                msg: ChannelVoiceMsg::ControlChange {
+                    control: ControlChange::Parameter(Parameter::FineTuning),
+                },
+            },
+            &mut ctx,
+        );
 
-        // test_serialization(
-        //     MidiMsg::ChannelVoice {
-        //         channel: Channel::Ch2,
-        //         msg: ChannelVoiceMsg::ControlChange {
-        //             control: ControlChange::Parameter(Parameter::Unregistered(1000)),
-        //         },
-        //     },
-        //     &mut ctx,
-        // );
+        test_serialization(
+            MidiMsg::ChannelVoice {
+                channel: Channel::Ch2,
+                msg: ChannelVoiceMsg::ControlChange {
+                    control: ControlChange::Parameter(Parameter::Unregistered(1000)),
+                },
+            },
+            &mut ctx,
+        );
 
         test_serialization(
             MidiMsg::ChannelVoice {
@@ -1416,6 +1598,36 @@ mod tests {
                 msg: ChannelVoiceMsg::HighResNoteOn {
                     note: 77,
                     velocity: 1000,
+                },
+            },
+            &mut ctx,
+        );
+
+        test_serialization(
+            MidiMsg::ChannelVoice {
+                channel: Channel::Ch2,
+                msg: ChannelVoiceMsg::ControlChange {
+                    control: ControlChange::Parameter(Parameter::FineTuningEntry(-30)),
+                },
+            },
+            &mut ctx,
+        );
+
+        test_serialization(
+            MidiMsg::ChannelVoice {
+                channel: Channel::Ch2,
+                msg: ChannelVoiceMsg::ControlChange {
+                    control: ControlChange::Parameter(Parameter::Gain3DSoundEntry(1001)),
+                },
+            },
+            &mut ctx,
+        );
+
+        test_serialization(
+            MidiMsg::ChannelVoice {
+                channel: Channel::Ch2,
+                msg: ChannelVoiceMsg::ControlChange {
+                    control: ControlChange::Parameter(Parameter::PitchBendSensitivityEntry(4, 78)),
                 },
             },
             &mut ctx,
