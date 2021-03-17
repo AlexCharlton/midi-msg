@@ -76,8 +76,47 @@ impl SystemCommonMsg {
         }
     }
 
-    pub(crate) fn from_midi(m: &[u8], ctx: &ReceiverContext) -> Result<(Self, usize), ParseError> {
-        Err(ParseError::Invalid(format!("TODO")))
+    pub(crate) fn from_midi(
+        m: &[u8],
+        ctx: &mut ReceiverContext,
+    ) -> Result<(Self, usize), ParseError> {
+        match m.first() {
+            Some(0xF1) => {
+                if let Some(b2) = m.get(1) {
+                    if b2 > &127 {
+                        Err(ParseError::ByteOverflow)
+                    } else {
+                        Ok((
+                            match ctx.time_code.extend(*b2) {
+                                0 => Self::TimeCodeQuarterFrame1(ctx.time_code),
+                                1 => Self::TimeCodeQuarterFrame2(ctx.time_code),
+                                2 => Self::TimeCodeQuarterFrame3(ctx.time_code),
+                                3 => Self::TimeCodeQuarterFrame4(ctx.time_code),
+                                4 => Self::TimeCodeQuarterFrame5(ctx.time_code),
+                                5 => Self::TimeCodeQuarterFrame6(ctx.time_code),
+                                6 => Self::TimeCodeQuarterFrame7(ctx.time_code),
+                                7 => Self::TimeCodeQuarterFrame8(ctx.time_code),
+                                _ => panic!("Should not be reachable"),
+                            },
+                            2,
+                        ))
+                    }
+                } else {
+                    Err(ParseError::UnexpectedEnd)
+                }
+            }
+            Some(0xF2) => Ok((Self::SongPosition(u14_from_midi(&m[1..])?), 3)),
+            Some(0xF3) => Ok((Self::SongSelect(u7_from_midi(&m[1..])?), 2)),
+            Some(0xF6) => Ok((Self::TuneRequest, 1)),
+            Some(0xF7) => Err(ParseError::Invalid(format!(
+                "Unexpected End of System Exclusive flag"
+            ))),
+            Some(x) => Err(ParseError::Invalid(format!(
+                "Undefined System Common message: {}",
+                x
+            ))),
+            _ => panic!("Should not be reachable"),
+        }
     }
 }
 
@@ -174,6 +213,53 @@ mod tests {
             }
             .to_midi(),
             vec![0xF1, 0b01110000 + 0b0101]
+        );
+    }
+
+    #[test]
+    fn deserialize_system_common_msg() {
+        let mut ctx = ReceiverContext::new();
+
+        test_serialization(
+            MidiMsg::SystemCommon {
+                msg: SystemCommonMsg::TuneRequest,
+            },
+            &mut ctx,
+        );
+
+        test_serialization(
+            MidiMsg::SystemCommon {
+                msg: SystemCommonMsg::SongPosition(1000),
+            },
+            &mut ctx,
+        );
+
+        MidiMsg::from_midi_with_context(&[0xF1, 0b1101], &mut ctx)
+            .expect("Expected a timecode, got an error");
+        MidiMsg::from_midi_with_context(&[0xF1, 0b00010000 + 0b0001], &mut ctx)
+            .expect("Expected a timecode, got an error");
+        MidiMsg::from_midi_with_context(&[0xF1, 0b00100000 + 0b1010], &mut ctx)
+            .expect("Expected a timecode, got an error");
+        MidiMsg::from_midi_with_context(&[0xF1, 0b00110000 + 0b0011], &mut ctx)
+            .expect("Expected a timecode, got an error");
+        MidiMsg::from_midi_with_context(&[0xF1, 0b01000000 + 0b0100], &mut ctx)
+            .expect("Expected a timecode, got an error");
+        MidiMsg::from_midi_with_context(&[0xF1, 0b01010000 + 0b0001], &mut ctx)
+            .expect("Expected a timecode, got an error");
+        MidiMsg::from_midi_with_context(&[0xF1, 0b01100000 + 0b0111], &mut ctx)
+            .expect("Expected a timecode, got an error");
+        MidiMsg::from_midi_with_context(&[0xF1, 0b01110000 + 0b0101], &mut ctx)
+            .expect("Expected a timecode, got an error");
+
+        assert_eq!(
+            ctx.time_code,
+            TimeCode {
+                frames: 29,                    // 0b00011101
+                seconds: 58,                   // 0b00111010
+                minutes: 20,                   // 0b00010100
+                hours: 23,                     // 0b00010111
+                code_type: TimeCodeType::DF30, // 0b01000000
+            }
         );
     }
 }

@@ -56,6 +56,35 @@ impl TimeCode {
             (7 << 4) + codehour_msb,
         ]
     }
+
+    // Returns the quarter frame number
+    pub(crate) fn extend(&mut self, nibble: u8) -> u8 {
+        let frame_number = nibble >> 4;
+        let nibble = nibble & 0b00001111;
+
+        match frame_number {
+            0 => self.frames = (self.frames & 0b11110000) + nibble,
+            1 => self.frames = (self.frames & 0b00001111) + (nibble << 4),
+            2 => self.seconds = (self.seconds & 0b11110000) + nibble,
+            3 => self.seconds = (self.seconds & 0b00001111) + (nibble << 4),
+            4 => self.minutes = (self.minutes & 0b11110000) + nibble,
+            5 => self.minutes = (self.minutes & 0b00001111) + (nibble << 4),
+            6 => self.hours = (self.hours & 0b11110000) + nibble,
+            7 => {
+                self.hours = (self.hours & 0b00001111) + ((nibble & 0b0001) << 4);
+                self.code_type = match (nibble & 0b0110) >> 1 {
+                    0 => TimeCodeType::FPS24,
+                    1 => TimeCodeType::FPS25,
+                    2 => TimeCodeType::DF30,
+                    3 => TimeCodeType::NDF30,
+                    _ => panic!("Should not be reachable"),
+                }
+            }
+            _ => panic!("Should not be reachable"),
+        }
+
+        frame_number
+    }
 }
 
 /// Indicates the frame rate of the given [`TimeCode`].
@@ -167,6 +196,7 @@ impl StandardTimeCode {
         v.extend_from_slice(&[codehour, minutes, seconds, frames, subframes]);
     }
 
+    #[allow(dead_code)]
     pub(crate) fn extend_midi_short(&self, v: &mut Vec<u8>) {
         let [subframes, frames] = self.to_bytes_short();
         v.extend_from_slice(&[frames, subframes]);
@@ -573,6 +603,7 @@ impl TimeCodeCueingSetupMsg {
         }
     }
 
+    #[allow(dead_code)]
     pub(crate) fn from_midi(_m: &[u8]) -> Result<(Self, usize), &str> {
         Err("TODO: not implemented")
     }
@@ -687,6 +718,7 @@ impl TimeCodeCueingMsg {
         }
     }
 
+    #[allow(dead_code)]
     pub(crate) fn from_midi(_m: &[u8]) -> Result<(Self, usize), &str> {
         Err("TODO: not implemented")
     }

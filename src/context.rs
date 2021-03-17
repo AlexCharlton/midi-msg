@@ -1,4 +1,4 @@
-use super::MidiMsg;
+use super::{MidiMsg, TimeCode};
 
 /// Passed to [`MidiMsg::from_midi_with_context`](crate::MidiMsg::from_midi_with_context) to allow
 /// for the capture and use of captured context while reading from a MIDI stream.
@@ -8,6 +8,7 @@ use super::MidiMsg;
 #[derive(Debug, Clone, PartialEq, Default)]
 pub struct ReceiverContext {
     pub previous_channel_message: Option<MidiMsg>,
+    pub time_code: TimeCode,
 }
 
 impl ReceiverContext {
