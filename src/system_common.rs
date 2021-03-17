@@ -1,5 +1,7 @@
+use super::parse_error::*;
 use super::time_code::*;
 use super::util::*;
+use super::ReceiverContext;
 
 /// A fairly limited set of messages, generally for device synchronization.
 /// Used in [`MidiMsg`](crate::MidiMsg).
@@ -74,8 +76,8 @@ impl SystemCommonMsg {
         }
     }
 
-    pub(crate) fn from_midi(_m: &[u8]) -> Result<(Self, usize), &str> {
-        Err("TODO: not implemented")
+    pub(crate) fn from_midi(m: &[u8], ctx: &ReceiverContext) -> Result<(Self, usize), ParseError> {
+        Err(ParseError::Invalid(format!("TODO")))
     }
 }
 

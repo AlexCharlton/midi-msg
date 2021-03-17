@@ -138,7 +138,18 @@ impl MidiMsg {
                     ctx.previous_channel_message = Some(midi_msg.clone());
                     Ok((midi_msg, len))
                 }
-                0xF => Err(ParseError::Invalid("TODO".to_string())),
+                0xF => {
+                    if b & 0b00001111 == 0 {
+                        let (msg, len) = SystemExclusiveMsg::from_midi(m)?;
+                        Ok((Self::SystemExclusive { msg }, len))
+                    } else if b & 0b00001000 == 0 {
+                        let (msg, len) = SystemCommonMsg::from_midi(m, ctx)?;
+                        Ok((Self::SystemCommon { msg }, len))
+                    } else {
+                        let (msg, len) = SystemRealTimeMsg::from_midi(m)?;
+                        Ok((Self::SystemRealTime { msg }, len))
+                    }
+                }
                 _ => {
                     if let Some(p) = &ctx.previous_channel_message {
                         match p {

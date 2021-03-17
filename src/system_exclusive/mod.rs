@@ -21,6 +21,7 @@ mod tuning;
 pub use tuning::*;
 
 use super::general_midi::GeneralMidi;
+use super::parse_error::*;
 use super::time_code::*;
 use super::util::*;
 
@@ -95,8 +96,8 @@ impl SystemExclusiveMsg {
         v.push(0xF7);
     }
 
-    pub(crate) fn from_midi(_m: &[u8]) -> Result<(Self, usize), &str> {
-        Err("TODO: not implemented")
+    pub(crate) fn from_midi(m: &[u8]) -> Result<(Self, usize), ParseError> {
+        Err(ParseError::Invalid(format!("TODO")))
     }
 }
 

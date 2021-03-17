@@ -1,3 +1,5 @@
+use super::parse_error::*;
+
 /// A fairly limited set of messages used for device synchronization.
 /// Used in [`MidiMsg`](crate::MidiMsg).
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -20,23 +22,35 @@ pub enum SystemRealTimeMsg {
 impl SystemRealTimeMsg {
     pub(crate) fn extend_midi(&self, v: &mut Vec<u8>) {
         match self {
-            SystemRealTimeMsg::TimingClock => v.push(0xF8),
-            SystemRealTimeMsg::Start => v.push(0xFA),
-            SystemRealTimeMsg::Continue => v.push(0xFB),
-            SystemRealTimeMsg::Stop => v.push(0xFC),
-            SystemRealTimeMsg::ActiveSensing => v.push(0xFE),
-            SystemRealTimeMsg::SystemReset => v.push(0xFF),
+            Self::TimingClock => v.push(0xF8),
+            Self::Start => v.push(0xFA),
+            Self::Continue => v.push(0xFB),
+            Self::Stop => v.push(0xFC),
+            Self::ActiveSensing => v.push(0xFE),
+            Self::SystemReset => v.push(0xFF),
         }
     }
 
-    pub(crate) fn from_midi(_m: &[u8]) -> Result<(Self, usize), &str> {
-        Err("TODO: not implemented")
+    pub(crate) fn from_midi(m: &[u8]) -> Result<(Self, usize), ParseError> {
+        match m.first() {
+            Some(0xF8) => Ok((Self::TimingClock, 1)),
+            Some(0xFA) => Ok((Self::Start, 1)),
+            Some(0xFB) => Ok((Self::Continue, 1)),
+            Some(0xFC) => Ok((Self::Stop, 1)),
+            Some(0xFE) => Ok((Self::ActiveSensing, 1)),
+            Some(0xFF) => Ok((Self::SystemReset, 1)),
+            Some(x) => Err(ParseError::Invalid(format!(
+                "Undefined System Real Time message: {}",
+                x
+            ))),
+            None => panic!("Should not be reachable"),
+        }
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use super::super::*;
+    use crate::*;
 
     #[test]
     fn serialize_system_real_time_msg() {
@@ -46,6 +60,18 @@ mod tests {
             }
             .to_midi(),
             vec![0xF8]
+        );
+    }
+
+    #[test]
+    fn deserialize_system_real_time_msg() {
+        let mut ctx = ReceiverContext::new();
+
+        test_serialization(
+            MidiMsg::SystemRealTime {
+                msg: SystemRealTimeMsg::TimingClock,
+            },
+            &mut ctx,
         );
     }
 }
