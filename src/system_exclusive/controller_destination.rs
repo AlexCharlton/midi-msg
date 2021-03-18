@@ -1,4 +1,5 @@
 use crate::message::Channel;
+use crate::parse_error::*;
 use crate::util::*;
 
 /// Allows for the selection of the destination of a channel pressure/poly key pressure message.
@@ -21,8 +22,9 @@ impl ControllerDestination {
         }
     }
 
-    pub(crate) fn from_midi(_m: &[u8]) -> Result<(Self, usize), &str> {
-        Err("TODO: not implemented")
+    #[allow(dead_code)]
+    pub(crate) fn from_midi(_m: &[u8]) -> Result<(Self, usize), ParseError> {
+        Err(ParseError::Invalid(format!("TODO: Not implemented")))
     }
 }
 
@@ -54,8 +56,9 @@ impl ControlChangeControllerDestination {
         }
     }
 
-    pub(crate) fn from_midi(_m: &[u8]) -> Result<(Self, usize), &str> {
-        Err("TODO: not implemented")
+    #[allow(dead_code)]
+    pub(crate) fn from_midi(_m: &[u8]) -> Result<(Self, usize), ParseError> {
+        Err(ParseError::Invalid(format!("TODO: Not implemented")))
     }
 }
 /// The parameters that can be controlled by [`ControllerDestination`] or

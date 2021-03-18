@@ -1,4 +1,5 @@
 use crate::message::Channel;
+use crate::parse_error::*;
 use crate::util::*;
 
 /// Intended to act like Control Change messages, but targeted at an individual key.
@@ -35,8 +36,9 @@ impl KeyBasedInstrumentControl {
         }
     }
 
-    pub(crate) fn from_midi(_m: &[u8]) -> Result<(Self, usize), &str> {
-        Err("TODO: not implemented")
+    #[allow(dead_code)]
+    pub(crate) fn from_midi(_m: &[u8]) -> Result<(Self, usize), ParseError> {
+        Err(ParseError::Invalid(format!("TODO: Not implemented")))
     }
 }
 

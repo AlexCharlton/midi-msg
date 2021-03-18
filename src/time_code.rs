@@ -1,3 +1,4 @@
+use super::parse_error::*;
 use super::util::*;
 use crate::MidiMsg;
 use ascii::AsciiString;
@@ -84,6 +85,26 @@ impl TimeCode {
         }
 
         frame_number
+    }
+
+    pub(crate) fn from_midi(m: &[u8]) -> Result<Self, ParseError> {
+        if m.len() < 4 {
+            return Err(crate::ParseError::UnexpectedEnd);
+        }
+        let code_hour = u8_from_u7(m[0])?;
+        Ok(Self {
+            frames: u8_from_u7(m[3])?,
+            seconds: u8_from_u7(m[2])?,
+            minutes: u8_from_u7(m[1])?,
+            hours: code_hour & 0b00011111,
+            code_type: match (code_hour & 0b01100000) >> 5 {
+                0 => TimeCodeType::FPS24,
+                1 => TimeCodeType::FPS25,
+                2 => TimeCodeType::DF30,
+                3 => TimeCodeType::NDF30,
+                _ => panic!("Should not be reachable"),
+            },
+        })
     }
 }
 

@@ -36,7 +36,7 @@ pub fn u8_from_u7(x: u8) -> Result<u8, ParseError> {
 #[inline]
 pub fn u7_from_midi(m: &[u8]) -> Result<u8, ParseError> {
     if m.len() < 1 {
-        Err(crate::ParseError::UnexpectedEnd)
+        Err(ParseError::UnexpectedEnd)
     } else {
         u8_from_u7(m[0])
     }

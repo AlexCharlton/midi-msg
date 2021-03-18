@@ -1,3 +1,4 @@
+use crate::parse_error::*;
 use crate::util::*;
 use ascii::AsciiChar;
 
@@ -32,8 +33,9 @@ impl TuningNoteChange {
         }
     }
 
-    pub(crate) fn from_midi(_m: &[u8]) -> Result<(Self, usize), &str> {
-        Err("TODO: not implemented")
+    #[allow(dead_code)]
+    pub(crate) fn from_midi(_m: &[u8]) -> Result<(Self, usize), ParseError> {
+        Err(ParseError::Invalid(format!("TODO: Not implemented")))
     }
 }
 
@@ -88,8 +90,9 @@ impl KeyBasedTuningDump {
         v.push(0); // Checksum <- Will be written over by `SystemExclusiveMsg.extend_midi`
     }
 
-    pub(crate) fn from_midi(_m: &[u8]) -> Result<(Self, usize), &str> {
-        Err("TODO: not implemented")
+    #[allow(dead_code)]
+    pub(crate) fn from_midi(_m: &[u8]) -> Result<(Self, usize), ParseError> {
+        Err(ParseError::Invalid(format!("TODO: Not implemented")))
     }
 }
 
@@ -165,8 +168,9 @@ impl ScaleTuningDump1Byte {
         v.push(0); // Checksum <- Will be written over by `SystemExclusiveMsg.extend_midi`
     }
 
-    pub(crate) fn from_midi(_m: &[u8]) -> Result<(Self, usize), &str> {
-        Err("TODO: not implemented")
+    #[allow(dead_code)]
+    pub(crate) fn from_midi(_m: &[u8]) -> Result<(Self, usize), ParseError> {
+        Err(ParseError::Invalid(format!("TODO: Not implemented")))
     }
 }
 
@@ -205,8 +209,9 @@ impl ScaleTuningDump2Byte {
         v.push(0); // Checksum <- Will be written over by `SystemExclusiveMsg.extend_midi`
     }
 
-    pub(crate) fn from_midi(_m: &[u8]) -> Result<(Self, usize), &str> {
-        Err("TODO: not implemented")
+    #[allow(dead_code)]
+    pub(crate) fn from_midi(_m: &[u8]) -> Result<(Self, usize), ParseError> {
+        Err(ParseError::Invalid(format!("TODO: Not implemented")))
     }
 }
 
@@ -231,8 +236,9 @@ impl ScaleTuning1Byte {
         }
     }
 
-    pub(crate) fn from_midi(_m: &[u8]) -> Result<(Self, usize), &str> {
-        Err("TODO: not implemented")
+    #[allow(dead_code)]
+    pub(crate) fn from_midi(_m: &[u8]) -> Result<(Self, usize), ParseError> {
+        Err(ParseError::Invalid(format!("TODO: Not implemented")))
     }
 }
 
@@ -259,8 +265,9 @@ impl ScaleTuning2Byte {
         }
     }
 
-    pub(crate) fn from_midi(_m: &[u8]) -> Result<(Self, usize), &str> {
-        Err("TODO: not implemented")
+    #[allow(dead_code)]
+    pub(crate) fn from_midi(_m: &[u8]) -> Result<(Self, usize), ParseError> {
+        Err(ParseError::Invalid(format!("TODO: Not implemented")))
     }
 }
 
@@ -372,8 +379,9 @@ impl ChannelBitMap {
         v.push(byte3);
     }
 
-    pub(crate) fn from_midi(_m: &[u8]) -> Result<(Self, usize), &str> {
-        Err("TODO: not implemented")
+    #[allow(dead_code)]
+    pub(crate) fn from_midi(_m: &[u8]) -> Result<(Self, usize), ParseError> {
+        Err(ParseError::Invalid(format!("TODO: Not implemented")))
     }
 }
 

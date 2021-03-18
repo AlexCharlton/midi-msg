@@ -1,3 +1,5 @@
+use crate::parse_error::*;
+
 #[derive(Debug, Clone, PartialEq)]
 /// A MIDI Show Control command.
 /// Used by [`UniversalRealTimeMsg::ShowControl`](crate::UniversalRealTimeMsg::ShowControl).
@@ -19,8 +21,9 @@ impl ShowControlMsg {
         }
     }
 
-    pub(crate) fn from_midi(_m: &[u8]) -> Result<(Self, usize), &str> {
-        Err("TODO: not implemented")
+    #[allow(dead_code)]
+    pub(crate) fn from_midi(_m: &[u8]) -> Result<(Self, usize), ParseError> {
+        Err(ParseError::Invalid(format!("TODO: Not implemented")))
     }
 }
 

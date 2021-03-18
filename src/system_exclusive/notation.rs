@@ -1,3 +1,4 @@
+use crate::parse_error::*;
 use crate::util::*;
 
 /// Indicates that the next MIDI clock message is the first clock of a new measure. Which bar
@@ -37,8 +38,9 @@ impl BarMarker {
         }
     }
 
-    pub(crate) fn from_midi(_m: &[u8]) -> Result<(Self, usize), &str> {
-        Err("TODO: not implemented")
+    #[allow(dead_code)]
+    pub(crate) fn from_midi(_m: &[u8]) -> Result<(Self, usize), ParseError> {
+        Err(ParseError::Invalid(format!("TODO: Not implemented")))
     }
 }
 
@@ -85,8 +87,9 @@ impl TimeSignature {
         }
     }
 
-    pub(crate) fn from_midi(_m: &[u8]) -> Result<(Self, usize), &str> {
-        Err("TODO: not implemented")
+    #[allow(dead_code)]
+    pub(crate) fn from_midi(_m: &[u8]) -> Result<(Self, usize), ParseError> {
+        Err(ParseError::Invalid(format!("TODO: Not implemented")))
     }
 }
 
@@ -105,8 +108,9 @@ impl Signature {
         v.push(self.beat_value.to_u8());
     }
 
-    fn from_midi(_m: &[u8]) -> Result<(Self, usize), &str> {
-        Err("TODO: not implemented")
+    #[allow(dead_code)]
+    pub(crate) fn from_midi(_m: &[u8]) -> Result<(Self, usize), ParseError> {
+        Err(ParseError::Invalid(format!("TODO: Not implemented")))
     }
 }
 
@@ -148,6 +152,7 @@ impl BeatValue {
         }
     }
 
+    #[allow(dead_code)]
     fn from_byte(_m: u8) -> Self {
         // TODO
         Self::Quarter

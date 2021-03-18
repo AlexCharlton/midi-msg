@@ -1,3 +1,4 @@
+use crate::parse_error::*;
 use crate::util::*;
 use ascii::AsciiString;
 
@@ -115,8 +116,9 @@ impl SampleDumpMsg {
         }
     }
 
-    pub(crate) fn from_midi(_m: &[u8]) -> Result<(Self, usize), &str> {
-        Err("TODO: not implemented")
+    #[allow(dead_code)]
+    pub(crate) fn from_midi(_m: &[u8]) -> Result<(Self, usize), ParseError> {
+        Err(ParseError::Invalid(format!("TODO: Not implemented")))
     }
 
     /// Construct a packet of exactly 120 7-bit "bytes".
@@ -284,8 +286,9 @@ impl ExtendedSampleDumpMsg {
         }
     }
 
-    pub(crate) fn from_midi(_m: &[u8]) -> Result<(Self, usize), &str> {
-        Err("TODO: not implemented")
+    #[allow(dead_code)]
+    pub(crate) fn from_midi(_m: &[u8]) -> Result<(Self, usize), ParseError> {
+        Err(ParseError::Invalid(format!("TODO: Not implemented")))
     }
 }
 

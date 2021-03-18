@@ -1,3 +1,4 @@
+use crate::parse_error::*;
 use crate::util::*;
 use ascii::{AsciiChar, AsciiString};
 
@@ -84,8 +85,9 @@ impl FileReferenceMsg {
         }
     }
 
-    pub(crate) fn from_midi(_m: &[u8]) -> Result<(Self, usize), &str> {
-        Err("TODO: not implemented")
+    #[allow(dead_code)]
+    pub(crate) fn from_midi(_m: &[u8]) -> Result<(Self, usize), ParseError> {
+        Err(ParseError::Invalid(format!("TODO: Not implemented")))
     }
 }
 

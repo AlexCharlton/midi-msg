@@ -1,3 +1,4 @@
+use crate::parse_error::*;
 use crate::time_code::*;
 
 /// A MIDI Machine Control Command.
@@ -69,8 +70,9 @@ impl MachineControlCommandMsg {
         }
     }
 
-    pub(crate) fn from_midi(_m: &[u8]) -> Result<(Self, usize), &str> {
-        Err("TODO: not implemented")
+    #[allow(dead_code)]
+    pub(crate) fn from_midi(_m: &[u8]) -> Result<(Self, usize), ParseError> {
+        Err(ParseError::Invalid(format!("TODO: Not implemented")))
     }
 }
 
@@ -118,8 +120,9 @@ impl MachineControlResponseMsg {
         }
     }
 
-    pub(crate) fn from_midi(_m: &[u8]) -> Result<(Self, usize), &str> {
-        Err("TODO: not implemented")
+    #[allow(dead_code)]
+    pub(crate) fn from_midi(_m: &[u8]) -> Result<(Self, usize), ParseError> {
+        Err(ParseError::Invalid(format!("TODO: Not implemented")))
     }
 }
 
@@ -128,6 +131,7 @@ impl MachineControlResponseMsg {
 pub struct StandardSpeed(f32);
 
 impl StandardSpeed {
+    #[allow(dead_code)]
     pub(crate) fn extend_midi(&self, _v: &mut Vec<u8>) {
         // TODO
     }
@@ -147,6 +151,7 @@ pub struct StandardTrack {
 }
 
 impl StandardTrack {
+    #[allow(dead_code)]
     pub(crate) fn extend_midi(&self, _v: &mut Vec<u8>) {
         // TODO
     }

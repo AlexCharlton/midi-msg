@@ -24,6 +24,7 @@ use super::general_midi::GeneralMidi;
 use super::parse_error::*;
 use super::time_code::*;
 use super::util::*;
+use super::ReceiverContext;
 
 /// The bulk of the MIDI spec lives here, in "Universal System Exclusive" messages.
 /// Also used for manufacturer-specific messages.
@@ -96,15 +97,70 @@ impl SystemExclusiveMsg {
         v.push(0xF7);
     }
 
-    pub(crate) fn from_midi(m: &[u8]) -> Result<(Self, usize), ParseError> {
-        Err(ParseError::Invalid(format!("TODO")))
+    fn sysex_bytes_from_midi(m: &[u8]) -> Result<&[u8], ParseError> {
+        if m.first() != Some(&0xF0) {
+            return Err(ParseError::Invalid(format!(
+                "Undefined System Exclusive message: {:?}",
+                m.first()
+            )));
+        }
+        for (i, b) in m[1..].iter().enumerate() {
+            if b == &0xF7 {
+                return Ok(&m[1..i + 1]);
+            }
+            if b > &127 {
+                return Err(ParseError::ByteOverflow);
+            }
+        }
+        Err(ParseError::NoEndOfSystemExclusiveFlag)
+    }
+
+    pub(crate) fn from_midi(
+        m: &[u8],
+        ctx: &mut ReceiverContext,
+    ) -> Result<(Self, usize), ParseError> {
+        let m = Self::sysex_bytes_from_midi(m)?;
+        match m.get(0) {
+            Some(0x7D) => Ok((
+                Self::NonCommercial {
+                    data: m[1..].to_vec(),
+                },
+                m.len() + 2,
+            )),
+            Some(0x7E) => Ok((
+                Self::UniversalNonRealTime {
+                    device: DeviceID::from_midi(m)?,
+                    msg: UniversalNonRealTimeMsg::from_midi(&m[2..])?,
+                },
+                m.len() + 2,
+            )),
+            Some(0x7F) => Ok((
+                Self::UniversalRealTime {
+                    device: DeviceID::from_midi(m)?,
+                    msg: UniversalRealTimeMsg::from_midi(&m[2..], ctx)?,
+                },
+                m.len() + 2,
+            )),
+            Some(_) => {
+                let (id, len) = ManufacturerID::from_midi(m)?;
+                Ok((
+                    Self::Commercial {
+                        id,
+                        data: m[len..].to_vec(),
+                    },
+                    m.len() + 2,
+                ))
+            }
+            None => Err(crate::ParseError::UnexpectedEnd),
+        }
     }
 }
 
 /// Two 7-bit "bytes", used to identify the manufacturer for [`SystemExclusiveMsg::Commercial`] messages.
 /// See [the published list of IDs](https://www.midi.org/specifications-old/item/manufacturer-id-numbers).
 ///
-/// If second byte is None, it is a one-byte ID
+/// If second byte is None, it is a one-byte ID.
+/// The first byte in a one-byte ID may not be greater than 0x7C.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct ManufacturerID(u8, Option<u8>);
 
@@ -115,7 +171,18 @@ impl ManufacturerID {
             v.push(to_u7(self.0));
             v.push(to_u7(second));
         } else {
-            v.push(to_u7(self.0))
+            v.push(self.0.min(0x7C))
+        }
+    }
+
+    fn from_midi(m: &[u8]) -> Result<(Self, usize), ParseError> {
+        let b1 = u7_from_midi(m)?;
+        if b1 == 0x00 {
+            let b2 = u7_from_midi(&m[1..])?;
+            let b3 = u7_from_midi(&m[2..])?;
+            Ok((Self(b2, Some(b3)), 3))
+        } else {
+            Ok((Self(b1, None), 1))
         }
     }
 }
@@ -145,6 +212,15 @@ impl DeviceID {
         match self {
             Self::AllCall => 0x7F,
             Self::Device(x) => to_u7(*x),
+        }
+    }
+
+    fn from_midi(m: &[u8]) -> Result<Self, ParseError> {
+        let b = u7_from_midi(m)?;
+        if b == 0x7F {
+            Ok(Self::AllCall)
+        } else {
+            Ok(Self::Device(b))
         }
     }
 }
@@ -319,8 +395,25 @@ impl UniversalRealTimeMsg {
         }
     }
 
-    fn from_midi(_m: &[u8]) -> Result<(Self, usize), &str> {
-        Err("TODO: not implemented")
+    fn from_midi(m: &[u8], ctx: &mut ReceiverContext) -> Result<Self, ParseError> {
+        if m.len() < 2 {
+            return Err(crate::ParseError::UnexpectedEnd);
+        }
+
+        match (m[0], m[1]) {
+            (01, 01) => {
+                if m.len() > 6 {
+                    Err(ParseError::Invalid(format!(
+                        "Extra bytes after a UniversalRealTimeMsg::TimeCodeFull"
+                    )))
+                } else {
+                    let time_code = TimeCode::from_midi(&m[2..])?;
+                    ctx.time_code = time_code;
+                    Ok(Self::TimeCodeFull(time_code))
+                }
+            }
+            _ => Err(ParseError::Invalid(format!("TODO: Not implemented"))),
+        }
     }
 }
 
@@ -506,8 +599,14 @@ impl UniversalNonRealTimeMsg {
         }
     }
 
-    fn from_midi(_m: &[u8]) -> Result<(Self, usize), &str> {
-        Err("TODO: not implemented")
+    fn from_midi(m: &[u8]) -> Result<Self, ParseError> {
+        if m.len() < 2 {
+            return Err(crate::ParseError::UnexpectedEnd);
+        }
+
+        match (m[0], m[1]) {
+            _ => Err(ParseError::Invalid(format!("TODO: Not implemented"))),
+        }
     }
 }
 
@@ -593,6 +692,67 @@ mod tests {
             }
             .to_midi(),
             vec![0xF0, 0x7F, 0x03, 0x04, 0x01, 0x68, 0x07, 0xF7]
+        );
+    }
+
+    #[test]
+    fn deserialize_system_exclusive_msg() {
+        let mut ctx = ReceiverContext::new();
+
+        test_serialization(
+            MidiMsg::SystemExclusive {
+                msg: SystemExclusiveMsg::Commercial {
+                    id: 1.into(),
+                    data: vec![0x7f, 0x77, 0x00],
+                },
+            },
+            &mut ctx,
+        );
+
+        test_serialization(
+            MidiMsg::SystemExclusive {
+                msg: SystemExclusiveMsg::Commercial {
+                    id: (1, 3).into(),
+                    data: vec![0x7f, 0x77, 0x00],
+                },
+            },
+            &mut ctx,
+        );
+
+        test_serialization(
+            MidiMsg::SystemExclusive {
+                msg: SystemExclusiveMsg::NonCommercial {
+                    data: vec![0x7f, 0x77, 0x00],
+                },
+            },
+            &mut ctx,
+        );
+
+        test_serialization(
+            MidiMsg::SystemExclusive {
+                msg: SystemExclusiveMsg::UniversalRealTime {
+                    device: DeviceID::AllCall,
+                    msg: UniversalRealTimeMsg::TimeCodeFull(TimeCode {
+                        frames: 29,
+                        seconds: 58,
+                        minutes: 20,
+                        hours: 23,
+                        code_type: TimeCodeType::DF30,
+                    }),
+                },
+            },
+            &mut ctx,
+        );
+
+        assert_eq!(
+            ctx.time_code,
+            TimeCode {
+                frames: 29,
+                seconds: 58,
+                minutes: 20,
+                hours: 23,
+                code_type: TimeCodeType::DF30,
+            }
         );
     }
 }
