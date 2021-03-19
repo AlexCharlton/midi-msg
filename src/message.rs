@@ -61,8 +61,13 @@ impl MidiMsg {
     /// Consecutive messages that relate to each other will be collapsed into one
     /// `MidiMsg`. E.g. a `ChannelVoiceMsg::ControlChange` where the CC is the MSB and LSB
     /// of `ControlChange::Volume` will turn into a single `ControlChange::Volume` with both
-    /// bytes turned into one. Use [`from_midi_with_context_no_extensions`] to disable this
+    /// bytes turned into one. Use [`MidiMsg::from_midi_with_context_no_extensions`] to disable this
     /// behavior.
+    ///
+    /// The `ReceiverContext` is also used to track the current [`TimeCode`](crate::TimeCode)
+    /// as sent through [`SystemCommonMsg::TimeCodeQuarterFrame`](crate::SystemCommonMsg::TimeCodeQuarterFrame1)
+    /// messages, or [`UniversalRealTimeMsg::TimeCodeFull`](crate::UniversalRealTimeMsg::TimeCodeFull)
+    /// messages.
     ///
     /// Ok results return a MidiMsg and the number of bytes consumed from the input.
     pub fn from_midi_with_context(
@@ -72,7 +77,7 @@ impl MidiMsg {
         Self::_from_midi_with_context(m, ctx, true)
     }
 
-    /// Like [`from_midi_with_context`] but does not turn multiple related consecutive messages
+    /// Like [`MidiMsg::from_midi_with_context`] but does not turn multiple related consecutive messages
     /// into one `MidiMsg`.
     pub fn from_midi_with_context_no_extensions(
         m: &[u8],

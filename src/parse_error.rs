@@ -1,17 +1,17 @@
 use std::{error, fmt};
 
-/// Returned when [`MidiMsg::from_midi`] was not successful.
+/// Returned when [`MidiMsg::from_midi`](crate::MidiMsg::from_midi) and similar where not successful.
 #[derive(Debug)]
 pub enum ParseError {
     /// The given input ended before a `MidiMsg` could be fully formed.
     UnexpectedEnd,
-    /// Received a non-status byte with no prior channel messages
+    /// Received a non-status byte with no prior channel messages.
     ContextlessRunningStatus,
-    /// Reached end without an End of System Exclusive flag
+    /// Reached end without an End of System Exclusive flag.
     NoEndOfSystemExclusiveFlag,
     /// The series of bytes was otherwise invalid.
     Invalid(String),
-    /// A byte exceeded 7 bits
+    /// A byte exceeded 7 bits.
     ByteOverflow,
 }
 
