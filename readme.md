@@ -14,11 +14,11 @@ Since the MIDI spec makes extensive use of non-byte-aligned integers, a Rust rep
 Add the following line to your Cargo.toml file:
 
 ```
-midi-msg = "0.2"
+midi-msg = "0.3"
 ```
 
 ## To be implemented
-- [ ] Deserialization
+- Deserialization of most of `UniversalRealTimeMsg` and `UniversalNonRealTimeMsg`
 
 
 ## Support 
