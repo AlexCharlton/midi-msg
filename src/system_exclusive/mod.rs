@@ -20,6 +20,8 @@ pub use show_control::*;
 mod tuning;
 pub use tuning::*;
 
+use alloc::vec::Vec;
+use alloc::format;
 use super::general_midi::GeneralMidi;
 use super::parse_error::*;
 use super::time_code::*;
@@ -637,6 +639,7 @@ impl IdentityReply {
 #[cfg(test)]
 mod tests {
     use super::super::*;
+    use alloc::vec;
 
     #[test]
     fn serialize_system_exclusive_msg() {

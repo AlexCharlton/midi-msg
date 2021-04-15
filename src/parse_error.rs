@@ -1,4 +1,5 @@
-use std::{error, fmt};
+use alloc::string::String;
+use alloc::{fmt};
 
 /// Returned when [`MidiMsg::from_midi`](crate::MidiMsg::from_midi) and similar where not successful.
 #[derive(Debug)]
@@ -15,7 +16,7 @@ pub enum ParseError {
     ByteOverflow,
 }
 
-impl error::Error for ParseError {}
+// impl error::Error for ParseError {} TODO no_std
 
 impl fmt::Display for ParseError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {

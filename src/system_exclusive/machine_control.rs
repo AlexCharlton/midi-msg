@@ -1,3 +1,5 @@
+use alloc::format;
+use alloc::vec::Vec;
 use crate::parse_error::*;
 use crate::time_code::*;
 
@@ -160,6 +162,7 @@ impl StandardTrack {
 #[cfg(test)]
 mod tests {
     use crate::*;
+    use alloc::vec;
 
     #[test]
     fn serialize_machine_control_msg() {

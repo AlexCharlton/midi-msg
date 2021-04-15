@@ -1,3 +1,5 @@
+use alloc::vec::Vec;
+use alloc::format;
 use super::parse_error::*;
 
 /// A fairly limited set of messages used for device synchronization.
@@ -51,6 +53,8 @@ impl SystemRealTimeMsg {
 #[cfg(test)]
 mod tests {
     use crate::*;
+    extern crate std;
+    use std::vec;
 
     #[test]
     fn serialize_system_real_time_msg() {

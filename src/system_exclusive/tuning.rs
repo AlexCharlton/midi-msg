@@ -1,3 +1,5 @@
+use alloc::vec::Vec;
+use alloc::format;
 use crate::parse_error::*;
 use crate::util::*;
 use ascii::AsciiChar;
@@ -389,7 +391,9 @@ impl ChannelBitMap {
 mod tests {
     use crate::*;
     use ascii::{AsAsciiStr, AsciiChar};
-    use std::convert::TryInto;
+    use core::convert::TryInto;
+    use alloc::vec;
+
 
     #[test]
     fn serialize_tuning_note_change() {

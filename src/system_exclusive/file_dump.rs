@@ -1,3 +1,5 @@
+use alloc::vec::Vec;
+use alloc::format;
 use super::DeviceID;
 use crate::parse_error::*;
 use crate::util::*;
@@ -181,6 +183,7 @@ impl FileType {
 mod tests {
     use super::*;
     use crate::*;
+    use alloc::vec;
 
     #[test]
     fn encode_data() {

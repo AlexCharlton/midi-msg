@@ -1,5 +1,8 @@
 use super::parse_error::*;
 use super::util::*;
+use alloc::vec::Vec;
+use alloc::vec;
+use alloc::format;
 
 /// Channel-level messages that act on a voice. For instance, turning notes on off,
 /// or modifying sounding notes. Used in [`MidiMsg`](crate::MidiMsg).
@@ -1395,6 +1398,7 @@ impl Parameter {
 #[cfg(test)]
 mod tests {
     use crate::*;
+    use alloc::vec;
 
     #[test]
     fn serialize_channel_voice_msg() {

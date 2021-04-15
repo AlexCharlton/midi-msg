@@ -1,3 +1,7 @@
+use micromath::F32Ext;
+use alloc::vec;
+use alloc::vec::Vec;
+use alloc::format;
 use crate::parse_error::*;
 use crate::util::*;
 
@@ -231,6 +235,7 @@ impl GlobalParameter {
 #[cfg(test)]
 mod tests {
     use crate::*;
+    use alloc::vec;
 
     #[test]
     fn serialize_global_parameter() {

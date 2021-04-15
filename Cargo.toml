@@ -12,4 +12,5 @@ license = "MIT"
 keywords = ["midi", "music"]
 
 [dependencies]
-ascii = "1.0"
+ascii = { git="https://github.com/tomprogrammer/rust-ascii", default-features = false, features = ["alloc"] }
+micromath = "1.1.1"
