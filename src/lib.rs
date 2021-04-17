@@ -129,6 +129,7 @@ pub use system_exclusive::*;
 mod message;
 pub use message::*;
 
+#[allow(unused_imports)]
 use crate::alloc::format;
 #[cfg(test)]
 pub fn test_serialization(msg: MidiMsg, ctx: &mut ReceiverContext) {

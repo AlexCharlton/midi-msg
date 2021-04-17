@@ -1,3 +1,4 @@
+#[allow(unused_imports)]
 use micromath::F32Ext;
 use alloc::vec;
 use alloc::vec::Vec;
