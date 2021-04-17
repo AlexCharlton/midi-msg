@@ -16,8 +16,6 @@ pub enum ParseError {
     ByteOverflow,
 }
 
-// impl error::Error for ParseError {} TODO no_std
-
 impl fmt::Display for ParseError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "Error parsing MIDI input: ")?;
