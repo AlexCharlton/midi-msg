@@ -750,6 +750,7 @@ mod tests {
     use crate::*;
 
     #[test]
+    #[cfg(not(feature = "no_sysex"))]
     fn serialize_time_code_cuing_setup_msg() {
         assert_eq!(
             MidiMsg::SystemExclusive {
@@ -765,6 +766,7 @@ mod tests {
         );
     }
     #[test]
+    #[cfg(not(feature = "no_sysex"))]
     fn serialize_time_code_cuing_msg() {
         assert_eq!(
             MidiMsg::SystemExclusive {

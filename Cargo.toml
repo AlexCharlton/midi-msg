@@ -13,3 +13,6 @@ keywords = ["midi", "music"]
 
 [dependencies]
 ascii = "1.0"
+
+[features]
+no_sysex = []
