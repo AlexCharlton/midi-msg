@@ -1,6 +1,7 @@
 use alloc::string::String;
 use alloc::{fmt};
-
+#[cfg(feature = "std")]
+use std::error;
 /// Returned when [`MidiMsg::from_midi`](crate::MidiMsg::from_midi) and similar where not successful.
 #[derive(Debug)]
 pub enum ParseError {
@@ -15,6 +16,9 @@ pub enum ParseError {
     /// A byte exceeded 7 bits.
     ByteOverflow,
 }
+
+#[cfg(feature = "std")]
+impl error::Error for ParseError {}
 
 impl fmt::Display for ParseError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
