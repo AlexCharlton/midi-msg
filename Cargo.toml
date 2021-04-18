@@ -16,4 +16,5 @@ ascii = { git="https://github.com/tomprogrammer/rust-ascii", rev="1a91033", defa
 micromath = "1.1.1"
 
 [features]
+default = ["std"]
 std = []
