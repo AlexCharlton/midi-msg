@@ -346,7 +346,7 @@ mod tests {
 
         // Frequency      : 8.662 Hz
         // Expected bytes : 01 00 00
-        // Actual bytes   : 00 00 11
+        // Actual bytes   : 01 00 11
         // Error          : 0.0061 * 17 = 0.1037 cents
         assert_eq!(freq_to_midi_note_u14(8.662), (0x01, 0x11));
 
