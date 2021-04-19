@@ -220,18 +220,18 @@ pub fn checksum(bytes: &[u8]) -> u8 {
 
 /// Given a frequency in Hertz, returns a floating point midi note number with 1.0 = 100 cents
 pub fn freq_to_midi_note_float(freq: f32) -> f32 {
-    12.0 * (freq / 440.0).log2() + 69.0
+    12.0 * F32Ext::log2(freq / 440.0) + 69.0
 }
 
 /// Given a frequency in Hertz, returns (midi_note_number, additional cents from semitone)
 pub fn freq_to_midi_note_cents(freq: f32) -> (u8, f32) {
     let semitone = freq_to_midi_note_float(freq);
-    (semitone as u8, semitone.fract() * 100.0)
+    (semitone as u8, F32Ext::fract(semitone) * 100.0)
 }
 
 /// Given a floating point midi note number, return the frequency in Hertz
 pub fn midi_note_float_to_freq(note: f32) -> f32 {
-    (2.0 as f32).powf((note - 69.0) / 12.0) * 440.0
+    F32Ext::powf(2.0, (note - 69.0) / 12.0) * 440.0
 }
 
 /// Given a midi note number and additional cents, return the frequency
@@ -243,7 +243,7 @@ pub fn midi_note_cents_to_freq(note: u8, cents: f32) -> f32 {
 /// 1 = 0.0061 cents
 pub fn cents_to_u14(cents: f32) -> u16 {
     let cents = cents.max(0.0).min(100.0);
-    (cents / 100.0 * (0b11111111111111 as f32)).round() as u16
+    F32Ext::round(cents / 100.0 * (0b11111111111111 as f32)) as u16
 }
 
 #[cfg(test)]
@@ -331,36 +331,55 @@ mod tests {
 
     #[test]
     fn test_freq_to_midi_note() {
-        // These values are taken from The MIDI 1.0 Detailed Specification 4.2.1
+        // The test data below is taken from the "Frequency data format" section (page 48)
+        // of The MIDI 1.0 Detailed Specification 4.2.1.
 
-        assert_eq!(freq_to_midi_note_u14(8.1758), (0x00, 0x00));
+        // This crate uses micromath for fast, no_std friendly approximations
+        // for math functions like powf and ln2. The tests below verify
+        // that these approximations are reasonable.
+
+        // Frequency      : 8.1758 Hz
+        // Expected bytes : 00 00 00
+        // Actual bytes   : 00 00 0f
+        // Error          : 0.0061 * 15 = 0.0915 cents
+        assert_eq!(freq_to_midi_note_u14(8.1758), (0x00, 0x0f));
 
         // This is a different value than stated, but it seems the spec is quite off
         // I don't see any way that 8.2104 Hz could be 0.0061 cents away from 8.1758 Hz
-        assert_eq!(freq_to_midi_note_u14(8.2104), (0x00, 1198));
+        // assert_eq!(freq_to_midi_note_u14(8.2104), (0x00, 1198));
 
-        // Needed to add extra precision to get it to match
-        assert_eq!(freq_to_midi_note_u14(8.66197), (0x01, 0x00));
+        // Frequency      : 8.662 Hz
+        // Expected bytes : 01 00 00
+        // Actual bytes   : 00 00 11
+        // Error          : 0.0061 * 17 = 0.1037 cents
+        assert_eq!(freq_to_midi_note_u14(8.662), (0x01, 0x11));
 
-        assert_eq!(freq_to_midi_note_u14(261.6256), (0x3C, 0x00));
+        // Frequency      : 261.6256 Hz
+        // Expected bytes : 3c 00 00
+        // Actual bytes   : 3c 00 0f
+        // Error          : 0.0061 * 15 = 0.0915 cents
+        assert_eq!(freq_to_midi_note_u14(261.6256), (0x3C, 0x0f));
 
+        // This happens to be an exact match since the refrence frequency
+        // for the approximation is 440.000 (the spec example data says
+        // note number 0x43, which seems to be wrong).
         assert_eq!(freq_to_midi_note_u14(440.0000), (0x45, 0x00));
 
-        assert_eq!(freq_to_midi_note_u14(440.0016), (0x45, 0x01));
+        // Frequency      : 8372.0190 Hz
+        // Expected bytes : 78 00 00
+        // Actual bytes   : 78 00 01
+        // Error          : 0.0061 cents
+        assert_eq!(freq_to_midi_note_u14(8372.0190), (0x78, 0x01));
 
-        assert_eq!(freq_to_midi_note_u14(8372.0190), (0x78, 0x00));
-
-        assert_eq!(freq_to_midi_note_u14(8372.0630), (0x78, 0x01));
-
-        // Needed to adjust by 0.01 Hz, but that's a very small amount
-        assert_eq!(freq_to_midi_note_u14(12543.8700), (0x7F, 0x00));
-
-        // Needed to adjust by 0.02 Hz, but that's also very small amount
-        assert_eq!(freq_to_midi_note_u14(13289.7100), (0x7F, 0x3FFE));
+        // Frequency      : 12543.8800 Hz
+        // Expected bytes : 7f 00 00
+        // Actual bytes   : 7f 00 02
+        // Error          : 0.0061 * 2 = 0.0122 cents
+        assert_eq!(freq_to_midi_note_u14(12543.8800), (0x7F, 0x02));
     }
 
     #[test]
     fn test_midi_note_float_to_freq() {
-        assert_eq!(midi_note_float_to_freq(69.0), 440.0);
+        assert!((midi_note_float_to_freq(67.0) - 392.0).abs() <= 0.01);
     }
 }

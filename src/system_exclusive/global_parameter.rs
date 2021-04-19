@@ -68,7 +68,7 @@ impl GlobalParameterControl {
         if let Some(reverb_time) = reverb_time {
             params.push(GlobalParameter {
                 id: vec![1],
-                value: vec![to_u7((reverb_time.ln() / 0.025 + 40.0) as u8)],
+                value: vec![to_u7((F32Ext::ln(reverb_time) / 0.025 + 40.0) as u8)],
             });
         }
         Self {

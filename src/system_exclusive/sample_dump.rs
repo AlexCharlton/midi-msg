@@ -3,8 +3,6 @@ use alloc::format;
 use crate::parse_error::*;
 use crate::util::*;
 use ascii::AsciiString;
-#[allow(unused_imports)]
-use micromath::F32Ext;
 
 /// Used to request and transmit sampler data.
 /// Used by [`UniversalNonRealTimeMsg::SampleDump`](crate::UniversalNonRealTimeMsg::SampleDump).
