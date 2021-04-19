@@ -1,5 +1,8 @@
+use alloc::vec::Vec;
+use alloc::format;
 use crate::parse_error::*;
 use crate::util::*;
+use crate::system_exclusive::util::*;
 use ascii::AsciiChar;
 
 /// Change the tunings of one or more notes, either real-time or not.
@@ -389,7 +392,9 @@ impl ChannelBitMap {
 mod tests {
     use crate::*;
     use ascii::{AsAsciiStr, AsciiChar};
-    use std::convert::TryInto;
+    use core::convert::TryInto;
+    use alloc::vec;
+
 
     #[test]
     fn serialize_tuning_note_change() {
@@ -427,7 +432,8 @@ mod tests {
                 0x01, 0x01, 0x01, 0x7f, // Tuning 1
                 0x33, 0x33, 0x03, 0x7f, // Tuning 2
                 0x45, 0x7f, 0x7f, 0x7f, // Tuning 3 (no change)
-                0x78, 0x78, 0x00, 0x01, // Tuning 4
+                // 0x78, 0x78, 0x00, 0x01, // Tuning 4, exact
+                0x78, 0x78, 0x00, 0x02, // Tuning 4, micromath approximation
                 0xF7,
             ]
         );

@@ -1,3 +1,5 @@
+use alloc::vec::Vec;
+
 use super::parse_error::*;
 use super::util::*;
 use crate::MidiMsg;
@@ -748,6 +750,8 @@ impl TimeCodeCueingMsg {
 #[cfg(test)]
 mod tests {
     use crate::*;
+    extern crate std;
+    use std::vec;
 
     #[test]
     #[cfg(not(feature = "no_sysex"))]

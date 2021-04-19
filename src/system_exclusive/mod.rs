@@ -19,12 +19,18 @@ mod show_control;
 pub use show_control::*;
 mod tuning;
 pub use tuning::*;
+mod util;
+
+use alloc::vec::Vec;
+use alloc::format;
+use self::util::checksum;
 
 use super::general_midi::GeneralMidi;
 use super::parse_error::*;
 use super::time_code::*;
 use super::util::*;
 use super::ReceiverContext;
+
 
 /// The bulk of the MIDI spec lives here, in "Universal System Exclusive" messages.
 /// Also used for manufacturer-specific messages.
@@ -637,6 +643,7 @@ impl IdentityReply {
 #[cfg(test)]
 mod tests {
     use super::super::*;
+    use alloc::vec;
 
     #[test]
     fn serialize_system_exclusive_msg() {

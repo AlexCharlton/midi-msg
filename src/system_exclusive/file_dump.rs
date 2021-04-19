@@ -1,6 +1,9 @@
+use alloc::vec::Vec;
+use alloc::format;
 use super::DeviceID;
 use crate::parse_error::*;
 use crate::util::*;
+use crate::system_exclusive::util::*;
 use ascii::{AsciiChar, AsciiString};
 
 /// Used to transmit general file data.
@@ -181,6 +184,7 @@ impl FileType {
 mod tests {
     use super::*;
     use crate::*;
+    use alloc::vec;
 
     #[test]
     fn encode_data() {
@@ -223,7 +227,7 @@ mod tests {
         );
         assert_eq!(
             packet_msg[17], // Checksum
-            crate::util::checksum(&[
+            checksum(&[
                 0x7E, 0x7F, 0x07, 0x02, 0x01, 9, 0b01100110, 0b01111111, 0b00101010, 0b00000000,
                 0b01010101, 0b01111111, 0b00101010, 0b00000000, 0b01000000, 0b01010101
             ])

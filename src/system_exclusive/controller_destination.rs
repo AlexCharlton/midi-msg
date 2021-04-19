@@ -1,3 +1,5 @@
+use alloc::vec::Vec;
+use alloc::format;
 use crate::message::Channel;
 use crate::parse_error::*;
 use crate::util::*;
@@ -76,6 +78,7 @@ pub enum ControlledParameter {
 #[cfg(test)]
 mod tests {
     use crate::*;
+    use alloc::vec;
 
     #[test]
     fn serialize_controller_destination() {

@@ -1,5 +1,7 @@
-use std::{error, fmt};
-
+use alloc::string::String;
+use alloc::{fmt};
+#[cfg(feature = "std")]
+use std::error;
 /// Returned when [`MidiMsg::from_midi`](crate::MidiMsg::from_midi) and similar where not successful.
 #[derive(Debug)]
 pub enum ParseError {
@@ -15,6 +17,7 @@ pub enum ParseError {
     ByteOverflow,
 }
 
+#[cfg(feature = "std")]
 impl error::Error for ParseError {}
 
 impl fmt::Display for ParseError {

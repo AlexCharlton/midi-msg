@@ -1,5 +1,8 @@
+use alloc::vec::Vec;
+use alloc::format;
 use crate::parse_error::*;
 use crate::util::*;
+use crate::system_exclusive::util::*;
 use ascii::AsciiString;
 
 /// Used to request and transmit sampler data.
@@ -241,10 +244,10 @@ impl ExtendedSampleDumpMsg {
                 push_u14(*sample_num, v);
                 v.push((*format).min(28).max(8));
                 let sample_rate = sample_rate.max(0.0);
-                let sample_rate_integer = sample_rate.floor();
+                let sample_rate_integer = (sample_rate as u64) as f64; // for lack of no_std f64 floor
                 push_u28(sample_rate_integer as u32, v);
                 push_u28(
-                    ((sample_rate - sample_rate_integer) * 2.0f64.powi(28)) as u32,
+                    ((sample_rate - sample_rate_integer) * ((1 << 28) as f64)) as u32,
                     v,
                 );
                 push_u35((*length).min(34359738368), v);
@@ -320,6 +323,7 @@ pub enum ExtendedLoopType {
 #[cfg(test)]
 mod tests {
     use crate::*;
+    use alloc::vec;
 
     #[test]
     fn serialize_sample_dump_msg() {

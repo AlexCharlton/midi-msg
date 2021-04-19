@@ -1,3 +1,5 @@
+use alloc::vec::Vec;
+use alloc::format;
 use crate::parse_error::*;
 use crate::util::*;
 use ascii::{AsciiChar, AsciiString};
@@ -315,6 +317,7 @@ impl SelectMap {
 mod tests {
     use super::*;
     use crate::*;
+    use alloc::vec;
 
     #[test]
     fn serialize_sample_dump_msg() {
