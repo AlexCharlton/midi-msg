@@ -1,3 +1,5 @@
+use alloc::format;
+use alloc::vec::Vec;
 use super::parse_error::*;
 use crate::util::*;
 
@@ -101,6 +103,7 @@ pub enum PolyMode {
 #[cfg(test)]
 mod tests {
     use crate::*;
+    use alloc::vec;
 
     #[test]
     fn serialize_channel_mode_msg() {

@@ -1,3 +1,6 @@
+use alloc::vec::Vec;
+use alloc::vec;
+use alloc::format;
 use crate::parse_error::*;
 use crate::util::*;
 
@@ -162,6 +165,7 @@ impl BeatValue {
 #[cfg(test)]
 mod tests {
     use crate::*;
+    use alloc::vec;
 
     #[test]
     fn serialize_bar_marker() {

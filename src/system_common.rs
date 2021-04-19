@@ -1,3 +1,5 @@
+use alloc::vec::Vec;
+use alloc::format;
 use super::parse_error::*;
 use super::time_code::*;
 use super::util::*;
@@ -123,6 +125,8 @@ impl SystemCommonMsg {
 #[cfg(test)]
 mod tests {
     use super::super::*;
+    extern crate std;
+    use std::vec;
 
     #[test]
     fn serialize_system_common_msg() {

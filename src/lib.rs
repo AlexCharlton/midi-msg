@@ -97,6 +97,10 @@
 //! Deserialization of most of `UniversalRealTimeMsg` and `UniversalNonRealTimeMsg` has not
 //! yet been implemented.
 
+#![cfg_attr(not(feature = "std"), no_std)]
+
+extern crate alloc;
+
 mod util;
 pub use util::{
     freq_to_midi_note_cents, freq_to_midi_note_float, midi_note_cents_to_freq,
@@ -126,6 +130,8 @@ pub use system_exclusive::*;
 mod message;
 pub use message::*;
 
+#[allow(unused_imports)]
+use crate::alloc::format;
 #[cfg(test)]
 pub fn test_serialization(msg: MidiMsg, ctx: &mut ReceiverContext) {
     let midi = msg.to_midi();
