@@ -344,10 +344,6 @@ mod tests {
         // Error          : 0.0061 * 15 = 0.0915 cents
         assert_eq!(freq_to_midi_note_u14(8.1758), (0x00, 0x0f));
 
-        // This is a different value than stated, but it seems the spec is quite off
-        // I don't see any way that 8.2104 Hz could be 0.0061 cents away from 8.1758 Hz
-        // assert_eq!(freq_to_midi_note_u14(8.2104), (0x00, 1198));
-
         // Frequency      : 8.662 Hz
         // Expected bytes : 01 00 00
         // Actual bytes   : 00 00 11
