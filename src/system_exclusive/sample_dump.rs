@@ -2,7 +2,6 @@ use alloc::vec::Vec;
 use alloc::format;
 use crate::parse_error::*;
 use crate::util::*;
-use crate::system_exclusive::util::*;
 use ascii::AsciiString;
 
 /// Used to request and transmit sampler data.

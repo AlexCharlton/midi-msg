@@ -2,7 +2,6 @@ use alloc::vec::Vec;
 use alloc::format;
 use crate::parse_error::*;
 use crate::util::*;
-use crate::system_exclusive::util::*;
 use ascii::AsciiChar;
 
 /// Change the tunings of one or more notes, either real-time or not.

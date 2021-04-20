@@ -3,7 +3,6 @@ use alloc::format;
 use super::DeviceID;
 use crate::parse_error::*;
 use crate::util::*;
-use crate::system_exclusive::util::*;
 use ascii::{AsciiChar, AsciiString};
 
 /// Used to transmit general file data.
