@@ -14,8 +14,19 @@ Since the MIDI spec makes extensive use of non-byte-aligned integers, a Rust rep
 Add the following line to your Cargo.toml file:
 
 ```
-midi-msg = "0.3"
+midi-msg = "0.4"
 ```
+
+If you want to use midi-msg in a `no_std` environment, add this line instead:
+
+```
+midi-msg = { version = "0.4", default-features = false }
+```
+
+
+## Disabling system exclusive functionality
+
+The `no_sysex` Cargo feature can be used to exclude code related to system exclusive functionality, which can be useful to reduce the binary size in resource constrained environments. If `no_sysex` is used and an attempt is made to parse a system exclusive message, an error will be returned.  
 
 ## To be implemented
 - Deserialization of most of `UniversalRealTimeMsg` and `UniversalNonRealTimeMsg`
@@ -23,6 +34,7 @@ midi-msg = "0.3"
 
 ## Support 
 MIDI messages described by the following [Midi Manufacturer Association (MMA) documents](https://www.midi.org/specifications/midi1-specifications) are supported (with their corresponding Midi Manufacturer Association [MMA] publication number, Recommended Practice [RP] number, or Changes/Additions [CA] number as noted):
+
 - MIDI 1.0 Detailed Specification 4.2.1 (The base specification. All types should be assumed to be defined by this document unless otherwise specified)
 - MIDI Time Code (MTC) (MMA-001 / RP-004 / RP-008)
 - General MIDI System Level 1 (GM1) (MMA-007 / RP-003)
