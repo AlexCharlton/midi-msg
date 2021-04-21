@@ -1,7 +1,3 @@
-#[cfg(not(feature = "no_sysex"))]
-use alloc::vec::Vec;
-#[cfg(not(feature = "no_sysex"))]
-use super::parse_error::*;
 use super::util::*;
 
 /// Used to synchronize device positions, by [`SystemCommonMsg::TimeCodeQuarterFrameX`](crate::SystemCommonMsg::TimeCodeQuarterFrame1)
@@ -32,12 +28,6 @@ impl TimeCode {
             self.minutes.min(59),
             self.hours.min(23) + ((self.code_type as u8) << 5),
         ]
-    }
-
-    #[cfg(not(feature = "no_sysex"))]
-    pub(crate) fn extend_midi(&self, v: &mut Vec<u8>) {
-        let [frame, seconds, minutes, codehour] = self.to_bytes();
-        v.extend_from_slice(&[codehour, minutes, seconds, frame]);
     }
 
     /// Return an 8 byte, Quarter Frame representation of the Frame
@@ -88,27 +78,6 @@ impl TimeCode {
 
         frame_number
     }
-
-    #[cfg(not(feature = "no_sysex"))]
-    pub(crate) fn from_midi(m: &[u8]) -> Result<Self, ParseError> {
-        if m.len() < 4 {
-            return Err(crate::ParseError::UnexpectedEnd);
-        }
-        let code_hour = u8_from_u7(m[0])?;
-        Ok(Self {
-            frames: u8_from_u7(m[3])?,
-            seconds: u8_from_u7(m[2])?,
-            minutes: u8_from_u7(m[1])?,
-            hours: code_hour & 0b00011111,
-            code_type: match (code_hour & 0b01100000) >> 5 {
-                0 => TimeCodeType::FPS24,
-                1 => TimeCodeType::FPS25,
-                2 => TimeCodeType::DF30,
-                3 => TimeCodeType::NDF30,
-                _ => panic!("Should not be reachable"),
-            },
-        })
-    }
 }
 
 /// Indicates the frame rate of the given [`TimeCode`].
@@ -135,8 +104,37 @@ impl Default for TimeCodeType {
 #[cfg(not(feature = "no_sysex"))]
 mod sysex_types {
     use super::*;
-    use crate::MidiMsg;
     use ascii::AsciiString;
+    use alloc::vec::Vec;
+    use crate::ParseError;
+    use crate::MidiMsg;
+
+    impl TimeCode {
+        pub(crate) fn extend_midi(&self, v: &mut Vec<u8>) {
+            let [frame, seconds, minutes, codehour] = self.to_bytes();
+            v.extend_from_slice(&[codehour, minutes, seconds, frame]);
+        }
+
+        pub(crate) fn from_midi(m: &[u8]) -> Result<Self, ParseError> {
+            if m.len() < 4 {
+                return Err(crate::ParseError::UnexpectedEnd);
+            }
+            let code_hour = u8_from_u7(m[0])?;
+            Ok(Self {
+                frames: u8_from_u7(m[3])?,
+                seconds: u8_from_u7(m[2])?,
+                minutes: u8_from_u7(m[1])?,
+                hours: code_hour & 0b00011111,
+                code_type: match (code_hour & 0b01100000) >> 5 {
+                    0 => TimeCodeType::FPS24,
+                    1 => TimeCodeType::FPS25,
+                    2 => TimeCodeType::DF30,
+                    3 => TimeCodeType::NDF30,
+                    _ => panic!("Should not be reachable"),
+                },
+            })
+        }
+    }
 
     #[derive(Debug, Clone, Copy, PartialEq, Default)]
     /// Like [`TimeCode`] but includes `fractional_frames`. Used in `TimeCodeCueingSetupMsg`.
