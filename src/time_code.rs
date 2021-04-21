@@ -1,5 +1,6 @@
+#[cfg(not(feature = "no_sysex"))]
 use alloc::vec::Vec;
-
+#[cfg(not(feature = "no_sysex"))]
 use super::parse_error::*;
 use super::util::*;
 
@@ -33,6 +34,7 @@ impl TimeCode {
         ]
     }
 
+    #[cfg(not(feature = "no_sysex"))]
     pub(crate) fn extend_midi(&self, v: &mut Vec<u8>) {
         let [frame, seconds, minutes, codehour] = self.to_bytes();
         v.extend_from_slice(&[codehour, minutes, seconds, frame]);
@@ -87,6 +89,7 @@ impl TimeCode {
         frame_number
     }
 
+    #[cfg(not(feature = "no_sysex"))]
     pub(crate) fn from_midi(m: &[u8]) -> Result<Self, ParseError> {
         if m.len() < 4 {
             return Err(crate::ParseError::UnexpectedEnd);
