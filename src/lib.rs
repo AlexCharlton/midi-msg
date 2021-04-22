@@ -132,10 +132,11 @@ pub use system_exclusive::*;
 mod message;
 pub use message::*;
 
-#[allow(unused_imports)]
-use crate::alloc::format;
+// A helper used in tests
 #[cfg(test)]
 pub fn test_serialization(msg: MidiMsg, ctx: &mut ReceiverContext) {
+    use crate::alloc::format;
+
     let midi = msg.to_midi();
     let (msg2, len) = MidiMsg::from_midi_with_context(&midi, ctx).expect(&format!(
         "The input message should be serialized into a deserializable stream\nInput: {:?}\nGot: {:#?}",

@@ -26,7 +26,8 @@ midi-msg = { version = "0.4", default-features = false }
 
 ## Disabling system exclusive functionality
 
-The `no_sysex` Cargo feature can be used to exclude code related to system exclusive functionality, which can be useful to reduce the binary size in resource constrained environments. If `no_sysex` is used and an attempt is made to parse a system exclusive message, an error will be returned.  
+The `no_sysex` Cargo feature can be used to exclude code related to system exclusive functionality, which can be useful to reduce the binary size in resource constrained environments. If `no_sysex` is used and an attempt is made to parse a system exclusive message, an error will be returned.
+
 
 ## To be implemented
 - Deserialization of most of `UniversalRealTimeMsg` and `UniversalNonRealTimeMsg`
