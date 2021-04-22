@@ -18,3 +18,4 @@ micromath = "1.1.1"
 [features]
 default = ["std"]
 std = []
+no_sysex = []

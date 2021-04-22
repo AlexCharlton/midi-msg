@@ -4,8 +4,11 @@ use alloc::vec::Vec;
 
 use super::{
     ChannelModeMsg, ChannelVoiceMsg, ParseError, ReceiverContext, SystemCommonMsg,
-    SystemExclusiveMsg, SystemRealTimeMsg,
+    SystemRealTimeMsg,
 };
+
+#[cfg(not(feature = "no_sysex"))]
+use super::SystemExclusiveMsg;
 
 /// The primary interface of this library. Used to encode MIDI messages.
 #[derive(Debug, Clone, PartialEq)]
@@ -42,6 +45,7 @@ pub enum MidiMsg {
     SystemRealTime { msg: SystemRealTimeMsg },
     /// The bulk of the MIDI spec lives here, in "Universal System Exclusive" messages.
     /// Also the home of manufacturer-specific messages.
+    #[cfg(not(feature = "no_sysex"))]
     SystemExclusive { msg: SystemExclusiveMsg },
 }
 
@@ -149,8 +153,13 @@ impl MidiMsg {
                 }
                 0xF => {
                     if b & 0b00001111 == 0 {
-                        let (msg, len) = SystemExclusiveMsg::from_midi(m, ctx)?;
-                        Ok((Self::SystemExclusive { msg }, len))
+                        #[cfg(not(feature = "no_sysex"))]
+                        {
+                            let (msg, len) = SystemExclusiveMsg::from_midi(m, ctx)?;
+                            return Ok((Self::SystemExclusive { msg }, len));
+                        }
+                        #[cfg(feature = "no_sysex")]
+                        return Err(ParseError::Invalid(format!("Got system exclusive message but the crate was built with no_sysex.")))
                     } else if b & 0b00001000 == 0 {
                         let (msg, len) = SystemCommonMsg::from_midi(m, ctx)?;
                         Ok((Self::SystemCommon { msg }, len))
@@ -275,6 +284,7 @@ impl MidiMsg {
             MidiMsg::RunningChannelMode { msg, .. } => msg.extend_midi_running(v),
             MidiMsg::SystemCommon { msg } => msg.extend_midi(v),
             MidiMsg::SystemRealTime { msg } => msg.extend_midi(v),
+            #[cfg(not(feature = "no_sysex"))]
             MidiMsg::SystemExclusive { msg } => msg.extend_midi(v),
         }
     }

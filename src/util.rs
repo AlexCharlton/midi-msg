@@ -1,7 +1,6 @@
-#[allow(unused_imports)]
-use micromath::F32Ext;
-use alloc::vec::Vec;
 use super::ParseError;
+use alloc::vec::Vec;
+use micromath::F32Ext;
 
 #[inline]
 pub fn to_u7(x: u8) -> u8 {
@@ -102,59 +101,6 @@ pub fn i14_from_u7s(msb: u8, lsb: u8) -> i16 {
 }
 
 #[inline]
-pub fn to_i14(x: i16) -> [u8; 2] {
-    if x > 8191 {
-        [0x3f, 0x7f]
-    } else if x < -8191 {
-        [0x40, 0x00]
-    } else {
-        [(x >> 7) as u8 & 0b01111111, x as u8 & 0b01111111]
-    }
-}
-
-#[inline]
-pub fn to_u21(x: u32) -> [u8; 3] {
-    if x > 2097151 {
-        [0x7f, 0x7f, 0x7f]
-    } else {
-        [
-            (x >> 14) as u8,
-            (x >> 7) as u8 & 0b01111111,
-            x as u8 & 0b01111111,
-        ]
-    }
-}
-
-#[inline]
-pub fn to_u28(x: u32) -> [u8; 4] {
-    if x > 2684354561 {
-        [0x7f, 0x7f, 0x7f, 0x7f]
-    } else {
-        [
-            (x >> 21) as u8,
-            (x >> 14) as u8 & 0b01111111,
-            (x >> 7) as u8 & 0b01111111,
-            x as u8 & 0b01111111,
-        ]
-    }
-}
-
-#[inline]
-pub fn to_u35(x: u64) -> [u8; 5] {
-    if x > 34359738367 {
-        [0x7f, 0x7f, 0x7f, 0x7f, 0x7f]
-    } else {
-        [
-            (x >> 28) as u8,
-            (x >> 21) as u8 & 0b01111111,
-            (x >> 14) as u8 & 0b01111111,
-            (x >> 7) as u8 & 0b01111111,
-            x as u8 & 0b01111111,
-        ]
-    }
-}
-
-#[inline]
 pub fn to_nibble(x: u8) -> [u8; 2] {
     [x >> 4, x & 0b00001111]
 }
@@ -176,57 +122,9 @@ pub fn push_u14(x: u16, v: &mut Vec<u8>) {
     v.push(msb);
 }
 
-#[inline]
-pub fn push_i14(x: i16, v: &mut Vec<u8>) {
-    let [msb, lsb] = to_i14(x);
-    v.push(lsb);
-    v.push(msb);
-}
-
-#[inline]
-pub fn push_u21(x: u32, v: &mut Vec<u8>) {
-    let [msb, b, lsb] = to_u21(x);
-    v.push(lsb);
-    v.push(b);
-    v.push(msb);
-}
-
-#[inline]
-pub fn push_u28(x: u32, v: &mut Vec<u8>) {
-    let [mmsb, msb, lsb, llsb] = to_u28(x);
-    v.push(llsb);
-    v.push(lsb);
-    v.push(msb);
-    v.push(mmsb);
-}
-
-#[inline]
-pub fn push_u35(x: u64, v: &mut Vec<u8>) {
-    let [msb, b2, b3, b4, lsb] = to_u35(x);
-    v.push(lsb);
-    v.push(b4);
-    v.push(b3);
-    v.push(b2);
-    v.push(msb);
-}
-
-pub fn checksum(bytes: &[u8]) -> u8 {
-    let mut sum: u8 = 0;
-    for b in bytes.iter() {
-        sum ^= b;
-    }
-    sum
-}
-
 /// Given a frequency in Hertz, returns a floating point midi note number with 1.0 = 100 cents
 pub fn freq_to_midi_note_float(freq: f32) -> f32 {
     12.0 * F32Ext::log2(freq / 440.0) + 69.0
-}
-
-/// Given a frequency in Hertz, returns (midi_note_number, additional cents from semitone)
-pub fn freq_to_midi_note_cents(freq: f32) -> (u8, f32) {
-    let semitone = freq_to_midi_note_float(freq);
-    (semitone as u8, F32Ext::fract(semitone) * 100.0)
 }
 
 /// Given a floating point midi note number, return the frequency in Hertz
@@ -239,12 +137,119 @@ pub fn midi_note_cents_to_freq(note: u8, cents: f32) -> f32 {
     midi_note_float_to_freq(note as f32 + cents / 100.0)
 }
 
-/// Takes a positive value between 0.0 and 100.0 and fits it into the u14 range
-/// 1 = 0.0061 cents
-pub fn cents_to_u14(cents: f32) -> u16 {
-    let cents = cents.max(0.0).min(100.0);
-    F32Ext::round(cents / 100.0 * (0b11111111111111 as f32)) as u16
+/// Given a frequency in Hertz, returns (midi_note_number, additional cents from semitone)
+pub fn freq_to_midi_note_cents(freq: f32) -> (u8, f32) {
+    let semitone = freq_to_midi_note_float(freq);
+    (semitone as u8, F32Ext::fract(semitone) * 100.0)
 }
+
+#[cfg(not(feature = "no_sysex"))]
+mod sysex_util {
+    #[inline]
+    pub fn push_i14(x: i16, v: &mut Vec<u8>) {
+        let [msb, lsb] = to_i14(x);
+        v.push(lsb);
+        v.push(msb);
+    }
+
+    #[inline]
+    pub fn push_u21(x: u32, v: &mut Vec<u8>) {
+        let [msb, b, lsb] = to_u21(x);
+        v.push(lsb);
+        v.push(b);
+        v.push(msb);
+    }
+
+    #[inline]
+    pub fn push_u28(x: u32, v: &mut Vec<u8>) {
+        let [mmsb, msb, lsb, llsb] = to_u28(x);
+        v.push(llsb);
+        v.push(lsb);
+        v.push(msb);
+        v.push(mmsb);
+    }
+
+    #[inline]
+    pub fn push_u35(x: u64, v: &mut Vec<u8>) {
+        let [msb, b2, b3, b4, lsb] = to_u35(x);
+        v.push(lsb);
+        v.push(b4);
+        v.push(b3);
+        v.push(b2);
+        v.push(msb);
+    }
+
+    pub fn checksum(bytes: &[u8]) -> u8 {
+        let mut sum: u8 = 0;
+        for b in bytes.iter() {
+            sum ^= b;
+        }
+        sum
+    }
+
+    /// Takes a positive value between 0.0 and 100.0 and fits it into the u14 range
+    /// 1 = 0.0061 cents
+    pub fn cents_to_u14(cents: f32) -> u16 {
+        let cents = cents.max(0.0).min(100.0);
+        super::F32Ext::round(cents / 100.0 * (0b11111111111111 as f32)) as u16
+    }
+
+    #[inline]
+    pub fn to_i14(x: i16) -> [u8; 2] {
+        if x > 8191 {
+            [0x3f, 0x7f]
+        } else if x < -8191 {
+            [0x40, 0x00]
+        } else {
+            [(x >> 7) as u8 & 0b01111111, x as u8 & 0b01111111]
+        }
+    }
+
+    #[inline]
+    pub fn to_u21(x: u32) -> [u8; 3] {
+        if x > 2097151 {
+            [0x7f, 0x7f, 0x7f]
+        } else {
+            [
+                (x >> 14) as u8,
+                (x >> 7) as u8 & 0b01111111,
+                x as u8 & 0b01111111,
+            ]
+        }
+    }
+
+    #[inline]
+    pub fn to_u28(x: u32) -> [u8; 4] {
+        if x > 2684354561 {
+            [0x7f, 0x7f, 0x7f, 0x7f]
+        } else {
+            [
+                (x >> 21) as u8,
+                (x >> 14) as u8 & 0b01111111,
+                (x >> 7) as u8 & 0b01111111,
+                x as u8 & 0b01111111,
+            ]
+        }
+    }
+
+    #[inline]
+    pub fn to_u35(x: u64) -> [u8; 5] {
+        if x > 34359738367 {
+            [0x7f, 0x7f, 0x7f, 0x7f, 0x7f]
+        } else {
+            [
+                (x >> 28) as u8,
+                (x >> 21) as u8 & 0b01111111,
+                (x >> 14) as u8 & 0b01111111,
+                (x >> 7) as u8 & 0b01111111,
+                x as u8 & 0b01111111,
+            ]
+        }
+    }
+}
+
+#[cfg(not(feature = "no_sysex"))]
+pub use sysex_util::*;
 
 #[cfg(test)]
 mod tests {
@@ -265,32 +270,6 @@ mod tests {
         assert_eq!(to_u14(0x00), [0, 0]);
         assert_eq!(to_u14(0xfff), [0x1f, 127]);
         assert_eq!(to_u14(1000), [0x07, 0x68]);
-    }
-
-    #[test]
-    fn test_to_i14() {
-        assert_eq!(to_i14(0xff), [0x01, 0x7f]);
-        assert_eq!(to_i14(0x6f00), [0x3f, 0x7f]); // Overflow is treated as max value
-        assert_eq!(to_i14(0x00), [0, 0]);
-        assert_eq!(to_i14(0xfff), [0x1f, 0x7f]);
-        assert_eq!(to_i14(1000), [0x07, 0x68]);
-        assert_eq!(to_i14(-10000), [0x40, 0x00]); // Min overflow is treated as min value
-        assert_eq!(to_i14(-8192), [0x40, 0x00]);
-        assert_eq!(to_i14(-8191), [0x40, 0x01]);
-        assert_eq!(to_i14(-1), [0x7f, 0x7f]);
-    }
-
-    #[test]
-    fn test_to_u21() {
-        assert_eq!(to_u21(0xff), [0, 1, 127]);
-        assert_eq!(to_u21(0xff00), [3, 126, 0]);
-        assert_eq!(to_u21(0xffff00), [127, 127, 127]); // Overflow is treated as max value
-        assert_eq!(to_u21(0x00), [0, 0, 0]);
-        assert_eq!(to_u21(0xfff), [0, 0x1f, 127]);
-        assert_eq!(
-            to_u21(0b1000011010100000),
-            [0b00000010, 0b00001101, 0b00100000]
-        );
     }
 
     #[test]
@@ -316,6 +295,40 @@ mod tests {
     }
 
     #[test]
+    fn test_midi_note_float_to_freq() {
+        assert!((midi_note_float_to_freq(67.0) - 392.0).abs() <= 0.01);
+    }
+
+    #[test]
+    #[cfg(not(feature = "no_sysex"))]
+    fn test_to_i14() {
+        assert_eq!(to_i14(0xff), [0x01, 0x7f]);
+        assert_eq!(to_i14(0x6f00), [0x3f, 0x7f]); // Overflow is treated as max value
+        assert_eq!(to_i14(0x00), [0, 0]);
+        assert_eq!(to_i14(0xfff), [0x1f, 0x7f]);
+        assert_eq!(to_i14(1000), [0x07, 0x68]);
+        assert_eq!(to_i14(-10000), [0x40, 0x00]); // Min overflow is treated as min value
+        assert_eq!(to_i14(-8192), [0x40, 0x00]);
+        assert_eq!(to_i14(-8191), [0x40, 0x01]);
+        assert_eq!(to_i14(-1), [0x7f, 0x7f]);
+    }
+
+    #[test]
+    #[cfg(not(feature = "no_sysex"))]
+    fn test_to_u21() {
+        assert_eq!(to_u21(0xff), [0, 1, 127]);
+        assert_eq!(to_u21(0xff00), [3, 126, 0]);
+        assert_eq!(to_u21(0xffff00), [127, 127, 127]); // Overflow is treated as max value
+        assert_eq!(to_u21(0x00), [0, 0, 0]);
+        assert_eq!(to_u21(0xfff), [0, 0x1f, 127]);
+        assert_eq!(
+            to_u21(0b1000011010100000),
+            [0b00000010, 0b00001101, 0b00100000]
+        );
+    }
+
+    #[test]
+    #[cfg(not(feature = "no_sysex"))]
     fn text_checksum() {
         assert_eq!(checksum(&[0b11110000, 0b00001111, 0b10101010]), 0b01010101);
         assert_eq!(
@@ -324,12 +337,14 @@ mod tests {
         )
     }
 
+    #[cfg(not(feature = "no_sysex"))]
     fn freq_to_midi_note_u14(freq: f32) -> (u8, u16) {
-        let (n, c) = freq_to_midi_note_cents(freq);
+        let (n, c) = crate::freq_to_midi_note_cents(freq);
         (n, cents_to_u14(c))
     }
 
     #[test]
+    #[cfg(not(feature = "no_sysex"))]
     fn test_freq_to_midi_note() {
         // The test data below is taken from the "Frequency data format" section (page 48)
         // of The MIDI 1.0 Detailed Specification 4.2.1.
@@ -372,10 +387,5 @@ mod tests {
         // Actual bytes   : 7f 00 02
         // Error          : 0.0061 * 2 = 0.0122 cents
         assert_eq!(freq_to_midi_note_u14(12543.8800), (0x7F, 0x02));
-    }
-
-    #[test]
-    fn test_midi_note_float_to_freq() {
-        assert!((midi_note_float_to_freq(67.0) - 392.0).abs() <= 0.01);
     }
 }
