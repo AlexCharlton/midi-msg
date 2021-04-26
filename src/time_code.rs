@@ -101,7 +101,7 @@ impl Default for TimeCodeType {
     }
 }
 
-#[cfg(not(feature = "no_sysex"))]
+#[cfg(feature = "sysex")]
 mod sysex_types {
     use super::*;
     use ascii::AsciiString;
@@ -753,11 +753,11 @@ mod sysex_types {
     }
 }
 
-#[cfg(not(feature = "no_sysex"))]
+#[cfg(feature = "sysex")]
 pub use sysex_types::*;
 
 #[cfg(test)]
-#[cfg(not(feature = "no_sysex"))]
+#[cfg(feature = "sysex")]
 mod tests {
     use crate::*;
     use std::vec;

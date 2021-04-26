@@ -124,9 +124,9 @@ mod system_common;
 pub use system_common::*;
 mod system_real_time;
 pub use system_real_time::*;
-#[cfg(not(feature = "no_sysex"))]
+#[cfg(feature = "sysex")]
 mod system_exclusive;
-#[cfg(not(feature = "no_sysex"))]
+#[cfg(feature = "sysex")]
 pub use system_exclusive::*;
 
 mod message;
