@@ -159,7 +159,7 @@ impl MidiMsg {
                             return Ok((Self::SystemExclusive { msg }, len));
                         }
                         #[cfg(not(feature = "sysex"))]
-                        return Err(ParseError::Invalid(format!("Got system exclusive message but the crate was built with no_sysex.")))
+                        return Err(ParseError::Invalid(format!("Got system exclusive message but the crate was built without the sysex feature.")))
                     } else if b & 0b00001000 == 0 {
                         let (msg, len) = SystemCommonMsg::from_midi(m, ctx)?;
                         Ok((Self::SystemCommon { msg }, len))
