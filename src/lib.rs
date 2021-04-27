@@ -135,6 +135,7 @@ pub use message::*;
 // A helper used in tests
 #[cfg(test)]
 pub fn test_serialization(msg: MidiMsg, ctx: &mut ReceiverContext) {
+    #[cfg(not(feature = "std"))]
     use crate::alloc::format;
 
     let midi = msg.to_midi();
