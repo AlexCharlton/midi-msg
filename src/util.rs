@@ -143,8 +143,10 @@ pub fn freq_to_midi_note_cents(freq: f32) -> (u8, f32) {
     (semitone as u8, F32Ext::fract(semitone) * 100.0)
 }
 
-#[cfg(not(feature = "no_sysex"))]
+#[cfg(feature = "sysex")]
 mod sysex_util {
+    use alloc::vec::Vec;
+
     #[inline]
     pub fn push_i14(x: i16, v: &mut Vec<u8>) {
         let [msb, lsb] = to_i14(x);
@@ -248,7 +250,7 @@ mod sysex_util {
     }
 }
 
-#[cfg(not(feature = "no_sysex"))]
+#[cfg(feature = "sysex")]
 pub use sysex_util::*;
 
 #[cfg(test)]
@@ -300,7 +302,7 @@ mod tests {
     }
 
     #[test]
-    #[cfg(not(feature = "no_sysex"))]
+    #[cfg(feature = "sysex")]
     fn test_to_i14() {
         assert_eq!(to_i14(0xff), [0x01, 0x7f]);
         assert_eq!(to_i14(0x6f00), [0x3f, 0x7f]); // Overflow is treated as max value
@@ -314,7 +316,7 @@ mod tests {
     }
 
     #[test]
-    #[cfg(not(feature = "no_sysex"))]
+    #[cfg(feature = "sysex")]
     fn test_to_u21() {
         assert_eq!(to_u21(0xff), [0, 1, 127]);
         assert_eq!(to_u21(0xff00), [3, 126, 0]);
@@ -328,7 +330,7 @@ mod tests {
     }
 
     #[test]
-    #[cfg(not(feature = "no_sysex"))]
+    #[cfg(feature = "sysex")]
     fn text_checksum() {
         assert_eq!(checksum(&[0b11110000, 0b00001111, 0b10101010]), 0b01010101);
         assert_eq!(
@@ -337,14 +339,14 @@ mod tests {
         )
     }
 
-    #[cfg(not(feature = "no_sysex"))]
+    #[cfg(feature = "sysex")]
     fn freq_to_midi_note_u14(freq: f32) -> (u8, u16) {
         let (n, c) = crate::freq_to_midi_note_cents(freq);
         (n, cents_to_u14(c))
     }
 
     #[test]
-    #[cfg(not(feature = "no_sysex"))]
+    #[cfg(feature = "sysex")]
     fn test_freq_to_midi_note() {
         // The test data below is taken from the "Frequency data format" section (page 48)
         // of The MIDI 1.0 Detailed Specification 4.2.1.

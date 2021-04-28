@@ -124,9 +124,9 @@ mod system_common;
 pub use system_common::*;
 mod system_real_time;
 pub use system_real_time::*;
-#[cfg(not(feature = "no_sysex"))]
+#[cfg(feature = "sysex")]
 mod system_exclusive;
-#[cfg(not(feature = "no_sysex"))]
+#[cfg(feature = "sysex")]
 pub use system_exclusive::*;
 
 mod message;
@@ -135,6 +135,7 @@ pub use message::*;
 // A helper used in tests
 #[cfg(test)]
 pub fn test_serialization(msg: MidiMsg, ctx: &mut ReceiverContext) {
+    #[cfg(not(feature = "std"))]
     use crate::alloc::format;
 
     let midi = msg.to_midi();
