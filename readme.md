@@ -79,6 +79,23 @@ Support for the Standard MIDI Files specification may be added.
 - [midi-types](https://crates.io/crates/midi-types)
 - [midly](https://crates.io/crates/midly)
 
+## Exploring
+
+If you would like to see how midi-msg interprets the results of received
+messages, you can check out this repository and run the following to use a
+modified version of `midir`'s `test_read_input` example.
+```
+cargo run --example test_read_input
+```
+
+This will produce output like:
+```
+1816489080: ChannelVoice { channel: Ch1, msg: NoteOn { note: 62, velocity: 59 } }
+1816643991: ChannelVoice { channel: Ch1, msg: NoteOff { note: 62, velocity: 53 } }
+```
+
+Note that `midir` is installed as a dev-dependency and this does not impose any
+requirement on the use of `midir` when specifying this crate as a dependency.
 
 ## Contributing
 [Pull requests](https://github.com/AlexCharlton/midi-msg/pulls) for the features listed above as not-yet supported, for bug fixes (any omissions from the spec are considered bugs), or for documentation additions are most welcome, as are [bug reports](https://github.com/AlexCharlton/midi-msg/issues).
