@@ -15,6 +15,9 @@ keywords = ["midi", "music"]
 ascii = { git="https://github.com/tomprogrammer/rust-ascii", rev="1a91033", default-features = false, features = ["alloc"], optional = true }
 micromath = "1.1.1"
 
+[dev-dependencies]
+midir = "0.7.0"
+
 [features]
 default = ["std", "sysex"]
 std = []
