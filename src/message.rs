@@ -50,11 +50,18 @@ pub enum MidiMsg {
 }
 
 impl MidiMsg {
-    /// Turn a `MidiMsg` into a series of bytes.
+    /// Turn a `MidiMsg` into a series of bytes and return
+    /// the result in a newly allocated vector.
     pub fn to_midi(&self) -> Vec<u8> {
         let mut r: Vec<u8> = vec![];
-        self.extend_midi(&mut r);
+        self.append_midi(&mut r);
         r
+    }
+
+    /// Turn a `MidiMsg` into a series of bytes and push them
+    /// onto a given vector.
+    pub fn append_midi(&self, r: &mut Vec<u8>) {
+        self.extend_midi(r);
     }
 
     /// Turn a series of bytes into a `MidiMsg`.
