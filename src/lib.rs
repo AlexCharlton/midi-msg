@@ -18,6 +18,10 @@
 //! .to_midi();
 //! ```
 //!
+//! To serialize a MIDI message into an existing vector, use [`MidiMsg::append_midi`].
+//! This is useful in real time and resource constrained environments where
+//! memory allocations should be avoided.
+//!
 //! ## Deserializing MIDI byte sequences
 //! Likewise, byte sequences can be deserialized into `MidiMsg`s with [`MidiMsg::from_midi`]:
 //!

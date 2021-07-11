@@ -58,7 +58,7 @@ impl MidiMsg {
         r
     }
 
-    /// Turn a `MidiMsg` into a series of bytes and push them
+    /// Turn a `MidiMsg` into a series of bytes and push the result
     /// onto a given vector.
     pub fn append_midi(&self, r: &mut Vec<u8>) {
         self.extend_midi(r);
