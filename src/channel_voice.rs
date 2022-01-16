@@ -6,7 +6,7 @@ use alloc::format;
 
 /// Channel-level messages that act on a voice. For instance, turning notes on off,
 /// or modifying sounding notes. Used in [`MidiMsg`](crate::MidiMsg).
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ChannelVoiceMsg {
     /// Turn on a note
     NoteOn {
@@ -269,7 +269,7 @@ impl ChannelVoiceMsg {
 }
 
 /// An enum that defines the MIDI numbers associated with Control Changes.
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ControlNumber {
     BankSelect = 0,
     BankSelectLSB = 32,
@@ -355,7 +355,7 @@ pub enum ControlNumber {
 
 /// Used by [`ChannelVoiceMsg::ControlChange`] to modify sounds.
 /// Each control targets a particular [`ControlNumber`], the meaning of which is given by convention.
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ControlChange {
     /// 0-16383
     BankSelect(u16),
@@ -956,7 +956,7 @@ impl ControlChange {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 /// Used by [`ControlChange::Parameter`]. "Entry" Parameters can be used to set the given parameters:
 /// they will first select that parameter, then send a [`ControlChange::DataEntry`] with the given value.
 pub enum Parameter {

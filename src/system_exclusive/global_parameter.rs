@@ -13,7 +13,7 @@ use crate::util::*;
 /// As defined in CA-024.
 ///
 /// This C/A is much more permissive than most, and thus has a pretty awkward interface.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct GlobalParameterControl {
     /// Between 0 and 127 `SlotPath`s, with each successive path representing a child
     /// of the preceding value. No paths refers to the "top level"
@@ -29,7 +29,7 @@ pub struct GlobalParameterControl {
     pub params: Vec<GlobalParameter>,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 /// The type of reverb, used by [`GlobalParameterControl::reverb`].
 pub enum ReverbType {
     SmallRoom = 0,
@@ -40,7 +40,7 @@ pub enum ReverbType {
     Plate = 8,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 /// The type of chorus, used by [`GlobalParameterControl::chorus`].
 pub enum ChorusType {
     Chorus1 = 0,
@@ -163,7 +163,7 @@ impl GlobalParameterControl {
 
 /// The "slot" of the device being referred to by [`GlobalParameterControl`].
 /// Values other than `Unregistered` come from the General MIDI 2 spec.
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum SlotPath {
     Reverb,
     Chorus,
@@ -196,7 +196,7 @@ impl SlotPath {
 }
 
 /// An `id`:`value` pair that must line up with the [`GlobalParameterControl`] that it is placed in.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct GlobalParameter {
     pub id: Vec<u8>,
     pub value: Vec<u8>,

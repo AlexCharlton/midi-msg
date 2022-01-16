@@ -1,7 +1,7 @@
 /// Used to turn General MIDI level 1 or 2 on, or turn them off.
 ///
 /// Used in [`UniversalNonRealTimeMsg::GeneralMidi`](crate::UniversalNonRealTimeMsg::GeneralMidi)
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum GeneralMidi {
     GM1 = 1,
     GM2 = 3,
@@ -25,7 +25,7 @@ pub enum GeneralMidi {
 /// Should not be used when targeting channel 10.
 ///
 /// As defined in General MIDI System Level 1 (MMA0007 / RP003).
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum GMSoundSet {
     AcousticGrandPiano = 0,
     BrightAcousticPiano = 1,
@@ -174,7 +174,7 @@ pub enum GMSoundSet {
 /// ```
 ///
 /// As defined in General MIDI System Level 1 (MMA0007 / RP003).
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum GMPercussionMap {
     AcousticBassDrum = 35,
     RideCymbal1 = 51,
