@@ -166,7 +166,7 @@ impl SystemExclusiveMsg {
 /// If second byte is None, it is a one-byte ID.
 /// The first byte in a one-byte ID may not be greater than 0x7C.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct ManufacturerID(u8, Option<u8>);
+pub struct ManufacturerID(pub u8, pub Option<u8>);
 
 impl ManufacturerID {
     fn extend_midi(&self, v: &mut Vec<u8>) {
