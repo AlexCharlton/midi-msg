@@ -3,7 +3,7 @@ use alloc::vec::Vec;
 use super::parse_error::*;
 use crate::util::*;
 
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 /// Channel-level messages that should alter the mode of the receiver. Used in [`MidiMsg`](crate::MidiMsg).
 pub enum ChannelModeMsg {
     /// Sound playing on the channel should be stopped as soon as possible, per GM2.
@@ -88,7 +88,7 @@ impl ChannelModeMsg {
 }
 
 /// Used by [`ChannelModeMsg::PolyMode`].
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum PolyMode {
     /// Request that the receiver be monophonic, with the given number M representing the
     /// number of channels that should be dedicated. Since this is sent with a `ChannelModeMsg`

@@ -297,7 +297,7 @@ impl From<&MidiMsg> for Vec<u8> {
 }
 
 /// The MIDI channel, 1-16. Used by [`MidiMsg`] and elsewhere.
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Channel {
     Ch1,
     Ch2,

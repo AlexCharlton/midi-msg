@@ -6,7 +6,7 @@ use ascii::AsciiString;
 
 /// Used to request and transmit sampler data.
 /// Used by [`UniversalNonRealTimeMsg::SampleDump`](crate::UniversalNonRealTimeMsg::SampleDump).
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum SampleDumpMsg {
     /// Request that the receiver send the given sample.
     Request {
@@ -138,7 +138,7 @@ impl SampleDumpMsg {
 }
 
 /// What loop a [`SampleDumpMsg`] or [`ExtendedSampleDumpMsg`] is referring to.
-#[derive(Debug, Copy, Clone, PartialEq)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum LoopNumber {
     /// A loop with the given ID, 0-16382.
     Loop(u16),
@@ -165,7 +165,7 @@ impl LoopNumber {
 }
 
 /// The type of loop being described by a [`SampleDumpMsg`].
-#[derive(Debug, Copy, Clone, PartialEq)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum LoopType {
     /// Forward only
     Forward = 0,
@@ -295,7 +295,7 @@ impl ExtendedSampleDumpMsg {
 }
 
 /// The type of loop being described by a [`SampleDumpMsg`].
-#[derive(Debug, Copy, Clone, PartialEq)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum ExtendedLoopType {
     /// A forward, unidirectional loop
     Forward = 0x00,

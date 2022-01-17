@@ -9,7 +9,7 @@ use ascii::{AsciiChar, AsciiString};
 /// Used by [`UniversalNonRealTimeMsg::FileReference`](crate::UniversalNonRealTimeMsg::FileReference).
 ///
 /// As defined in CA-018.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum FileReferenceMsg {
     /// Describe where a file is located for opening, but must be followed by a `SelectContents`
     /// message if any sounds are to play.
@@ -94,7 +94,7 @@ impl FileReferenceMsg {
 }
 
 /// The file type of a given file, as used by [`FileReferenceMsg`].
-#[derive(Debug, Copy, Clone, PartialEq)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum FileReferenceType {
     DLS,
     SF2,
@@ -127,7 +127,7 @@ impl FileReferenceType {
 }
 
 /// How to map a `DLS` or `SF2` file for MIDI reference. Used by [`SelectMap`].
-#[derive(Debug, Copy, Clone, PartialEq)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub struct SoundFileMap {
     /// MIDI bank number required to select sound for playing. 0-16383
     pub dst_bank: u16,
@@ -178,7 +178,7 @@ impl SoundFileMap {
 }
 
 /// How to map a `WAV` file for MIDI reference. Used by [`SelectMap`].
-#[derive(Debug, Copy, Clone, PartialEq)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub struct WAVMap {
     /// MIDI bank number required to select sound for playing. 0-16383
     pub dst_bank: u16,
@@ -226,7 +226,7 @@ impl Default for WAVMap {
 }
 
 /// How to map a file for MIDI reference. Used by [`FileReferenceMsg::SelectContents`].
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum SelectMap {
     /// Used for DLS or SF2 files. No more than 127 `SoundFileMap`s.
     ///

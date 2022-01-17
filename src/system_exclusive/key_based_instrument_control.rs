@@ -9,7 +9,7 @@ use crate::util::*;
 /// Used by [`UniversalRealTimeMsg::KeyBasedInstrumentControl`](crate::UniversalRealTimeMsg::KeyBasedInstrumentControl).
 ///
 /// Defined in CA-023.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct KeyBasedInstrumentControl {
     pub channel: Channel,
     /// The MIDI key number.

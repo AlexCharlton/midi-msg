@@ -7,7 +7,7 @@ use super::ReceiverContext;
 
 /// A fairly limited set of messages, generally for device synchronization.
 /// Used in [`MidiMsg`](crate::MidiMsg).
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum SystemCommonMsg {
     /// The first of 8 "quarter frame" messages, which are meant to be sent 4 per "frame".
     /// These messages function similarly to [`SystemRealTimeMsg::TimingClock`](crate::SystemRealTimeMsg::TimingClock)

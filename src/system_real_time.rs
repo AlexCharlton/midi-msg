@@ -4,7 +4,7 @@ use super::parse_error::*;
 
 /// A fairly limited set of messages used for device synchronization.
 /// Used in [`MidiMsg`](crate::MidiMsg).
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum SystemRealTimeMsg {
     /// Used to synchronize clocks. Sent at a rate of 24 per quarter note.
     TimingClock,

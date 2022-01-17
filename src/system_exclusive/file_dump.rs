@@ -7,7 +7,7 @@ use ascii::{AsciiChar, AsciiString};
 
 /// Used to transmit general file data.
 /// Used by [`UniversalNonRealTimeMsg`](crate::UniversalNonRealTimeMsg).
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum FileDumpMsg {
     /// Request that the file with `name` be sent.
     Request {
@@ -119,7 +119,7 @@ impl FileDumpMsg {
 }
 
 /// A four-character file type used by [`FileDumpMsg`].
-#[derive(Debug, Copy, Clone, PartialEq)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum FileType {
     MIDI,
     MIEX,

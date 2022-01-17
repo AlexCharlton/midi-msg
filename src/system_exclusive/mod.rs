@@ -165,7 +165,7 @@ impl SystemExclusiveMsg {
 ///
 /// If second byte is None, it is a one-byte ID.
 /// The first byte in a one-byte ID may not be greater than 0x7C.
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct ManufacturerID(pub u8, pub Option<u8>);
 
 impl ManufacturerID {
@@ -205,7 +205,7 @@ impl From<(u8, u8)> for ManufacturerID {
 
 /// The device ID being addressed, either a number between 0-126 or `AllCall` (all devices).
 /// Used by [`SystemExclusiveMsg::UniversalNonRealTime`] and [`SystemExclusiveMsg::UniversalRealTime`].
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum DeviceID {
     Device(u8),
     AllCall,
@@ -617,7 +617,7 @@ impl UniversalNonRealTimeMsg {
 /// A response to [`UniversalNonRealTimeMsg::IdentityRequest`], meant to indicate the type of device
 /// that this message is sent from.
 /// Used by [`UniversalNonRealTimeMsg::IdentityReply`].
-#[derive(Debug, Copy, Clone, PartialEq)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub struct IdentityReply {
     pub id: ManufacturerID,
     pub family: u16,

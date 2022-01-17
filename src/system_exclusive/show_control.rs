@@ -2,7 +2,7 @@ use alloc::vec::Vec;
 use alloc::format;
 use crate::parse_error::*;
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 /// A MIDI Show Control command.
 /// Used by [`UniversalRealTimeMsg::ShowControl`](crate::UniversalRealTimeMsg::ShowControl).
 ///

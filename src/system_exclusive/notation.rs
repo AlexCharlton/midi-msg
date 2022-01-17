@@ -7,7 +7,7 @@ use crate::util::*;
 /// Indicates that the next MIDI clock message is the first clock of a new measure. Which bar
 /// is optionally indicated by this message.
 /// Used by [`UniversalRealTimeMsg::BarMarker`](crate::UniversalRealTimeMsg::BarMarker).
-#[derive(Debug, Copy, Clone, PartialEq)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum BarMarker {
     /// "Actually, we're not running right now, so there is no bar." Don't know why this is used.
     NotRunning,
@@ -49,7 +49,7 @@ impl BarMarker {
 
 /// Used to communicate a new time signature to the receiver.
 /// Used by [`UniversalRealTimeMsg`](crate::UniversalRealTimeMsg).
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct TimeSignature {
     /// The base time signature.
     pub signature: Signature,
@@ -97,7 +97,7 @@ impl TimeSignature {
 }
 
 /// A [time signature](https://en.wikipedia.org/wiki/Time_signature). Used by [`TimeSignature`].
-#[derive(Debug, Copy, Clone, PartialEq)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub struct Signature {
     /// Number of beats in a bar.
     pub beats: u8,
@@ -127,7 +127,7 @@ impl Default for Signature {
 }
 
 /// The note value of a beat, used by [`Signature`].
-#[derive(Debug, Copy, Clone, PartialEq)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum BeatValue {
     Whole,
     Half,

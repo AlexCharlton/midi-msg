@@ -10,7 +10,7 @@ use crate::time_code::*;
 /// represent commands not supported here.
 ///
 /// As defined in MIDI Machine Control 1.0 (MMA0016 / RP013)
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum MachineControlCommandMsg {
     Stop,
     Play,
@@ -81,7 +81,7 @@ impl MachineControlCommandMsg {
 /// A MIDI Machine Control Information Field, which functions something like an address
 ///
 /// As defined in MIDI Machine Control 1.0 (MMA0016 / RP013)
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum InformationField {
     SelectedTimeCode = 0x01,
     SelectedMasterCode = 0x02,
@@ -108,7 +108,7 @@ pub enum InformationField {
 /// Not implemented. The `Unimplemented` value can be used to represent generic responses.
 ///
 /// As defined in MIDI Machine Control 1.0 (MMA0016 / RP013)
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum MachineControlResponseMsg {
     /// Used to represent all unimplemented MCR messages.
     /// Is inherently not guaranteed to be a valid message.

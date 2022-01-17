@@ -6,7 +6,7 @@ use super::util::*;
 /// Based on [the SMTPE time code standard](https://en.wikipedia.org/wiki/SMPTE_timecode).
 ///
 /// As defined in the MIDI Time Code spec (MMA0001 / RP004 / RP008)
-#[derive(Debug, Clone, Copy, PartialEq, Default)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub struct TimeCode {
     /// The position in frames, 0-29
     pub frames: u8,
@@ -83,7 +83,7 @@ impl TimeCode {
 /// Indicates the frame rate of the given [`TimeCode`].
 ///
 /// See [the SMTPE time code standard](https://en.wikipedia.org/wiki/SMPTE_timecode).
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum TimeCodeType {
     /// 24 Frames per second
     FPS24 = 0,
@@ -136,7 +136,7 @@ mod sysex_types {
         }
     }
 
-    #[derive(Debug, Clone, Copy, PartialEq, Default)]
+    #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
     /// Like [`TimeCode`] but includes `fractional_frames`. Used in `TimeCodeCueingSetupMsg`.
     ///
     /// As defined in the MIDI Time Code spec (MMA0001 / RP004 / RP008)
@@ -173,7 +173,7 @@ mod sysex_types {
         }
     }
 
-    #[derive(Debug, Clone, Copy, PartialEq, Default)]
+    #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
     /// Like [`TimeCode`] but uses `subframes` to optionally include status flags, and fractional frames.
     /// Also may be negative. Used in [`MachineControlCommandMsg`](crate::MachineControlCommandMsg).
     ///
@@ -245,7 +245,7 @@ mod sysex_types {
     }
 
     /// Used by [`StandardTimeCode`].
-    #[derive(Debug, Clone, Copy, PartialEq)]
+    #[derive(Debug, Clone, Copy, PartialEq, Eq)]
     pub enum SubFrames {
         /// The position in fractional frames, 0-99
         FractionalFrames(u8),
@@ -269,7 +269,7 @@ mod sysex_types {
     }
 
     /// Used by [`StandardTimeCode`].
-    #[derive(Debug, Clone, Copy, PartialEq, Default)]
+    #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
     pub struct TimeCodeStatus {
         pub estimated_code: bool,
         pub invalid_code: bool,
@@ -300,7 +300,7 @@ mod sysex_types {
     /// See [the SMTPE time code standard](https://en.wikipedia.org/wiki/SMPTE_timecode).
     ///
     /// As defined in the MIDI Time Code spec (MMA0001 / RP004 / RP008)
-    #[derive(Debug, Copy, Clone, PartialEq)]
+    #[derive(Debug, Copy, Clone, PartialEq, Eq)]
     pub struct UserBits {
         /// Full bytes can be used here. Sent such that the first is considered
         /// the "most significant" value
@@ -333,7 +333,7 @@ mod sysex_types {
     /// Like [`UserBits`] but allows for the embedding of a "secondary time code".
     ///
     /// As defined in MIDI Machine Control 1.0 (MMA0016 / RP013)
-    #[derive(Debug, Copy, Clone, PartialEq)]
+    #[derive(Debug, Copy, Clone, PartialEq, Eq)]
     pub struct StandardUserBits {
         /// Full bytes can be used here. Sent such that the first is considered
         /// the "most significant" value

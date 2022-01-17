@@ -8,7 +8,7 @@ use crate::util::*;
 /// Used by [`UniversalRealTimeMsg`](crate::UniversalRealTimeMsg).
 ///
 /// Defined in CA-022.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ControllerDestination {
     pub channel: Channel,
     /// Any number of (ControlledParameter, range) pairs
@@ -34,7 +34,7 @@ impl ControllerDestination {
 /// Used by [`UniversalRealTimeMsg::GlobalParameterControl`](crate::UniversalRealTimeMsg::GlobalParameterControl).
 ///
 /// Defined in CA-022.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ControlChangeControllerDestination {
     pub channel: Channel,
     /// A control number between `0x01` - `0x1F` or `0x40` - `0x5F`
@@ -65,7 +65,7 @@ impl ControlChangeControllerDestination {
 }
 /// The parameters that can be controlled by [`ControllerDestination`] or
 /// [`ControlChangeControllerDestination`].
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ControlledParameter {
     PitchControl = 0,
     FilterCutoffControl = 1,
