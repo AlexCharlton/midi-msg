@@ -44,8 +44,10 @@ impl TimeCodeQuarterFrameBuffer {
                     SystemCommonMsg::TimeCodeQuarterFrame8(tc) => (7, tc),
                     _ => return ()
                 };
-                // Store the fitting tc at the matching position
-                self.buffer[index] = Some(tc);
+                // Store the fitting tc at the matching position if is None
+                if self.buffer[index].is_none() {
+                    self.buffer[index] = Some(tc);
+                }
             },
             _ => ()
         }
@@ -118,7 +120,7 @@ fn run() -> Result<(), Box<dyn Error>> {
     println!("\nOpening connection");
     let in_port_name = midi_in.port_name(in_port)?;
 
-    // 
+    // Create a new buffer for the received TimeCodeQuarterFrames
     let mut quarter_frame_buffer = TimeCodeQuarterFrameBuffer::new();
 
     // _conn_in needs to be a named parameter, because it needs to be kept alive until the end of the scope
