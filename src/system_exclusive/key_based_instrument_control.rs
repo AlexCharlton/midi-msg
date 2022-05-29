@@ -40,7 +40,7 @@ impl KeyBasedInstrumentControl {
 
     #[allow(dead_code)]
     pub(crate) fn from_midi(_m: &[u8]) -> Result<(Self, usize), ParseError> {
-        Err(ParseError::Invalid(format!("TODO: Not implemented")))
+        Err(ParseError::Invalid(format!("TODO: KeyBasedInstrumentControl not implemented")))
     }
 }
 

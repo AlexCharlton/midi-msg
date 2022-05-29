@@ -26,7 +26,7 @@ impl ControllerDestination {
 
     #[allow(dead_code)]
     pub(crate) fn from_midi(_m: &[u8]) -> Result<(Self, usize), ParseError> {
-        Err(ParseError::Invalid(format!("TODO: Not implemented")))
+        Err(ParseError::Invalid(format!("TODO: ControllerDestination not implemented")))
     }
 }
 
@@ -60,7 +60,7 @@ impl ControlChangeControllerDestination {
 
     #[allow(dead_code)]
     pub(crate) fn from_midi(_m: &[u8]) -> Result<(Self, usize), ParseError> {
-        Err(ParseError::Invalid(format!("TODO: Not implemented")))
+        Err(ParseError::Invalid(format!("TODO: ControlChangeControllerDestination not implemented")))
     }
 }
 /// The parameters that can be controlled by [`ControllerDestination`] or

@@ -73,8 +73,8 @@ impl MachineControlCommandMsg {
     }
 
     #[allow(dead_code)]
-    pub(crate) fn from_midi(_m: &[u8]) -> Result<(Self, usize), ParseError> {
-        Err(ParseError::Invalid(format!("TODO: Not implemented")))
+    pub(crate) fn from_midi(m: &[u8]) -> Result<(Self, usize), ParseError> {
+        Err(ParseError::Invalid(format!("TODO: MachineControlCommandMsg::(0x{:02x}) not implemented", m[0])))
     }
 }
 
@@ -124,7 +124,7 @@ impl MachineControlResponseMsg {
 
     #[allow(dead_code)]
     pub(crate) fn from_midi(_m: &[u8]) -> Result<(Self, usize), ParseError> {
-        Err(ParseError::Invalid(format!("TODO: Not implemented")))
+        Err(ParseError::Invalid(format!("TODO: MachineControlResponseMsg not implemented")))
     }
 }
 

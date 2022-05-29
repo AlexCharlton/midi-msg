@@ -37,7 +37,7 @@ impl TuningNoteChange {
 
     #[allow(dead_code)]
     pub(crate) fn from_midi(_m: &[u8]) -> Result<(Self, usize), ParseError> {
-        Err(ParseError::Invalid(format!("TODO: Not implemented")))
+        Err(ParseError::Invalid(format!("TODO: TuningNoteChange not implemented")))
     }
 }
 
@@ -94,7 +94,7 @@ impl KeyBasedTuningDump {
 
     #[allow(dead_code)]
     pub(crate) fn from_midi(_m: &[u8]) -> Result<(Self, usize), ParseError> {
-        Err(ParseError::Invalid(format!("TODO: Not implemented")))
+        Err(ParseError::Invalid(format!("TODO: KeyBasedTuningDump not implemented")))
     }
 }
 
@@ -172,7 +172,7 @@ impl ScaleTuningDump1Byte {
 
     #[allow(dead_code)]
     pub(crate) fn from_midi(_m: &[u8]) -> Result<(Self, usize), ParseError> {
-        Err(ParseError::Invalid(format!("TODO: Not implemented")))
+        Err(ParseError::Invalid(format!("TODO: ScaleTuningDump1Byte not implemented")))
     }
 }
 
@@ -213,7 +213,7 @@ impl ScaleTuningDump2Byte {
 
     #[allow(dead_code)]
     pub(crate) fn from_midi(_m: &[u8]) -> Result<(Self, usize), ParseError> {
-        Err(ParseError::Invalid(format!("TODO: Not implemented")))
+        Err(ParseError::Invalid(format!("TODO: ScaleTuningDump2Byte not implemented")))
     }
 }
 
@@ -240,7 +240,7 @@ impl ScaleTuning1Byte {
 
     #[allow(dead_code)]
     pub(crate) fn from_midi(_m: &[u8]) -> Result<(Self, usize), ParseError> {
-        Err(ParseError::Invalid(format!("TODO: Not implemented")))
+        Err(ParseError::Invalid(format!("TODO: ScaleTuning1Byte not implemented")))
     }
 }
 
@@ -269,7 +269,7 @@ impl ScaleTuning2Byte {
 
     #[allow(dead_code)]
     pub(crate) fn from_midi(_m: &[u8]) -> Result<(Self, usize), ParseError> {
-        Err(ParseError::Invalid(format!("TODO: Not implemented")))
+        Err(ParseError::Invalid(format!("TODO: ScaleTuning2Byte not implemented")))
     }
 }
 
@@ -383,7 +383,7 @@ impl ChannelBitMap {
 
     #[allow(dead_code)]
     pub(crate) fn from_midi(_m: &[u8]) -> Result<(Self, usize), ParseError> {
-        Err(ParseError::Invalid(format!("TODO: Not implemented")))
+        Err(ParseError::Invalid(format!("TODO: ChannelBitMap not implemented")))
     }
 }
 

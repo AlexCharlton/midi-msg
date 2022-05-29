@@ -416,7 +416,7 @@ impl UniversalRealTimeMsg {
                     Ok(Self::TimeCodeFull(time_code))
                 }
             }
-            _ => Err(ParseError::Invalid(format!("TODO: Not implemented"))),
+            _ => Err(ParseError::Invalid(format!("TODO: UniversalRealTimeMsg::(0x{:02x}, 0x{:02x}) not implemented", m[0], m[1]))),
         }
     }
 }
@@ -609,7 +609,7 @@ impl UniversalNonRealTimeMsg {
         }
 
         match (m[0], m[1]) {
-            _ => Err(ParseError::Invalid(format!("TODO: Not implemented"))),
+            _ => Err(ParseError::Invalid(format!("TODO: UniversalNonRealTimeMsg::(0x{:02x}, 0x{:02x}) not implemented", m[0], m[1]))),
         }
     }
 }

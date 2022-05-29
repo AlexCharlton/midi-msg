@@ -633,7 +633,7 @@ mod sysex_types {
 
         #[allow(dead_code)]
         pub(crate) fn from_midi(_m: &[u8]) -> Result<(Self, usize), &str> {
-            Err("TODO: not implemented")
+            Err("TODO: TimeCodeCueingSetupMsg not implemented") // TODO breaking change: add m[0] to the error message, change return type to ParseError
         }
     }
 
@@ -748,7 +748,7 @@ mod sysex_types {
 
         #[allow(dead_code)]
         pub(crate) fn from_midi(_m: &[u8]) -> Result<(Self, usize), &str> {
-            Err("TODO: not implemented")
+            Err("TODO: TimeCodeCueingMsg not implemented") // TODO breaking change: add m[0] to the error message, change return type to ParseError
         }
     }
 }
