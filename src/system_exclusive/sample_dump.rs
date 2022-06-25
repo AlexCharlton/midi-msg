@@ -120,7 +120,7 @@ impl SampleDumpMsg {
 
     #[allow(dead_code)]
     pub(crate) fn from_midi(_m: &[u8]) -> Result<(Self, usize), ParseError> {
-        Err(ParseError::Invalid(format!("TODO: Not implemented")))
+        Err(ParseError::Invalid(format!("TODO: SampleDumpMsg not implemented")))
     }
 
     /// Construct a packet of exactly 120 7-bit "bytes".
@@ -290,7 +290,7 @@ impl ExtendedSampleDumpMsg {
 
     #[allow(dead_code)]
     pub(crate) fn from_midi(_m: &[u8]) -> Result<(Self, usize), ParseError> {
-        Err(ParseError::Invalid(format!("TODO: Not implemented")))
+        Err(ParseError::Invalid(format!("TODO: ExtendedSampleDumpMsg not implemented")))
     }
 }
 
