@@ -104,7 +104,7 @@ impl Default for TimeCodeType {
 #[cfg(feature = "sysex")]
 mod sysex_types {
     use super::*;
-    use ascii::AsciiString;
+    use bstr::BString;
     use alloc::vec::Vec;
     use crate::ParseError;
     use crate::MidiMsg;
@@ -477,7 +477,7 @@ mod sysex_types {
         EventName {
             time_code: HighResTimeCode,
             event_number: u16,
-            name: AsciiString,
+            name: BString,
         },
     }
 
@@ -663,7 +663,7 @@ mod sysex_types {
         },
         EventName {
             event_number: u16,
-            name: AsciiString,
+            name: BString,
         },
     }
 
@@ -677,9 +677,9 @@ mod sysex_types {
         }
     }
 
-    fn push_nibblized_name(name: &AsciiString, v: &mut Vec<u8>) {
+    fn push_nibblized_name(name: &BString, v: &mut Vec<u8>) {
         // Not sure if this actually handles newlines correctly
-        for b in name.as_bytes().iter() {
+        for b in name.iter() {
             let [msn, lsn] = to_nibble(*b);
             v.push(lsn);
             v.push(msn);
@@ -741,7 +741,7 @@ mod sysex_types {
                 Self::EventName { event_number, name } => {
                     v.push(0x0E);
                     push_u14(*event_number, v);
-                    push_nibblized_name(name, v);
+                    push_nibblized_name(&name, v);
                 }
             }
         }

@@ -2,7 +2,6 @@ use alloc::vec::Vec;
 use alloc::format;
 use crate::parse_error::*;
 use crate::util::*;
-use ascii::AsciiChar;
 
 /// Change the tunings of one or more notes, either real-time or not.
 /// Used by [`UniversalNonRealTimeMsg`](crate::UniversalNonRealTimeMsg) and [`UniversalRealTimeMsg`](crate::UniversalRealTimeMsg).
@@ -50,7 +49,7 @@ pub struct KeyBasedTuningDump {
     /// Which tuning bank is targeted, 0-127. See [`Parameter::TuningBankSelect`](crate::Parameter::TuningBankSelect).
     pub tuning_bank_num: Option<u8>,
     /// An exactly 16 character name
-    pub name: [AsciiChar; 16],
+    pub name: [u8; 16],
     /// Should be exactly 128 Tunings with the index of each value = the MIDI note number being tuned.
     /// Excess values will be ignored. If fewer than 128 values are supplied, equal temperament
     /// will be applied to the remaining notes.
@@ -65,7 +64,7 @@ impl KeyBasedTuningDump {
         }
         push_u7(self.tuning_program_num, v);
         for ch in self.name.iter() {
-            v.push(ch.as_byte());
+            v.push(*ch);
         }
         let mut i = 0;
         loop {
@@ -148,7 +147,7 @@ pub struct ScaleTuningDump1Byte {
     /// Which tuning bank is targeted, 0-127. See [`Parameter::TuningBankSelect`](crate::Parameter::TuningBankSelect).
     pub tuning_bank_num: u8,
     /// An exactly 16 character name.
-    pub name: [AsciiChar; 16],
+    pub name: [u8; 16],
     /// 12 semitones of tuning adjustments repeated over all octaves, starting with C
     /// Each value represents that number of cents plus the equal temperament tuning,
     /// from -64 to 63 cents
@@ -160,7 +159,7 @@ impl ScaleTuningDump1Byte {
         push_u7(self.tuning_bank_num, v);
         push_u7(self.tuning_program_num, v);
         for ch in self.name.iter() {
-            v.push(ch.as_byte());
+            v.push(*ch);
         }
 
         for t in self.tuning.iter() {
@@ -187,7 +186,7 @@ pub struct ScaleTuningDump2Byte {
     /// Which tuning bank is targeted, 0-127. See [`Parameter::TuningBankSelect`](crate::Parameter::TuningBankSelect).
     pub tuning_bank_num: u8,
     /// An exactly 16 character name.
-    pub name: [AsciiChar; 16],
+    pub name: [u8; 16],
     /// 12 semitones of tuning adjustments repeated over all octaves, starting with C
     /// Each value represents that fractional number of cents plus the equal temperament tuning,
     /// from -8192 to 8192 (steps of .012207 cents)
@@ -199,7 +198,7 @@ impl ScaleTuningDump2Byte {
         push_u7(self.tuning_bank_num, v);
         push_u7(self.tuning_program_num, v);
         for ch in self.name.iter() {
-            v.push(ch.as_byte());
+            v.push(*ch);
         }
 
         for t in self.tuning.iter() {
@@ -390,7 +389,7 @@ impl ChannelBitMap {
 #[cfg(test)]
 mod tests {
     use crate::*;
-    use ascii::{AsAsciiStr, AsciiChar};
+    use bstr::B;
     use core::convert::TryInto;
     use alloc::vec;
 
@@ -446,12 +445,7 @@ mod tests {
                 msg: UniversalNonRealTimeMsg::KeyBasedTuningDump(KeyBasedTuningDump {
                     tuning_program_num: 5,
                     tuning_bank_num: None,
-                    name: "A tuning program"
-                        .as_ascii_str()
-                        .unwrap()
-                        .as_slice()
-                        .try_into()
-                        .unwrap(),
+                    name: B("A tuning program").try_into().unwrap(), // B creates a &[u8], try_into converts it into an array
                     tunings: vec![Some(Tuning {
                         semitone: 1,
                         fraction: 255,
@@ -464,7 +458,7 @@ mod tests {
         assert_eq!(packet_msg.len(), 408);
         assert_eq!(
             &packet_msg[0..7],
-            &[0xF0, 0x7E, 0x7F, 0x08, 0x01, 0x05, AsciiChar::A.as_byte()]
+            &[0xF0, 0x7E, 0x7F, 0x08, 0x01, 0x05, b"A"[0]]
         );
 
         assert_eq!(

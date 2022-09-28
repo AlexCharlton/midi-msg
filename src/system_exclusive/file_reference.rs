@@ -2,7 +2,7 @@ use alloc::vec::Vec;
 use alloc::format;
 use crate::parse_error::*;
 use crate::util::*;
-use ascii::{AsciiChar, AsciiString};
+use bstr::BString;
 
 /// The set of messages used for accessing files on a shared file system or network
 /// so they can be used to play sounds without transferring the file contents.
@@ -18,7 +18,7 @@ pub enum FileReferenceMsg {
         ctx: u16,
         file_type: FileReferenceType,
         /// Max 260 character url.
-        url: AsciiString,
+        url: BString,
     },
     /// Given the pointer to a file, prepare it so its sounds can be loaded.
     SelectContents {
@@ -33,7 +33,7 @@ pub enum FileReferenceMsg {
         ctx: u16,
         file_type: FileReferenceType,
         /// Max 260 character url.
-        url: AsciiString,
+        url: BString,
         /// How to map the file's sounds onto MIDI banks/programs.
         map: SelectMap,
     },
@@ -57,7 +57,7 @@ impl FileReferenceMsg {
                 let len = 4 + url.len().min(260) + 1;
                 push_u14(len as u16, v);
                 file_type.extend_midi(v);
-                v.extend_from_slice(&url.as_bytes()[0..url.len().min(260)]);
+                v.extend_from_slice(&url[0..url.len().min(260)]);
                 v.push(0); // Null terminate URL
             }
             Self::SelectContents { ctx, map } => {
@@ -75,7 +75,7 @@ impl FileReferenceMsg {
                 let len = 4 + url.len().min(260) + 1 + map.len();
                 push_u14(len as u16, v);
                 file_type.extend_midi(v);
-                v.extend_from_slice(&url.as_bytes()[0..url.len().min(260)]);
+                v.extend_from_slice(&url[0..url.len().min(260)]);
                 v.push(0); // Null terminate URL
                 map.extend_midi(v);
             }
@@ -104,24 +104,9 @@ pub enum FileReferenceType {
 impl FileReferenceType {
     fn extend_midi(&self, v: &mut Vec<u8>) {
         match self {
-            Self::DLS => {
-                v.push(AsciiChar::D.as_byte());
-                v.push(AsciiChar::L.as_byte());
-                v.push(AsciiChar::S.as_byte());
-                v.push(AsciiChar::Space.as_byte());
-            }
-            Self::SF2 => {
-                v.push(AsciiChar::S.as_byte());
-                v.push(AsciiChar::F.as_byte());
-                v.push(AsciiChar::_2.as_byte());
-                v.push(AsciiChar::Space.as_byte());
-            }
-            Self::WAV => {
-                v.push(AsciiChar::W.as_byte());
-                v.push(AsciiChar::A.as_byte());
-                v.push(AsciiChar::V.as_byte());
-                v.push(AsciiChar::Space.as_byte());
-            }
+            Self::DLS => b"DLS ".iter().for_each(|c| v.push(*c)),
+            Self::SF2 => b"SF2 ".iter().for_each(|c| v.push(*c)),
+            Self::WAV => b"WAV ".iter().for_each(|c| v.push(*c)),
         }
     }
 }
@@ -329,7 +314,7 @@ mod tests {
                         FileReferenceMsg::OpenSelectContents {
                             ctx: 44,
                             file_type: FileReferenceType::DLS,
-                            url: AsciiString::from_ascii("file://foo.dls").unwrap(),
+                            url: BString::from("file://foo.dls"),
                             map: SelectMap::SoundFile(vec![SoundFileMap {
                                 dst_bank: 1 << 10,
                                 src_prog: 1,
@@ -350,25 +335,25 @@ mod tests {
                 00, // ctx
                 28,
                 0, // len,
-                AsciiChar::D.as_byte(),
-                AsciiChar::L.as_byte(),
-                AsciiChar::S.as_byte(),
-                AsciiChar::Space.as_byte(),
-                AsciiChar::f.as_byte(),
-                AsciiChar::i.as_byte(),
-                AsciiChar::l.as_byte(),
-                AsciiChar::e.as_byte(),
+                b"D"[0],
+                b"L"[0],
+                b"S"[0],
+                b" "[0],
                 // Start URL
-                AsciiChar::Colon.as_byte(),
-                AsciiChar::Slash.as_byte(),
-                AsciiChar::Slash.as_byte(),
-                AsciiChar::f.as_byte(),
-                AsciiChar::o.as_byte(),
-                AsciiChar::o.as_byte(),
-                AsciiChar::Dot.as_byte(),
-                AsciiChar::d.as_byte(),
-                AsciiChar::l.as_byte(),
-                AsciiChar::s.as_byte(),
+                b"f"[0],
+                b"i"[0],
+                b"l"[0],
+                b"e"[0],
+                b":"[0],
+                b"/"[0],
+                b"/"[0],
+                b"f"[0],
+                b"o"[0],
+                b"o"[0],
+                b"."[0],
+                b"d"[0],
+                b"l"[0],
+                b"s"[0],
                 0, // End of url
                 1, // count
                 0,

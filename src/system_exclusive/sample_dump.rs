@@ -2,7 +2,7 @@ use alloc::vec::Vec;
 use alloc::format;
 use crate::parse_error::*;
 use crate::util::*;
-use ascii::AsciiString;
+use bstr::BString;
 
 /// Used to request and transmit sampler data.
 /// Used by [`UniversalNonRealTimeMsg::SampleDump`](crate::UniversalNonRealTimeMsg::SampleDump).
@@ -206,7 +206,7 @@ pub enum ExtendedSampleDumpMsg {
         /// The ID of the sample, between 0-16383.
         sample_num: u16,
         /// An up to 127 character name.
-        name: AsciiString,
+        name: BString,
     },
     /// Request that the receiver return data about the loop points for a given sample.
     LoopPointsRequest {
@@ -280,7 +280,7 @@ impl ExtendedSampleDumpMsg {
                 v.push(0); // Language tag length (0 is the only allowable value)
                 let len = name.len().min(127);
                 v.push(len as u8);
-                v.extend_from_slice(&name.as_bytes()[0..len]);
+                v.extend_from_slice(&name[0..len]);
             }
             Self::SampleNameRequest { sample_num } => {
                 push_u14(*sample_num, v);

@@ -3,7 +3,7 @@ use alloc::format;
 use super::DeviceID;
 use crate::parse_error::*;
 use crate::util::*;
-use ascii::{AsciiChar, AsciiString};
+use bstr::BString;
 
 /// Used to transmit general file data.
 /// Used by [`UniversalNonRealTimeMsg`](crate::UniversalNonRealTimeMsg).
@@ -13,7 +13,7 @@ pub enum FileDumpMsg {
     Request {
         requester_device: DeviceID,
         file_type: FileType,
-        name: AsciiString,
+        name: BString,
     },
     /// The header of the file about to be sent.
     Header {
@@ -21,7 +21,7 @@ pub enum FileDumpMsg {
         file_type: FileType,
         /// Actual (un-encoded) file length, 28 bits (0-2684354561)
         length: u32,
-        name: AsciiString,
+        name: BString,
     },
     /// A packet of the file being sent.
     ///
@@ -47,7 +47,7 @@ impl FileDumpMsg {
                 v.push(sender_device.to_u8());
                 file_type.extend_midi(v);
                 push_u28(*length, v);
-                v.extend_from_slice(name.as_bytes());
+                v.extend_from_slice(name);
             }
             Self::Packet {
                 running_count,
@@ -73,7 +73,7 @@ impl FileDumpMsg {
                 v.push(03);
                 v.push(requester_device.to_u8());
                 file_type.extend_midi(v);
-                v.extend_from_slice(name.as_bytes());
+                v.extend_from_slice(name);
             }
         }
     }
@@ -127,54 +127,19 @@ pub enum FileType {
     TEXT,
     BIN,
     MAC,
-    Custom([AsciiChar; 4]),
+    Custom([u8; 4]),
 }
 
 impl FileType {
     fn extend_midi(&self, v: &mut Vec<u8>) {
         match self {
-            Self::MIDI => {
-                v.push(AsciiChar::M.as_byte());
-                v.push(AsciiChar::I.as_byte());
-                v.push(AsciiChar::D.as_byte());
-                v.push(AsciiChar::I.as_byte());
-            }
-            Self::MIEX => {
-                v.push(AsciiChar::M.as_byte());
-                v.push(AsciiChar::I.as_byte());
-                v.push(AsciiChar::E.as_byte());
-                v.push(AsciiChar::X.as_byte());
-            }
-            Self::ESEQ => {
-                v.push(AsciiChar::E.as_byte());
-                v.push(AsciiChar::S.as_byte());
-                v.push(AsciiChar::E.as_byte());
-                v.push(AsciiChar::Q.as_byte());
-            }
-            Self::TEXT => {
-                v.push(AsciiChar::T.as_byte());
-                v.push(AsciiChar::E.as_byte());
-                v.push(AsciiChar::X.as_byte());
-                v.push(AsciiChar::T.as_byte());
-            }
-            Self::BIN => {
-                v.push(AsciiChar::B.as_byte());
-                v.push(AsciiChar::I.as_byte());
-                v.push(AsciiChar::N.as_byte());
-                v.push(AsciiChar::Space.as_byte());
-            }
-            Self::MAC => {
-                v.push(AsciiChar::M.as_byte());
-                v.push(AsciiChar::A.as_byte());
-                v.push(AsciiChar::C.as_byte());
-                v.push(AsciiChar::Space.as_byte());
-            }
-            Self::Custom(chars) => {
-                v.push(chars[0].as_byte());
-                v.push(chars[1].as_byte());
-                v.push(chars[2].as_byte());
-                v.push(chars[3].as_byte());
-            }
+            Self::MIDI => b"MIDI".iter().for_each(|c| v.push(*c)),
+            Self::MIEX => b"MIEX".iter().for_each(|c| v.push(*c)),
+            Self::ESEQ => b"ESEQ".iter().for_each(|c| v.push(*c)),
+            Self::TEXT => b"TEXT".iter().for_each(|c| v.push(*c)),
+            Self::BIN => b"BIN ".iter().for_each(|c| v.push(*c)),
+            Self::MAC => b"MAC ".iter().for_each(|c| v.push(*c)),
+            Self::Custom(chars) => chars[0..4].iter().for_each(|c| v.push(*c)),
         }
     }
 }
@@ -243,7 +208,7 @@ mod tests {
                         sender_device: DeviceID::Device(9),
                         file_type: FileType::MIDI,
                         length: 66,
-                        name: AsciiString::from_ascii("Hello").unwrap(),
+                        name: BString::from("Hello"),
                     }),
                 },
             }
@@ -255,19 +220,19 @@ mod tests {
                 07,
                 01,
                 9, // Sender device
-                AsciiChar::M.as_byte(),
-                AsciiChar::I.as_byte(),
-                AsciiChar::D.as_byte(),
-                AsciiChar::I.as_byte(),
+                b"M"[0],
+                b"I"[0],
+                b"D"[0],
+                b"I"[0],
                 66, // Size LSB
                 0,
                 0,
                 0,
-                AsciiChar::H.as_byte(),
-                AsciiChar::e.as_byte(),
-                AsciiChar::l.as_byte(),
-                AsciiChar::l.as_byte(),
-                AsciiChar::o.as_byte(),
+                b"H"[0],
+                b"e"[0],
+                b"l"[0],
+                b"l"[0],
+                b"o"[0],
                 0xF7
             ]
         );
