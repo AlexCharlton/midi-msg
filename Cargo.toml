@@ -16,7 +16,7 @@ bstr = { version="1.0.0", default-features = false, features = ["alloc"], option
 micromath = "1.1.1"
 
 [dev-dependencies]
-midir = "0.7.0"
+midir = "0.8.0"
 
 [features]
 default = ["std", "sysex"]
