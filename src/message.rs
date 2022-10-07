@@ -2,6 +2,8 @@ use alloc::vec;
 use alloc::format;
 use alloc::vec::Vec;
 
+use strum::{EnumIter, Display, FromRepr, EnumString};
+
 use super::{
     ChannelModeMsg, ChannelVoiceMsg, ParseError, ReceiverContext, SystemCommonMsg,
     SystemRealTimeMsg,
@@ -124,9 +126,9 @@ impl MidiMsg {
                                 // one, do it.
                                 match ctx.previous_channel_message {
                                     Some(Self::ChannelVoice {
-                                        channel: prev_channel,
-                                        msg: prev_msg,
-                                    }) => {
+                                             channel: prev_channel,
+                                             msg: prev_msg,
+                                         }) => {
                                         if channel == prev_channel
                                             && prev_msg.is_extensible()
                                             && msg.is_extension()
@@ -159,7 +161,7 @@ impl MidiMsg {
                             return Ok((Self::SystemExclusive { msg }, len));
                         }
                         #[cfg(not(feature = "sysex"))]
-                        return Err(ParseError::Invalid(format!("Got system exclusive message but the crate was built without the sysex feature.")))
+                        return Err(ParseError::Invalid(format!("Got system exclusive message but the crate was built without the sysex feature.")));
                     } else if b & 0b00001000 == 0 {
                         let (msg, len) = SystemCommonMsg::from_midi(m, ctx)?;
                         Ok((Self::SystemCommon { msg }, len))
@@ -171,7 +173,7 @@ impl MidiMsg {
                 _ => {
                     if let Some(p) = &ctx.previous_channel_message {
                         match p {
-                            Self::ChannelVoice {channel, msg: prev_msg} => {
+                            Self::ChannelVoice { channel, msg: prev_msg } => {
                                 let (mut msg, len) = ChannelVoiceMsg::from_midi_running(m, prev_msg)?;
 
                                 if allow_extensions {
@@ -188,12 +190,12 @@ impl MidiMsg {
                                         }
                                     }
                                 }
-                                Ok((Self::ChannelVoice { channel: *channel, msg}, len))
+                                Ok((Self::ChannelVoice { channel: *channel, msg }, len))
                             }
 
-                            Self::ChannelMode {channel, ..} => {
+                            Self::ChannelMode { channel, .. } => {
                                 let (msg, len) = ChannelModeMsg::from_midi_running(m)?;
-                                Ok((Self::ChannelMode { channel: *channel, msg}, len))
+                                Ok((Self::ChannelMode { channel: *channel, msg }, len))
                             }
                             _ => Err(ParseError::Invalid(format!("ReceiverContext::previous_channel_message may only be a ChannelMode or ChannelVoice message.")))
                         }
@@ -215,12 +217,12 @@ impl MidiMsg {
                         // Try to extend an extensible message
                         match Self::_from_midi_with_context(&m[len..], &mut ctx, false) {
                             Ok((
-                                Self::ChannelVoice {
-                                    channel: next_channel,
-                                    msg: next_msg,
-                                },
-                                next_len,
-                            )) => {
+                                   Self::ChannelVoice {
+                                       channel: next_channel,
+                                       msg: next_msg,
+                                   },
+                                   next_len,
+                               )) => {
                                 if channel == next_channel && next_msg.is_extension() {
                                     match msg.maybe_extend(&next_msg) {
                                         Ok(updated_msg) => {
@@ -297,7 +299,8 @@ impl From<&MidiMsg> for Vec<u8> {
 }
 
 /// The MIDI channel, 1-16. Used by [`MidiMsg`] and elsewhere.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, EnumIter, Display, FromRepr, EnumString)]
+#[repr(u8)]
 pub enum Channel {
     Ch1,
     Ch2,
@@ -319,23 +322,21 @@ pub enum Channel {
 
 impl Channel {
     pub fn from_u8(x: u8) -> Self {
-        match x {
-            0 => Self::Ch1,
-            1 => Self::Ch2,
-            2 => Self::Ch3,
-            3 => Self::Ch4,
-            4 => Self::Ch5,
-            5 => Self::Ch6,
-            6 => Self::Ch7,
-            7 => Self::Ch8,
-            8 => Self::Ch9,
-            9 => Self::Ch10,
-            10 => Self::Ch11,
-            11 => Self::Ch12,
-            12 => Self::Ch13,
-            13 => Self::Ch14,
-            14 => Self::Ch15,
-            _ => Self::Ch16,
-        }
+        Channel::from_repr(x).unwrap_or(Self::Ch16)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::Channel::*;
+    use super::*;
+
+    #[test]
+    fn test_ch() {
+        assert_eq!(Ch1, Channel::from_u8(0));
+        assert_eq!(Ch16, Channel::from_u8(255));
+
+        assert_eq!(Ch1, Channel::from_repr(0).unwrap());
+        assert_eq!(Ch16, Channel::from_repr(255).unwrap_or(Ch16));
     }
 }
