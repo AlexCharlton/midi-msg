@@ -1,5 +1,4 @@
 use alloc::vec::Vec;
-use alloc::format;
 use crate::parse_error::*;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -25,7 +24,7 @@ impl ShowControlMsg {
 
     #[allow(dead_code)]
     pub(crate) fn from_midi(_m: &[u8]) -> Result<(Self, usize), ParseError> {
-        Err(ParseError::Invalid(format!("TODO: ShowControlMsg not implemented")))
+        Err(ParseError::NotImplemented("ShowControlMsg"))
     }
 }
 

@@ -1,5 +1,4 @@
 use alloc::vec::Vec;
-use alloc::format;
 use crate::parse_error::*;
 use crate::util::*;
 use bstr::BString;
@@ -89,7 +88,7 @@ impl FileReferenceMsg {
 
     #[allow(dead_code)]
     pub(crate) fn from_midi(_m: &[u8]) -> Result<(Self, usize), ParseError> {
-        Err(ParseError::Invalid(format!("TODO: FileReferenceMsg not implemented")))
+        Err(ParseError::NotImplemented("FileReferenceMsg"))
     }
 }
 

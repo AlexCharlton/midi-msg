@@ -13,6 +13,8 @@ pub enum ParseError {
     NoEndOfSystemExclusiveFlag,
     /// The series of bytes was otherwise invalid.
     Invalid(String),
+    /// Attempted to use a not yet implemented feature.
+    NotImplemented(&'static str),
     /// A byte exceeded 7 bits.
     ByteOverflow,
 }
@@ -33,7 +35,10 @@ impl fmt::Display for ParseError {
             ),
             Self::NoEndOfSystemExclusiveFlag => {
                 write!(f, "Tried to read a SystemExclusiveMsg, but reached the end without an End of System Exclusive flag")
-            }
+            },
+            Self::NotImplemented(msg) => {
+                write!(f, "{} is not yet implemented", msg)
+            },
             Self::Invalid(s) => write!(f, "{}", s),
             Self::ByteOverflow => write!(f, "A byte exceeded 7 bits"),
         }

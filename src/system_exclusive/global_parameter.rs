@@ -2,7 +2,6 @@
 use micromath::F32Ext;
 use alloc::vec;
 use alloc::vec::Vec;
-use alloc::format;
 use crate::parse_error::*;
 use crate::util::*;
 
@@ -157,7 +156,7 @@ impl GlobalParameterControl {
 
     #[allow(dead_code)]
     pub(crate) fn from_midi(_m: &[u8]) -> Result<(Self, usize), ParseError> {
-        Err(ParseError::Invalid(format!("TODO: GlobalParameterControl not implemented")))
+        Err(ParseError::NotImplemented("GlobalParameterControl"))
     }
 }
 
@@ -191,7 +190,7 @@ impl SlotPath {
 
     #[allow(dead_code)]
     pub(crate) fn from_midi(_m: &[u8]) -> Result<(Self, usize), ParseError> {
-        Err(ParseError::Invalid(format!("TODO: SlotPath not implemented")))
+        Err(ParseError::NotImplemented("SlotPath"))
     }
 }
 
@@ -229,7 +228,7 @@ impl GlobalParameter {
 
     #[allow(dead_code)]
     pub(crate) fn from_midi(_m: &[u8]) -> Result<(Self, usize), ParseError> {
-        Err(ParseError::Invalid(format!("TODO: GlobalParameter not implemented")))
+        Err(ParseError::NotImplemented("GlobalParameter"))
     }
 }
 
