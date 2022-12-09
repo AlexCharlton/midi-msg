@@ -103,10 +103,13 @@ impl SystemExclusiveMsg {
 
     fn sysex_bytes_from_midi(m: &[u8]) -> Result<&[u8], ParseError> {
         if m.first() != Some(&0xF0) {
-            return Err(ParseError::Invalid(format!(
-                "Undefined System Exclusive message: {:?}",
-                m.first()
-            )));
+            return Err(ParseError::UndefinedSystemExclusiveMessage(
+                if let Some(first_byte) = m.first() {
+                    Some(*first_byte)
+                } else {
+                    None
+                }
+            ))
         }
         for (i, b) in m[1..].iter().enumerate() {
             if b == &0xF7 {

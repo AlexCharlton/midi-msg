@@ -1,5 +1,4 @@
 use alloc::vec::Vec;
-use alloc::format;
 use super::parse_error::*;
 use super::time_code::*;
 use super::util::*;
@@ -110,13 +109,8 @@ impl SystemCommonMsg {
             Some(0xF2) => Ok((Self::SongPosition(u14_from_midi(&m[1..])?), 3)),
             Some(0xF3) => Ok((Self::SongSelect(u7_from_midi(&m[1..])?), 2)),
             Some(0xF6) => Ok((Self::TuneRequest, 1)),
-            Some(0xF7) => Err(ParseError::Invalid(format!(
-                "Unexpected End of System Exclusive flag"
-            ))),
-            Some(x) => Err(ParseError::Invalid(format!(
-                "Undefined System Common message: {}",
-                x
-            ))),
+            Some(0xF7) => Err(ParseError::UnexpectedEndOfSystemExclusiveFlag),
+            Some(x) => Err(ParseError::UndefinedSystemCommonMessage(*x)),
             _ => panic!("Should not be reachable"),
         }
     }

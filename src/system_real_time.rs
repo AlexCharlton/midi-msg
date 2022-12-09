@@ -1,5 +1,4 @@
 use alloc::vec::Vec;
-use alloc::format;
 use super::parse_error::*;
 
 /// A fairly limited set of messages used for device synchronization.
@@ -41,10 +40,7 @@ impl SystemRealTimeMsg {
             Some(0xFC) => Ok((Self::Stop, 1)),
             Some(0xFE) => Ok((Self::ActiveSensing, 1)),
             Some(0xFF) => Ok((Self::SystemReset, 1)),
-            Some(x) => Err(ParseError::Invalid(format!(
-                "Undefined System Real Time message: {}",
-                x
-            ))),
+            Some(x) => Err(ParseError::UndefinedSystemRealTimeMessage(*x)),
             None => panic!("Should not be reachable"),
         }
     }

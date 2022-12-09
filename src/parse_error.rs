@@ -11,6 +11,8 @@ pub enum ParseError {
     ContextlessRunningStatus,
     /// Reached end without an End of System Exclusive flag.
     NoEndOfSystemExclusiveFlag,
+    /// Encountered an unexpected End of System Exclusive flag.
+    UnexpectedEndOfSystemExclusiveFlag,
     /// Received a system exclusive message but the crate
     /// was built without the sysex feature.
     SystemExclusiveDisabled,
@@ -20,6 +22,12 @@ pub enum ParseError {
     NotImplemented(&'static str),
     /// A byte exceeded 7 bits.
     ByteOverflow,
+    /// Encountered an undefined system common message
+    UndefinedSystemCommonMessage(u8),
+    /// Encountered an undefined system real time message
+    UndefinedSystemRealTimeMessage(u8),
+    /// Encountered an undefined system exclusive message
+    UndefinedSystemExclusiveMessage(Option<u8>)
 }
 
 #[cfg(feature = "std")]
@@ -39,6 +47,9 @@ impl fmt::Display for ParseError {
             Self::NoEndOfSystemExclusiveFlag => {
                 write!(f, "Tried to read a SystemExclusiveMsg, but reached the end without an End of System Exclusive flag")
             },
+            Self::UnexpectedEndOfSystemExclusiveFlag => {
+                write!(f, "Encountered an unexpected End of System Exclusive flag")
+            }
             Self::SystemExclusiveDisabled => {
                 write!(f, "Received a system exclusive message but the crate was built without the sysex feature")
             }
@@ -47,6 +58,9 @@ impl fmt::Display for ParseError {
             },
             Self::Invalid(s) => write!(f, "{}", s),
             Self::ByteOverflow => write!(f, "A byte exceeded 7 bits"),
+            Self::UndefinedSystemCommonMessage(byte) => write!(f, "Encountered undefined system common message {}", byte),
+            Self::UndefinedSystemRealTimeMessage(byte) => write!(f, "Encountered undefined system real time message {}", byte),
+            Self::UndefinedSystemExclusiveMessage(byte) => write!(f, "Encountered undefined system exclusive message {:?}", byte),
         }
     }
 }
