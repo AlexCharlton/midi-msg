@@ -11,6 +11,9 @@ pub enum ParseError {
     ContextlessRunningStatus,
     /// Reached end without an End of System Exclusive flag.
     NoEndOfSystemExclusiveFlag,
+    /// Received a system exclusive message but the crate
+    /// was built without the sysex feature.
+    SystemExclusiveDisabled,
     /// The series of bytes was otherwise invalid.
     Invalid(String),
     /// Attempted to use a not yet implemented feature.
@@ -36,6 +39,9 @@ impl fmt::Display for ParseError {
             Self::NoEndOfSystemExclusiveFlag => {
                 write!(f, "Tried to read a SystemExclusiveMsg, but reached the end without an End of System Exclusive flag")
             },
+            Self::SystemExclusiveDisabled => {
+                write!(f, "Received a system exclusive message but the crate was built without the sysex feature")
+            }
             Self::NotImplemented(msg) => {
                 write!(f, "{} is not yet implemented", msg)
             },
