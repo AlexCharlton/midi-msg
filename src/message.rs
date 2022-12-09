@@ -1,5 +1,4 @@
 use alloc::vec;
-use alloc::format;
 use alloc::vec::Vec;
 
 use super::{
@@ -195,7 +194,7 @@ impl MidiMsg {
                                 let (msg, len) = ChannelModeMsg::from_midi_running(m)?;
                                 Ok((Self::ChannelMode { channel: *channel, msg}, len))
                             }
-                            _ => Err(ParseError::Invalid(format!("ReceiverContext::previous_channel_message may only be a ChannelMode or ChannelVoice message.")))
+                            _ => Err(ParseError::Invalid("ReceiverContext::previous_channel_message may only be a ChannelMode or ChannelVoice message."))
                         }
                     } else {
                         Err(ParseError::ContextlessRunningStatus)

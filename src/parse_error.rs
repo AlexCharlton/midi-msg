@@ -1,5 +1,4 @@
-use alloc::string::String;
-use alloc::{fmt};
+use alloc::fmt;
 #[cfg(feature = "std")]
 use std::error;
 /// Returned when [`MidiMsg::from_midi`](crate::MidiMsg::from_midi) and similar where not successful.
@@ -17,7 +16,7 @@ pub enum ParseError {
     /// was built without the sysex feature.
     SystemExclusiveDisabled,
     /// The series of bytes was otherwise invalid.
-    Invalid(String),
+    Invalid(&'static str),
     /// Attempted to use a not yet implemented feature.
     NotImplemented(&'static str),
     /// A byte exceeded 7 bits.

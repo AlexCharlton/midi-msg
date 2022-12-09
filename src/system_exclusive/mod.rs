@@ -21,7 +21,6 @@ mod tuning;
 pub use tuning::*;
 
 use alloc::vec::Vec;
-use alloc::format;
 
 use super::general_midi::GeneralMidi;
 use super::parse_error::*;
@@ -410,9 +409,7 @@ impl UniversalRealTimeMsg {
         match (m[0], m[1]) {
             (01, 01) => {
                 if m.len() > 6 {
-                    Err(ParseError::Invalid(format!(
-                        "Extra bytes after a UniversalRealTimeMsg::TimeCodeFull"
-                    )))
+                    Err(ParseError::Invalid("Extra bytes after a UniversalRealTimeMsg::TimeCodeFull"))
                 } else {
                     let time_code = TimeCode::from_midi(&m[2..])?;
                     ctx.time_code = time_code;
