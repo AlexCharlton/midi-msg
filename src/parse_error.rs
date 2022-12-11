@@ -57,9 +57,16 @@ impl fmt::Display for ParseError {
             },
             Self::Invalid(s) => write!(f, "{}", s),
             Self::ByteOverflow => write!(f, "A byte exceeded 7 bits"),
-            Self::UndefinedSystemCommonMessage(byte) => write!(f, "Encountered undefined system common message {}", byte),
-            Self::UndefinedSystemRealTimeMessage(byte) => write!(f, "Encountered undefined system real time message {}", byte),
-            Self::UndefinedSystemExclusiveMessage(byte) => write!(f, "Encountered undefined system exclusive message {:?}", byte),
+            Self::UndefinedSystemCommonMessage(byte) => write!(f, "Encountered undefined system common message {:#04x}", byte),
+            Self::UndefinedSystemRealTimeMessage(byte) => write!(f, "Encountered undefined system real time message {:#04x}", byte),
+            Self::UndefinedSystemExclusiveMessage(byte) => {
+                if let Some(byte) = byte {
+                    write!(f, "Encountered undefined system exclusive message {:#04x}", byte)
+                } else {
+                    write!(f, "Encountered undefined system exclusive message {:?}", byte)
+                }
+
+            },
         }
     }
 }
