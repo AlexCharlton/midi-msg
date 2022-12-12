@@ -16,6 +16,8 @@ jobs:
 
     steps:
     - uses: actions/checkout@v3
+    - name: Install thumbv8m.main-none-eabihf toolchain
+      run: rustup target add thumbv8m.main-none-eabihf
     - name: Build std
       run: cargo build --verbose
     - name: Build no_std with sysex
