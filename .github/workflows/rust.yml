@@ -1,4 +1,4 @@
-name: Rust
+name: Cargo build and test
 
 on:
   push:
@@ -16,15 +16,23 @@ jobs:
 
     steps:
     - uses: actions/checkout@v3
-    - name: Install alsa
-      run: sudo apt-get install -y libasound2-dev
+    
+    - name: Build with default features
+      run: cargo build --verbose
+    
+    # Install a toolchain without std, used for no_std builds. 
     - name: Install thumbv8m.main-none-eabihf toolchain
       run: rustup target add thumbv8m.main-none-eabihf
-    - name: Build std
-      run: cargo build --verbose
-    - name: Build no_std with sysex
+      
+    - name: no_std with sysex
       run: cargo build --verbose --target=thumbv8m.main-none-eabihf --no-default-features --features=sysex
-    - name: Build no_std without sysex
+    
+    - name: no_std without sysex
       run: cargo build --verbose --target=thumbv8m.main-none-eabihf --no-default-features
+    
+    # Install alsa, which is needed by the dev dependency midir that gets built when running cargo test
+    - name: Install alsa
+      run: sudo apt-get install -y libasound2-dev
+      
     - name: Run tests
       run: cargo test --verbose
