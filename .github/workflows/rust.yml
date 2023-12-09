@@ -1,0 +1,38 @@
+name: Cargo build and test
+
+on:
+  push:
+    branches: [ "master" ]
+  pull_request:
+    branches: [ "master" ]
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  build:
+
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Build with default features
+      run: cargo build --verbose
+    
+    # Install a toolchain without std, used for no_std builds. 
+    - name: Install thumbv8m.main-none-eabihf toolchain
+      run: rustup target add thumbv8m.main-none-eabihf
+      
+    - name: no_std build, sysex feature enabled
+      run: cargo build --verbose --target=thumbv8m.main-none-eabihf --no-default-features --features=sysex
+    
+    - name: no_std build, sysex feature not enabled
+      run: cargo build --verbose --target=thumbv8m.main-none-eabihf --no-default-features
+    
+    # Install alsa, which is needed by the dev dependency midir that gets built when running cargo test
+    - name: Install alsa
+      run: sudo apt-get install -y libasound2-dev
+      
+    - name: Run tests
+      run: cargo test --verbose
