@@ -584,10 +584,10 @@ impl ControlChange {
             ControlChange::Expression(x) => ControlChange::high_res_cc(v, 11, x),
             ControlChange::Effect1(x) => ControlChange::high_res_cc(v, 12, x),
             ControlChange::Effect2(x) => ControlChange::high_res_cc(v, 13, x),
-            ControlChange::GeneralPurpose1(x) => ControlChange::high_res_cc(v, 0, x),
-            ControlChange::GeneralPurpose2(x) => ControlChange::high_res_cc(v, 0, x),
-            ControlChange::GeneralPurpose3(x) => ControlChange::high_res_cc(v, 0, x),
-            ControlChange::GeneralPurpose4(x) => ControlChange::high_res_cc(v, 0, x),
+            ControlChange::GeneralPurpose1(x) => ControlChange::high_res_cc(v, 16, x),
+            ControlChange::GeneralPurpose2(x) => ControlChange::high_res_cc(v, 17, x),
+            ControlChange::GeneralPurpose3(x) => ControlChange::high_res_cc(v, 18, x),
+            ControlChange::GeneralPurpose4(x) => ControlChange::high_res_cc(v, 19, x),
             ControlChange::GeneralPurpose5(x) => {
                 v.push(80);
                 v.push(to_u7(x));
@@ -1632,6 +1632,16 @@ mod tests {
                 channel: Channel::Ch2,
                 msg: ChannelVoiceMsg::ControlChange {
                     control: ControlChange::Parameter(Parameter::PitchBendSensitivityEntry(4, 78)),
+                },
+            },
+            &mut ctx,
+        );
+
+        test_serialization(
+            MidiMsg::ChannelVoice {
+                channel: Channel::Ch2,
+                msg: ChannelVoiceMsg::ControlChange {
+                    control: ControlChange::GeneralPurpose1(50),
                 },
             },
             &mut ctx,
