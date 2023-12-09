@@ -1,3 +1,6 @@
+#[cfg(feature = "std")]
+use strum::{Display, EnumIter, EnumString};
+
 /// Used to turn General MIDI level 1 or 2 on, or turn them off.
 ///
 /// Used in [`UniversalNonRealTimeMsg::GeneralMidi`](crate::UniversalNonRealTimeMsg::GeneralMidi)
@@ -25,7 +28,9 @@ pub enum GeneralMidi {
 /// Should not be used when targeting channel 10.
 ///
 /// As defined in General MIDI System Level 1 (MMA0007 / RP003).
+#[cfg_attr(feature = "std", derive(EnumIter, Display, EnumString))]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[repr(u8)]
 pub enum GMSoundSet {
     AcousticGrandPiano = 0,
     BrightAcousticPiano = 1,
@@ -174,53 +179,111 @@ pub enum GMSoundSet {
 /// ```
 ///
 /// As defined in General MIDI System Level 1 (MMA0007 / RP003).
+#[cfg_attr(feature = "std", derive(EnumIter, Display, EnumString))]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[repr(u8)]
 pub enum GMPercussionMap {
     AcousticBassDrum = 35,
-    RideCymbal1 = 51,
-    HighAgogo = 67,
     BassDrum1 = 36,
-    ChineseCymbal = 52,
-    LowAgogo = 68,
     SideStick = 37,
-    RideBell = 53,
-    Cabasa = 69,
     AcousticSnare = 38,
-    Tambourine = 54,
-    Maracas = 70,
     HandClap = 39,
-    SplashCymbal = 55,
-    ShortWhistle = 71,
     ElectricSnare = 40,
-    Cowbell = 56,
-    LongWhistle = 72,
     LowFloorTom = 41,
-    CrashCymbal2 = 57,
-    ShortGuiro = 73,
     ClosedHiHat = 42,
-    Vibraslap = 58,
-    LongGuiro = 74,
     HighFloorTom = 43,
-    RideCymbal2 = 59,
-    Claves = 75,
     PedalHiHat = 44,
-    HiBongo = 60,
-    HiWoodBlock = 76,
     LowTom = 45,
-    LowBongo = 61,
-    LowWoodBlock = 77,
     OpenHiHat = 46,
-    MuteHiConga = 62,
-    MuteCuica = 78,
     LowMidTom = 47,
-    OpenHiConga = 63,
-    OpenCuica = 79,
     HiMidTom = 48,
-    LowConga = 64,
-    MuteTriangle = 80,
     CrashCymbal1 = 49,
-    HighTimbale = 65,
-    OpenTriangle = 81,
     HighTom = 50,
+    RideCymbal1 = 51,
+    ChineseCymbal = 52,
+    RideBell = 53,
+    Tambourine = 54,
+    SplashCymbal = 55,
+    Cowbell = 56,
+    CrashCymbal2 = 57,
+    Vibraslap = 58,
+    RideCymbal2 = 59,
+    HiBongo = 60,
+    LowBongo = 61,
+    MuteHiConga = 62,
+    OpenHiConga = 63,
+    LowConga = 64,
+    HighTimbale = 65,
     LowTimbale = 66,
+    HighAgogo = 67,
+    LowAgogo = 68,
+    Cabasa = 69,
+    Maracas = 70,
+    ShortWhistle = 71,
+    LongWhistle = 72,
+    ShortGuiro = 73,
+    LongGuiro = 74,
+    Claves = 75,
+    HiWoodBlock = 76,
+    LowWoodBlock = 77,
+    MuteCuica = 78,
+    OpenCuica = 79,
+    MuteTriangle = 80,
+    OpenTriangle = 81,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[cfg(feature = "std")]
+    use std::str::FromStr;
+    #[cfg(feature = "std")]
+    use strum::IntoEnumIterator;
+
+    #[cfg(feature = "std")]
+    #[test]
+    fn gm_iter() {
+        for (i, inst) in GMSoundSet::iter().enumerate() {
+            //println!("{:?} {}",inst, inst as u8);
+            assert_eq!(inst as u8, i as u8);
+        }
+    }
+
+    #[cfg(feature = "std")]
+    #[test]
+    fn gm_from_string() {
+        assert_eq!(
+            GMSoundSet::TenorSax,
+            GMSoundSet::from_str("TenorSax").unwrap()
+        );
+    }
+
+    #[cfg(feature = "std")]
+    #[test]
+    fn gm_display() {
+        assert_eq!("TenorSax", format!("{}", GMSoundSet::TenorSax));
+    }
+
+    #[cfg(feature = "std")]
+    #[test]
+    fn gm_tostring() {
+        assert_eq!("TenorSax", GMSoundSet::TenorSax.to_string());
+    }
+
+    #[test]
+    fn gm_as_u8() {
+        assert_eq!(0, GMSoundSet::AcousticGrandPiano as u8);
+
+        assert_eq!(127, GMSoundSet::Gunshot as u8);
+    }
+
+    #[cfg(feature = "std")]
+    #[test]
+    fn percussion_iter() {
+        for (i, perc) in GMPercussionMap::iter().enumerate() {
+            //println!("{:?} {}",inst, inst as u8);
+            assert_eq!(perc as u8, (i + 35) as u8);
+        }
+    }
 }

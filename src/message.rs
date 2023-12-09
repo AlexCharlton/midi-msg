@@ -158,7 +158,7 @@ impl MidiMsg {
                             return Ok((Self::SystemExclusive { msg }, len));
                         }
                         #[cfg(not(feature = "sysex"))]
-                        return Err(ParseError::SystemExclusiveDisabled)
+                        return Err(ParseError::SystemExclusiveDisabled);
                     } else if b & 0b00001000 == 0 {
                         let (msg, len) = SystemCommonMsg::from_midi(m, ctx)?;
                         Ok((Self::SystemCommon { msg }, len))
@@ -295,8 +295,13 @@ impl From<&MidiMsg> for Vec<u8> {
     }
 }
 
+#[cfg(feature = "std")]
+use strum::{Display, EnumIter, EnumString};
+
 /// The MIDI channel, 1-16. Used by [`MidiMsg`] and elsewhere.
+#[cfg_attr(feature = "std", derive(EnumIter, Display, EnumString))]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[repr(u8)]
 pub enum Channel {
     Ch1,
     Ch2,
@@ -336,5 +341,18 @@ impl Channel {
             14 => Self::Ch15,
             _ => Self::Ch16,
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::Channel::*;
+
+    #[test]
+    fn test_ch() {
+        assert_eq!(Ch1, Channel::from_u8(0));
+        assert_eq!(Ch2, Channel::from_u8(1));
+        assert_eq!(Ch16, Channel::from_u8(255));
     }
 }

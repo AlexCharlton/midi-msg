@@ -14,11 +14,12 @@ keywords = ["midi", "music"]
 [dependencies]
 bstr = { version="1.0.0", default-features = false, features = ["alloc"], optional = true }
 micromath = "1.1.1"
+strum = { version = "0.24.1", features = ["derive"], optional = true }
 
 [dev-dependencies]
 midir = "0.8.0"
 
 [features]
 default = ["std", "sysex"]
-std = []
+std = ["strum"]
 sysex = ["bstr"]
