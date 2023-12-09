@@ -1,5 +1,4 @@
 use alloc::vec::Vec;
-use alloc::format;
 use crate::parse_error::*;
 use crate::util::*;
 use bstr::BString;
@@ -120,7 +119,7 @@ impl SampleDumpMsg {
 
     #[allow(dead_code)]
     pub(crate) fn from_midi(_m: &[u8]) -> Result<(Self, usize), ParseError> {
-        Err(ParseError::Invalid(format!("TODO: SampleDumpMsg not implemented")))
+        Err(ParseError::NotImplemented("SampleDumpMsg"))
     }
 
     /// Construct a packet of exactly 120 7-bit "bytes".
@@ -290,7 +289,7 @@ impl ExtendedSampleDumpMsg {
 
     #[allow(dead_code)]
     pub(crate) fn from_midi(_m: &[u8]) -> Result<(Self, usize), ParseError> {
-        Err(ParseError::Invalid(format!("TODO: ExtendedSampleDumpMsg not implemented")))
+        Err(ParseError::NotImplemented("ExtendedSampleDumpMsg"))
     }
 }
 

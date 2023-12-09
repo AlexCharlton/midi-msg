@@ -1,5 +1,4 @@
 use alloc::vec::Vec;
-use alloc::format;
 use crate::message::Channel;
 use crate::parse_error::*;
 use crate::util::*;
@@ -26,7 +25,7 @@ impl ControllerDestination {
 
     #[allow(dead_code)]
     pub(crate) fn from_midi(_m: &[u8]) -> Result<(Self, usize), ParseError> {
-        Err(ParseError::Invalid(format!("TODO: ControllerDestination not implemented")))
+        Err(ParseError::NotImplemented("ControllerDestination"))
     }
 }
 
@@ -60,7 +59,7 @@ impl ControlChangeControllerDestination {
 
     #[allow(dead_code)]
     pub(crate) fn from_midi(_m: &[u8]) -> Result<(Self, usize), ParseError> {
-        Err(ParseError::Invalid(format!("TODO: ControlChangeControllerDestination not implemented")))
+        Err(ParseError::NotImplemented("ControlChangeControllerDestination"))
     }
 }
 /// The parameters that can be controlled by [`ControllerDestination`] or

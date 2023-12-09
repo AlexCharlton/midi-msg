@@ -1,5 +1,4 @@
 use alloc::vec;
-use alloc::format;
 use alloc::vec::Vec;
 
 use super::{
@@ -159,7 +158,7 @@ impl MidiMsg {
                             return Ok((Self::SystemExclusive { msg }, len));
                         }
                         #[cfg(not(feature = "sysex"))]
-                        return Err(ParseError::Invalid(format!("Got system exclusive message but the crate was built without the sysex feature.")))
+                        return Err(ParseError::SystemExclusiveDisabled)
                     } else if b & 0b00001000 == 0 {
                         let (msg, len) = SystemCommonMsg::from_midi(m, ctx)?;
                         Ok((Self::SystemCommon { msg }, len))
@@ -195,7 +194,7 @@ impl MidiMsg {
                                 let (msg, len) = ChannelModeMsg::from_midi_running(m)?;
                                 Ok((Self::ChannelMode { channel: *channel, msg}, len))
                             }
-                            _ => Err(ParseError::Invalid(format!("ReceiverContext::previous_channel_message may only be a ChannelMode or ChannelVoice message.")))
+                            _ => Err(ParseError::Invalid("ReceiverContext::previous_channel_message may only be a ChannelMode or ChannelVoice message."))
                         }
                     } else {
                         Err(ParseError::ContextlessRunningStatus)

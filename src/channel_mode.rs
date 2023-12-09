@@ -1,4 +1,3 @@
-use alloc::format;
 use alloc::vec::Vec;
 use super::parse_error::*;
 use crate::util::*;
@@ -79,7 +78,7 @@ impl ChannelModeMsg {
                 (125, _) => Ok((Self::OmniMode(true), 2)),
                 (126, b2) => Ok((Self::PolyMode(PolyMode::Mono(u8_from_u7(*b2)?)), 2)),
                 (127, _) => Ok((Self::PolyMode(PolyMode::Poly), 2)),
-                _ => Err(ParseError::Invalid(format!("This shouldn't be possible"))),
+                _ => Err(ParseError::Invalid("This shouldn't be possible")),
             }
         } else {
             Err(ParseError::UnexpectedEnd)

@@ -1,5 +1,4 @@
 use alloc::vec::Vec;
-use alloc::format;
 use super::DeviceID;
 use crate::parse_error::*;
 use crate::util::*;
@@ -114,7 +113,7 @@ impl FileDumpMsg {
 
     #[allow(dead_code)]
     pub(crate) fn from_midi(_m: &[u8]) -> Result<(Self, usize), ParseError> {
-        Err(ParseError::Invalid(format!("TODO: FileDumpMsg not implemented")))
+        Err(ParseError::NotImplemented("FileDumpMsg"))
     }
 }
 

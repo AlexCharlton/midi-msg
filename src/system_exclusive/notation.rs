@@ -1,6 +1,5 @@
 use alloc::vec::Vec;
 use alloc::vec;
-use alloc::format;
 use crate::parse_error::*;
 use crate::util::*;
 
@@ -43,7 +42,7 @@ impl BarMarker {
 
     #[allow(dead_code)]
     pub(crate) fn from_midi(_m: &[u8]) -> Result<(Self, usize), ParseError> {
-        Err(ParseError::Invalid(format!("TODO: BarMarker not implemented")))
+        Err(ParseError::NotImplemented("BarMarker"))
     }
 }
 
@@ -92,7 +91,7 @@ impl TimeSignature {
 
     #[allow(dead_code)]
     pub(crate) fn from_midi(_m: &[u8]) -> Result<(Self, usize), ParseError> {
-        Err(ParseError::Invalid(format!("TODO: TimeSignature not implemented")))
+        Err(ParseError::NotImplemented("TimeSignature"))
     }
 }
 
@@ -113,7 +112,7 @@ impl Signature {
 
     #[allow(dead_code)]
     pub(crate) fn from_midi(_m: &[u8]) -> Result<(Self, usize), ParseError> {
-        Err(ParseError::Invalid(format!("TODO: Signature not implemented")))
+        Err(ParseError::NotImplemented("Signature"))
     }
 }
 

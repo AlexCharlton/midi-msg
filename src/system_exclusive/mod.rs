@@ -21,7 +21,6 @@ mod tuning;
 pub use tuning::*;
 
 use alloc::vec::Vec;
-use alloc::format;
 
 use super::general_midi::GeneralMidi;
 use super::parse_error::*;
@@ -103,10 +102,13 @@ impl SystemExclusiveMsg {
 
     fn sysex_bytes_from_midi(m: &[u8]) -> Result<&[u8], ParseError> {
         if m.first() != Some(&0xF0) {
-            return Err(ParseError::Invalid(format!(
-                "Undefined System Exclusive message: {:?}",
-                m.first()
-            )));
+            return Err(ParseError::UndefinedSystemExclusiveMessage(
+                if let Some(first_byte) = m.first() {
+                    Some(*first_byte)
+                } else {
+                    None
+                }
+            ))
         }
         for (i, b) in m[1..].iter().enumerate() {
             if b == &0xF7 {
@@ -407,16 +409,14 @@ impl UniversalRealTimeMsg {
         match (m[0], m[1]) {
             (01, 01) => {
                 if m.len() > 6 {
-                    Err(ParseError::Invalid(format!(
-                        "Extra bytes after a UniversalRealTimeMsg::TimeCodeFull"
-                    )))
+                    Err(ParseError::Invalid("Extra bytes after a UniversalRealTimeMsg::TimeCodeFull"))
                 } else {
                     let time_code = TimeCode::from_midi(&m[2..])?;
                     ctx.time_code = time_code;
                     Ok(Self::TimeCodeFull(time_code))
                 }
             }
-            _ => Err(ParseError::Invalid(format!("TODO: UniversalRealTimeMsg::(0x{:02x}, 0x{:02x}) not implemented", m[0], m[1]))),
+            _ => Err(ParseError::NotImplemented("UniversalRealTimeMsg")),
         }
     }
 }
@@ -609,7 +609,7 @@ impl UniversalNonRealTimeMsg {
         }
 
         match (m[0], m[1]) {
-            _ => Err(ParseError::Invalid(format!("TODO: UniversalNonRealTimeMsg::(0x{:02x}, 0x{:02x}) not implemented", m[0], m[1]))),
+            _ => Err(ParseError::NotImplemented("UniversalNonRealTimeMsg")),
         }
     }
 }

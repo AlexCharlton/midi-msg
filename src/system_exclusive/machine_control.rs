@@ -1,4 +1,3 @@
-use alloc::format;
 use alloc::vec::Vec;
 use crate::parse_error::*;
 use crate::time_code::*;
@@ -73,8 +72,8 @@ impl MachineControlCommandMsg {
     }
 
     #[allow(dead_code)]
-    pub(crate) fn from_midi(m: &[u8]) -> Result<(Self, usize), ParseError> {
-        Err(ParseError::Invalid(format!("TODO: MachineControlCommandMsg::(0x{:02x}) not implemented", m[0])))
+    pub(crate) fn from_midi(_: &[u8]) -> Result<(Self, usize), ParseError> {
+        Err(ParseError::NotImplemented("MachineControlCommandMsg"))
     }
 }
 
@@ -124,7 +123,7 @@ impl MachineControlResponseMsg {
 
     #[allow(dead_code)]
     pub(crate) fn from_midi(_m: &[u8]) -> Result<(Self, usize), ParseError> {
-        Err(ParseError::Invalid(format!("TODO: MachineControlResponseMsg not implemented")))
+        Err(ParseError::NotImplemented("MachineControlResponseMsg"))
     }
 }
 
