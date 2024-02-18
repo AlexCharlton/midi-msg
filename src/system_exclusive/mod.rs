@@ -135,14 +135,14 @@ impl SystemExclusiveMsg {
             )),
             Some(0x7E) => Ok((
                 Self::UniversalNonRealTime {
-                    device: DeviceID::from_midi(m)?,
+                    device: DeviceID::from_midi(&m[1..])?,
                     msg: UniversalNonRealTimeMsg::from_midi(&m[2..])?,
                 },
                 m.len() + 2,
             )),
             Some(0x7F) => Ok((
                 Self::UniversalRealTime {
-                    device: DeviceID::from_midi(m)?,
+                    device: DeviceID::from_midi(&m[1..])?,
                     msg: UniversalRealTimeMsg::from_midi(&m[2..], ctx)?,
                 },
                 m.len() + 2,
