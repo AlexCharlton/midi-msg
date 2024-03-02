@@ -184,6 +184,9 @@ impl ManufacturerID {
     fn from_midi(m: &[u8]) -> Result<(Self, usize), ParseError> {
         let b1 = u7_from_midi(m)?;
         if b1 == 0x00 {
+            if m.len() < 3 {
+                return Err(crate::ParseError::UnexpectedEnd);
+            }
             let b2 = u7_from_midi(&m[1..])?;
             let b3 = u7_from_midi(&m[2..])?;
             Ok((Self(b2, Some(b3)), 3))
@@ -609,6 +612,12 @@ impl UniversalNonRealTimeMsg {
         }
 
         match (m[0], m[1]) {
+            (06, 02) => {
+                if m.len() < 3 {
+                    return Err(crate::ParseError::UnexpectedEnd);
+                }
+                Ok(Self::IdentityReply(IdentityReply::from_midi(&m[2..])?))
+            }
             _ => Err(ParseError::NotImplemented("UniversalNonRealTimeMsg")),
         }
     }
@@ -635,6 +644,31 @@ impl IdentityReply {
         v.push(to_u7(self.software_revision.1));
         v.push(to_u7(self.software_revision.2));
         v.push(to_u7(self.software_revision.3));
+    }
+
+    fn from_midi(m: &[u8]) -> Result<Self, ParseError> {
+        let (manufacturer_id, shift) = ManufacturerID::from_midi(&m)?;
+        if m.len() < shift + 8 {
+            return Err(crate::ParseError::UnexpectedEnd);
+        }
+        Ok(IdentityReply {
+            id: manufacturer_id,
+            family: u14_from_midi(&m[shift..])?,
+            family_member: u14_from_midi(&m[(shift + 2)..])?,
+            software_revision: (
+                m[shift + 4],
+                m[shift + 5],
+                m[shift + 6],
+                m[shift + 7],
+            )
+        })
+    }
+
+    /// Return the family + family member as bytes, as per many MIDI implementations docs
+    pub fn family_as_bytes(&self) -> [u8; 4] {
+        let [family_msb, family_lsb] = to_u14(self.family);
+        let [family_member_msb, family_member_lsb] = to_u14(self.family_member);
+        [family_lsb, family_msb, family_member_lsb, family_member_msb]
     }
 }
 
