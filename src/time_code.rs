@@ -101,13 +101,25 @@ impl Default for TimeCodeType {
     }
 }
 
+impl TimeCodeType {
+    fn from_code_hour(code_hour: u8) -> Self {
+        match (code_hour & 0b01100000) >> 5 {
+            0 => Self::FPS24,
+            1 => Self::FPS25,
+            2 => Self::DF30,
+            3 => Self::NDF30,
+            _ => panic!("Should not be reachable"),
+        }
+    }
+}
+
 #[cfg(feature = "sysex")]
 mod sysex_types {
     use super::*;
-    use bstr::BString;
-    use alloc::vec::Vec;
-    use crate::ParseError;
     use crate::MidiMsg;
+    use crate::ParseError;
+    use alloc::vec::Vec;
+    use bstr::BString;
 
     impl TimeCode {
         pub(crate) fn extend_midi(&self, v: &mut Vec<u8>) {
@@ -125,19 +137,13 @@ mod sysex_types {
                 seconds: u8_from_u7(m[2])?,
                 minutes: u8_from_u7(m[1])?,
                 hours: code_hour & 0b00011111,
-                code_type: match (code_hour & 0b01100000) >> 5 {
-                    0 => TimeCodeType::FPS24,
-                    1 => TimeCodeType::FPS25,
-                    2 => TimeCodeType::DF30,
-                    3 => TimeCodeType::NDF30,
-                    _ => panic!("Should not be reachable"),
-                },
+                code_type: TimeCodeType::from_code_hour(code_hour),
             })
         }
     }
 
     #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
-    /// Like [`TimeCode`] but includes `fractional_frames`. Used in `TimeCodeCueingSetupMsg`.
+    /// Like [`TimeCode`] but includes `fractional_frames`. Used in `TimeCodeCueingSetupMsg` and the SMF `Meta` event.
     ///
     /// As defined in the MIDI Time Code spec (MMA0001 / RP004 / RP008)
     pub struct HighResTimeCode {
@@ -167,9 +173,27 @@ mod sysex_types {
             ]
         }
 
-        fn extend_midi(&self, v: &mut Vec<u8>) {
+        pub(crate) fn extend_midi(&self, v: &mut Vec<u8>) {
             let [fractional_frames, frames, seconds, minutes, codehour] = self.to_bytes();
             v.extend_from_slice(&[codehour, minutes, seconds, frames, fractional_frames]);
+        }
+
+        pub(crate) fn from_midi(v: &[u8]) -> Result<(Self, usize), ParseError> {
+            if v.len() < 5 {
+                return Err(ParseError::UnexpectedEnd);
+            }
+            let code_hour = u8_from_u7(v[0])?;
+            Ok((
+                Self {
+                    fractional_frames: u8_from_u7(v[4])?,
+                    frames: u8_from_u7(v[3])?,
+                    seconds: u8_from_u7(v[2])?,
+                    minutes: u8_from_u7(v[1])?,
+                    hours: code_hour & 0b00011111,
+                    code_type: TimeCodeType::from_code_hour(code_hour),
+                },
+                5,
+            ))
         }
     }
 

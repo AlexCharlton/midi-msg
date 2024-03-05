@@ -9,6 +9,9 @@ use super::{
 #[cfg(feature = "sysex")]
 use super::SystemExclusiveMsg;
 
+#[cfg(feature = "file")]
+use super::Meta;
+
 /// The primary interface of this library. Used to encode MIDI messages.
 #[derive(Debug, Clone, PartialEq)]
 pub enum MidiMsg {
@@ -46,6 +49,8 @@ pub enum MidiMsg {
     /// Also the home of manufacturer-specific messages.
     #[cfg(feature = "sysex")]
     SystemExclusive { msg: SystemExclusiveMsg },
+    #[cfg(feature = "file")]
+    Meta { msg: Meta },
 }
 
 impl MidiMsg {
@@ -159,6 +164,14 @@ impl MidiMsg {
                         }
                         #[cfg(not(feature = "sysex"))]
                         return Err(ParseError::SystemExclusiveDisabled);
+                    } else if b & 0b00001111 == 0xF {
+                        #[cfg(feature = "file")]
+                        {
+                            let (msg, len) = Meta::from_midi(m)?;
+                            return Ok((Self::Meta { msg }, len));
+                        }
+                        #[cfg(not(feature = "file"))]
+                        return Err(ParseError::FileDisabled);
                     } else if b & 0b00001000 == 0 {
                         let (msg, len) = SystemCommonMsg::from_midi(m, ctx)?;
                         Ok((Self::SystemCommon { msg }, len))
@@ -284,7 +297,9 @@ impl MidiMsg {
             MidiMsg::SystemCommon { msg } => msg.extend_midi(v),
             MidiMsg::SystemRealTime { msg } => msg.extend_midi(v),
             #[cfg(feature = "sysex")]
-            MidiMsg::SystemExclusive { msg } => msg.extend_midi(v),
+            MidiMsg::SystemExclusive { msg } => msg.extend_midi(v, true),
+            #[cfg(feature = "file")]
+            MidiMsg::Meta { msg } => msg.extend_midi(v),
         }
     }
 }

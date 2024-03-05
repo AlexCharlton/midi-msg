@@ -128,6 +128,10 @@ pub use system_real_time::*;
 mod system_exclusive;
 #[cfg(feature = "sysex")]
 pub use system_exclusive::*;
+#[cfg(feature = "file")]
+mod file;
+#[cfg(feature = "file")]
+pub use file::*;
 
 mod message;
 pub use message::*;

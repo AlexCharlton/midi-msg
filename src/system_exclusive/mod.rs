@@ -12,7 +12,6 @@ mod machine_control;
 pub use machine_control::*;
 mod notation;
 pub use notation::*;
-pub use sample_dump::*;
 mod sample_dump;
 pub use sample_dump::*;
 mod show_control;
@@ -27,7 +26,6 @@ use super::parse_error::*;
 use super::time_code::*;
 use super::util::*;
 use super::ReceiverContext;
-
 
 /// The bulk of the MIDI spec lives here, in "Universal System Exclusive" messages.
 /// Also used for manufacturer-specific messages.
@@ -54,8 +52,10 @@ pub enum SystemExclusiveMsg {
 }
 
 impl SystemExclusiveMsg {
-    pub(crate) fn extend_midi(&self, v: &mut Vec<u8>) {
-        v.push(0xF0);
+    pub(crate) fn extend_midi(&self, v: &mut Vec<u8>, first_byte_is_f0: bool) {
+        if first_byte_is_f0 {
+            v.push(0xF0);
+        }
         match self {
             SystemExclusiveMsg::Commercial { id, data } => {
                 id.extend_midi(v);
@@ -100,19 +100,20 @@ impl SystemExclusiveMsg {
         v.push(0xF7);
     }
 
-    fn sysex_bytes_from_midi(m: &[u8]) -> Result<&[u8], ParseError> {
-        if m.first() != Some(&0xF0) {
+    fn sysex_bytes_from_midi(m: &[u8], first_byte_is_f0: bool) -> Result<&[u8], ParseError> {
+        if first_byte_is_f0 && m.first() != Some(&0xF0) {
             return Err(ParseError::UndefinedSystemExclusiveMessage(
                 if let Some(first_byte) = m.first() {
                     Some(*first_byte)
                 } else {
                     None
-                }
-            ))
+                },
+            ));
         }
-        for (i, b) in m[1..].iter().enumerate() {
+        let offset = if first_byte_is_f0 { 1 } else { 0 };
+        for (i, b) in m[offset..].iter().enumerate() {
             if b == &0xF7 {
-                return Ok(&m[1..i + 1]);
+                return Ok(&m[offset..i + offset]);
             }
             if b > &127 {
                 return Err(ParseError::ByteOverflow);
@@ -125,7 +126,7 @@ impl SystemExclusiveMsg {
         m: &[u8],
         ctx: &mut ReceiverContext,
     ) -> Result<(Self, usize), ParseError> {
-        let m = Self::sysex_bytes_from_midi(m)?;
+        let m = Self::sysex_bytes_from_midi(m, !ctx.is_smf_sysex)?;
         match m.get(0) {
             Some(0x7D) => Ok((
                 Self::NonCommercial {
@@ -412,7 +413,9 @@ impl UniversalRealTimeMsg {
         match (m[0], m[1]) {
             (01, 01) => {
                 if m.len() > 6 {
-                    Err(ParseError::Invalid("Extra bytes after a UniversalRealTimeMsg::TimeCodeFull"))
+                    Err(ParseError::Invalid(
+                        "Extra bytes after a UniversalRealTimeMsg::TimeCodeFull",
+                    ))
                 } else {
                     let time_code = TimeCode::from_midi(&m[2..])?;
                     ctx.time_code = time_code;
@@ -655,12 +658,7 @@ impl IdentityReply {
             id: manufacturer_id,
             family: u14_from_midi(&m[shift..])?,
             family_member: u14_from_midi(&m[(shift + 2)..])?,
-            software_revision: (
-                m[shift + 4],
-                m[shift + 5],
-                m[shift + 6],
-                m[shift + 7],
-            )
+            software_revision: (m[shift + 4], m[shift + 5], m[shift + 6], m[shift + 7]),
         })
     }
 

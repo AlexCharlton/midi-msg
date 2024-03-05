@@ -14,6 +14,7 @@ use super::{MidiMsg, TimeCode};
 pub struct ReceiverContext {
     pub previous_channel_message: Option<MidiMsg>,
     pub time_code: TimeCode,
+    pub is_smf_sysex: bool,
 }
 
 impl ReceiverContext {

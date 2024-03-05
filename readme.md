@@ -23,9 +23,9 @@ If you want to use midi-msg in a `no_std` environment, add this line instead:
 midi-msg = { version = "0.5", default-features = false, features=["sysex"] }
 ```
 
-## Disabling system exclusive functionality
+## Disabling system exclusive or MIDI File functionality
 
-The default `sysex` Cargo feature can be disabled to exclude code related to system exclusive functionality, which can be useful to reduce the binary size in resource constrained environments. If `sysex` is not used and an attempt is made to parse a system exclusive message, an error will be returned.
+The default `sysex` and `file` Cargo features can be disabled to exclude code related to system exclusive or Standard Midi File (SMF) functionality, which can be useful to reduce the binary size in resource constrained environments. If `sysex` is not used and an attempt is made to parse a system exclusive message, an error will be returned.
 
 
 ## To be implemented
@@ -49,6 +49,7 @@ MIDI messages described by the following [Midi Manufacturer Association (MMA) do
 - Modulation Depth Range RPN (CA-026)
 - Extension 00-01 to File Reference Sysex Message (CA-028)
 - CC #88 High Resolution Velocity Prefix (CA-031)
+- Standard MIDI Files 1.0 (RP-001)
 - Response to Data Inc/Dec Controllers (RP-018)
 - Sound Controller Defaults (RP-021)
 - Redefinition of RPN 01/02 (RP-022)
@@ -68,8 +69,6 @@ The following addenda were consulted but considered not relevant to this library
 - Response to Reset All Controllers (RP-018)
 - Default Pan Formula (RP-036)
 
-
-Support for the Standard MIDI Files specification may be added.
 
 
 ## Other Rust MIDI representation libraries

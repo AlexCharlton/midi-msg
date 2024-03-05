@@ -253,6 +253,96 @@ mod sysex_util {
 #[cfg(feature = "sysex")]
 pub use sysex_util::*;
 
+#[cfg(feature = "file")]
+mod file_util {
+    use super::ParseError;
+    use alloc::vec::Vec;
+    use std::convert::TryInto;
+
+    #[inline]
+    pub fn push_u16(x: u16, v: &mut Vec<u8>) {
+        let [b1, b2] = x.to_be_bytes();
+        v.push(b1);
+        v.push(b2);
+    }
+
+    #[inline]
+    pub fn push_u32(x: u32, v: &mut Vec<u8>) {
+        let [b1, b2, b3, b4] = x.to_be_bytes();
+        v.push(b1);
+        v.push(b2);
+        v.push(b3);
+        v.push(b4);
+    }
+
+    // Variable length quanity
+    pub fn push_vlq(x: u32, v: &mut Vec<u8>) {
+        if x < 0x00000080 {
+            v.push(x as u8 & 0b01111111);
+        } else if x < 0x00004000 {
+            v.push(((x >> 7) as u8 & 0b01111111) + 0b10000000);
+            v.push(x as u8 & 0b01111111);
+        } else if x < 0x00200000 {
+            v.push(((x >> 14) as u8 & 0b01111111) + 0b10000000);
+            v.push(((x >> 7) as u8 & 0b01111111) + 0b10000000);
+            v.push(x as u8 & 0b01111111);
+        } else if x <= 0x0FFFFFFF {
+            v.push(((x >> 21) as u8 & 0b01111111) + 0b10000000);
+            v.push(((x >> 14) as u8 & 0b01111111) + 0b10000000);
+            v.push(((x >> 7) as u8 & 0b01111111) + 0b10000000);
+            v.push(x as u8 & 0b01111111);
+        } else {
+            panic!("Cannot use such a large number as a variable quantity")
+        }
+    }
+
+    /*
+    #[inline]
+        pub fn u16_from_midi(m: &[u8]) -> Result<u16, ParseError> {
+            if m.len() < 2 {
+                Err(crate::ParseError::UnexpectedEnd)
+            } else {
+                Ok(u16::from_be_bytes(m[0..2].try_into().unwrap()))
+            }
+        }
+     */
+
+    #[inline]
+    pub fn u32_from_midi(m: &[u8]) -> Result<u32, ParseError> {
+        if m.len() < 4 {
+            Err(crate::ParseError::UnexpectedEnd)
+        } else {
+            Ok(u32::from_be_bytes(m[0..4].try_into().unwrap()))
+        }
+    }
+
+    pub fn read_vlq(data: &[u8]) -> Result<(u32, usize), ParseError> {
+        let mut result: u32 = 0;
+        let mut bytes_read = 0;
+
+        for &byte in data {
+            result = (result << 7) | (byte & 0b01111111) as u32;
+            bytes_read += 1;
+
+            if byte & 0b10000000 == 0 {
+                // If the MSB is not set, this is the last byte of the VLQ
+                return Ok((result, bytes_read));
+            }
+
+            // Check if we've read too many bytes for a VLQ
+            if bytes_read >= 4 {
+                return Err(ParseError::VlqOverflow);
+            }
+        }
+
+        // If we've exhausted the slice without finding the end of VLQ
+        Err(ParseError::UnexpectedEnd)
+    }
+}
+
+#[cfg(feature = "file")]
+pub use file_util::*;
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -389,5 +479,42 @@ mod tests {
         // Actual bytes   : 7f 00 02
         // Error          : 0.0061 * 2 = 0.0122 cents
         assert_eq!(freq_to_midi_note_u14(12543.8800), (0x7F, 0x02));
+    }
+
+    #[test]
+    #[cfg(feature = "file")]
+    fn test_vlq() {
+        fn test(x: u32, expected_len: usize) {
+            let mut v = Vec::new();
+            push_vlq(x, &mut v);
+            let (y, len) = read_vlq(&v).unwrap();
+            assert_eq!(
+                x, y,
+                "Got {} after converting {} to and from a variable-length quantity",
+                y, x
+            );
+            assert_eq!(
+                len, expected_len,
+                "Expected a variable-length quantity of length {} but got {}",
+                expected_len, len
+            );
+        }
+        test(0, 1);
+        test(0x40, 1);
+        test(0x7F, 1);
+        test(0x80, 2);
+        test(0x2000, 2);
+        test(0x3FFF, 2);
+        test(0x4000, 3);
+        test(0x100000, 3);
+        test(0x1FFFFF, 3);
+        test(0x200000, 4);
+        test(0x8000000, 4);
+        test(0xFFFFFFF, 4);
+
+        assert_eq!(
+            read_vlq(&[0x80, 0x80, 0x80, 0x80]),
+            Err(ParseError::VlqOverflow)
+        );
     }
 }
