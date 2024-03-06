@@ -1,7 +1,7 @@
-use alloc::vec::Vec;
 use crate::message::Channel;
 use crate::parse_error::*;
 use crate::util::*;
+use alloc::vec::Vec;
 
 /// Allows for the selection of the destination of a channel pressure/poly key pressure message.
 /// Used by [`UniversalRealTimeMsg`](crate::UniversalRealTimeMsg).
@@ -59,7 +59,9 @@ impl ControlChangeControllerDestination {
 
     #[allow(dead_code)]
     pub(crate) fn from_midi(_m: &[u8]) -> Result<(Self, usize), ParseError> {
-        Err(ParseError::NotImplemented("ControlChangeControllerDestination"))
+        Err(ParseError::NotImplemented(
+            "ControlChangeControllerDestination",
+        ))
     }
 }
 /// The parameters that can be controlled by [`ControllerDestination`] or

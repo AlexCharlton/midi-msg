@@ -1,7 +1,7 @@
 use super::parse_error::*;
 use super::util::*;
-use alloc::vec::Vec;
 use alloc::vec;
+use alloc::vec::Vec;
 
 /// Channel-level messages that act on a voice. For instance, turning notes on off,
 /// or modifying sounding notes. Used in [`MidiMsg`](crate::MidiMsg).
@@ -716,13 +716,15 @@ impl ControlChange {
         }
     }
 
-    fn from_midi(m: &[u8]) -> Result<Self, ParseError> {
+    pub(crate) fn from_midi(m: &[u8]) -> Result<Self, ParseError> {
         if m.len() < 2 {
             return Err(crate::ParseError::UnexpectedEnd);
         }
 
         if m[0] > 119 {
-            return Err(ParseError::Invalid("Tried to parse a control change message, but it looks like a channel mode message"));
+            return Err(ParseError::Invalid(
+                "Tried to parse a control change message, but it looks like a channel mode message",
+            ));
         }
 
         let value = u8_from_u7(m[1])?;

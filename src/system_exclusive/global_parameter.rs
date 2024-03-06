@@ -1,9 +1,9 @@
-#[allow(unused_imports)]
-use micromath::F32Ext;
-use alloc::vec;
-use alloc::vec::Vec;
 use crate::parse_error::*;
 use crate::util::*;
+use alloc::vec;
+use alloc::vec::Vec;
+#[allow(unused_imports)]
+use micromath::F32Ext;
 
 /// Global Parameter Control, to control parameters on a device that affect all sound.
 /// E.g. a global reverb.

@@ -1,6 +1,6 @@
-use alloc::vec::Vec;
 use crate::parse_error::*;
 use crate::util::*;
+use alloc::vec::Vec;
 use bstr::BString;
 
 /// Used to request and transmit sampler data.

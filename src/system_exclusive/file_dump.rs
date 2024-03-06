@@ -1,7 +1,7 @@
-use alloc::vec::Vec;
 use super::DeviceID;
 use crate::parse_error::*;
 use crate::util::*;
+use alloc::vec::Vec;
 use bstr::BString;
 
 /// Used to transmit general file data.
@@ -213,26 +213,10 @@ mod tests {
             }
             .to_midi(),
             vec![
-                0xF0,
-                0x7E,
-                0x7F, // Receiver device
-                07,
-                01,
-                9, // Sender device
-                b"M"[0],
-                b"I"[0],
-                b"D"[0],
-                b"I"[0],
-                66, // Size LSB
-                0,
-                0,
-                0,
-                b"H"[0],
-                b"e"[0],
-                b"l"[0],
-                b"l"[0],
-                b"o"[0],
-                0xF7
+                0xF0, 0x7E, 0x7F, // Receiver device
+                07, 01, 9, // Sender device
+                b"M"[0], b"I"[0], b"D"[0], b"I"[0], 66, // Size LSB
+                0, 0, 0, b"H"[0], b"e"[0], b"l"[0], b"l"[0], b"o"[0], 0xF7
             ]
         );
     }

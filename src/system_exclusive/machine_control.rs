@@ -1,6 +1,6 @@
-use alloc::vec::Vec;
 use crate::parse_error::*;
 use crate::time_code::*;
+use alloc::vec::Vec;
 
 /// A MIDI Machine Control Command.
 /// Used by [`UniversalRealTimeMsg::MachineControlCommand`](crate::UniversalRealTimeMsg::MachineControlCommand).

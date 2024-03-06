@@ -1,6 +1,6 @@
-use alloc::vec::Vec;
 use crate::parse_error::*;
 use crate::util::*;
+use alloc::vec::Vec;
 
 /// Change the tunings of one or more notes, either real-time or not.
 /// Used by [`UniversalNonRealTimeMsg`](crate::UniversalNonRealTimeMsg) and [`UniversalRealTimeMsg`](crate::UniversalRealTimeMsg).
@@ -388,10 +388,9 @@ impl ChannelBitMap {
 #[cfg(test)]
 mod tests {
     use crate::*;
+    use alloc::vec;
     use bstr::B;
     use core::convert::TryInto;
-    use alloc::vec;
-
 
     #[test]
     fn serialize_tuning_note_change() {

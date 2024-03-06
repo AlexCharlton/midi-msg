@@ -1,8 +1,8 @@
-use alloc::vec::Vec;
 use super::parse_error::*;
 use super::time_code::*;
 use super::util::*;
 use super::ReceiverContext;
+use alloc::vec::Vec;
 
 /// A fairly limited set of messages, generally for device synchronization.
 /// Used in [`MidiMsg`](crate::MidiMsg).

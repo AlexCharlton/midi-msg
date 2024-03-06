@@ -1,5 +1,5 @@
-use alloc::vec::Vec;
 use crate::parse_error::*;
+use alloc::vec::Vec;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 /// A MIDI Show Control command.

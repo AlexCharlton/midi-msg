@@ -1,7 +1,7 @@
-use alloc::vec::Vec;
 use crate::message::Channel;
 use crate::parse_error::*;
 use crate::util::*;
+use alloc::vec::Vec;
 
 /// Intended to act like Control Change messages, but targeted at an individual key.
 /// For e.g. Drum sounds that have configurable attack/release/decay per key.

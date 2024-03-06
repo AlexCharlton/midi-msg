@@ -1,7 +1,7 @@
-use alloc::vec::Vec;
-use alloc::vec;
 use crate::parse_error::*;
 use crate::util::*;
+use alloc::vec;
+use alloc::vec::Vec;
 
 /// Indicates that the next MIDI clock message is the first clock of a new measure. Which bar
 /// is optionally indicated by this message.

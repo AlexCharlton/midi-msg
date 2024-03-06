@@ -1,31 +1,28 @@
-extern crate midir;
 extern crate midi_msg;
+extern crate midir;
 
-use std::io::{stdin, stdout, Write};
-use std::error::Error;
-use midir::{MidiInput, Ignore};
 use midi_msg::*;
+use midir::{Ignore, MidiInput};
+use std::error::Error;
+use std::io::{stdin, stdout, Write};
 
 fn main() {
     match run() {
         Ok(_) => (),
-        Err(err) => println!("Error: {}", err)
+        Err(err) => println!("Error: {}", err),
     }
 }
-
 
 /// A buffer for TimeCodeQuarterFrameX from which a full TimeCode can
 /// be constructed when all 8 Quartes have been received
 struct TimeCodeQuarterFrameBuffer {
-    buffer: [Option<TimeCode>; 8] 
+    buffer: [Option<TimeCode>; 8],
 }
 
 impl TimeCodeQuarterFrameBuffer {
     /// Return a new empty TimeCodeQuarterFrameBuffer
     fn new() -> Self {
-        Self {
-            buffer: [None; 8]
-        }
+        Self { buffer: [None; 8] }
     }
 
     /// Add a TimeCodeQuarterFrameX to the buffer, replacing the old one
@@ -42,14 +39,14 @@ impl TimeCodeQuarterFrameBuffer {
                     SystemCommonMsg::TimeCodeQuarterFrame6(tc) => (5, tc),
                     SystemCommonMsg::TimeCodeQuarterFrame7(tc) => (6, tc),
                     SystemCommonMsg::TimeCodeQuarterFrame8(tc) => (7, tc),
-                    _ => return ()
+                    _ => return (),
                 };
                 // Store the fitting tc at the matching position if is None
                 if self.buffer[index].is_none() {
                     self.buffer[index] = Some(tc);
                 }
-            },
-            _ => ()
+            }
+            _ => (),
         }
     }
 
@@ -62,7 +59,7 @@ impl TimeCodeQuarterFrameBuffer {
     fn construct_timecode(&mut self) -> Option<TimeCode> {
         // If the Buffer is not ready, return None
         if !self.is_filled() {
-            return None
+            return None;
         }
         // Combine the 4 bit nibbles of the pairs of TimeCode
         // E.g. the low nibble of the frames: u8 stored in TimeCodeQuarter1
@@ -76,33 +73,33 @@ impl TimeCodeQuarterFrameBuffer {
         // Empty the buffer
         self.buffer = [None; 8];
         // Construct and return the TimeCode
-        Some(
-            TimeCode {
-                frames,
-                seconds,
-                minutes,
-                hours,
-                code_type,
-            }
-        )
+        Some(TimeCode {
+            frames,
+            seconds,
+            minutes,
+            hours,
+            code_type,
+        })
     }
 }
 
-
 fn run() -> Result<(), Box<dyn Error>> {
     let mut input = String::new();
-    
+
     let mut midi_in = MidiInput::new("midir reading input")?;
     midi_in.ignore(Ignore::None);
-    
+
     // Get an input port (read from console if multiple are available)
     let in_ports = midi_in.ports();
     let in_port = match in_ports.len() {
         0 => return Err("no input port found".into()),
         1 => {
-            println!("Choosing the only available input port: {}", midi_in.port_name(&in_ports[0]).unwrap());
+            println!(
+                "Choosing the only available input port: {}",
+                midi_in.port_name(&in_ports[0]).unwrap()
+            );
             &in_ports[0]
-        },
+        }
         _ => {
             println!("\nAvailable input ports:");
             for (i, p) in in_ports.iter().enumerate() {
@@ -112,11 +109,12 @@ fn run() -> Result<(), Box<dyn Error>> {
             stdout().flush()?;
             let mut input = String::new();
             stdin().read_line(&mut input)?;
-            in_ports.get(input.trim().parse::<usize>()?)
-                     .ok_or("invalid input port selected")?
+            in_ports
+                .get(input.trim().parse::<usize>()?)
+                .ok_or("invalid input port selected")?
         }
     };
-    
+
     println!("\nOpening connection");
     let in_port_name = midi_in.port_name(in_port)?;
 
@@ -124,23 +122,34 @@ fn run() -> Result<(), Box<dyn Error>> {
     let mut quarter_frame_buffer = TimeCodeQuarterFrameBuffer::new();
 
     // _conn_in needs to be a named parameter, because it needs to be kept alive until the end of the scope
-    let _conn_in = midi_in.connect(in_port, "midir-read-input", move |_stamp, message, _| {
-        let (parsed_message, _len) = MidiMsg::from_midi(&message).expect("Not an error");
-        
-        // Add the message to the TimeCodeQuarterFrameBuffer (ignores every message type
-        // other than TimeCodeQuarterFrameX)
-        quarter_frame_buffer.add(parsed_message);
+    let _conn_in = midi_in.connect(
+        in_port,
+        "midir-read-input",
+        move |_stamp, message, _| {
+            let (parsed_message, _len) = MidiMsg::from_midi(&message).expect("Not an error");
 
-        // Construct a timecode if possible
-        let maybe_timecode = quarter_frame_buffer.construct_timecode();
+            // Add the message to the TimeCodeQuarterFrameBuffer (ignores every message type
+            // other than TimeCodeQuarterFrameX)
+            quarter_frame_buffer.add(parsed_message);
 
-        // When we got a timecode, print it out
-        if let Some(tc) = maybe_timecode {
-            println!("{:0<2}:{:0<2}:{:0<2}.{} ({:?})", tc.hours, tc.minutes, tc.seconds, tc.frames, tc.code_type)
-        }
-    }, ())?;
-    
-    println!("Connection open, reading input from '{}' (press enter to exit) ...", in_port_name);
+            // Construct a timecode if possible
+            let maybe_timecode = quarter_frame_buffer.construct_timecode();
+
+            // When we got a timecode, print it out
+            if let Some(tc) = maybe_timecode {
+                println!(
+                    "{:0<2}:{:0<2}:{:0<2}.{} ({:?})",
+                    tc.hours, tc.minutes, tc.seconds, tc.frames, tc.code_type
+                )
+            }
+        },
+        (),
+    )?;
+
+    println!(
+        "Connection open, reading input from '{}' (press enter to exit) ...",
+        in_port_name
+    );
 
     input.clear();
     stdin().read_line(&mut input)?; // wait for next enter key press

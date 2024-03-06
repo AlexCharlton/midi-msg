@@ -1,5 +1,5 @@
-use alloc::vec::Vec;
 use super::parse_error::*;
+use alloc::vec::Vec;
 
 /// A fairly limited set of messages used for device synchronization.
 /// Used in [`MidiMsg`](crate::MidiMsg).

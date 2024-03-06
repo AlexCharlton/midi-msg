@@ -1,6 +1,6 @@
-use alloc::vec::Vec;
 use crate::parse_error::*;
 use crate::util::*;
+use alloc::vec::Vec;
 use bstr::BString;
 
 /// The set of messages used for accessing files on a shared file system or network
@@ -325,41 +325,17 @@ mod tests {
             }
             .to_midi(),
             vec![
-                0xF0,
-                0x7E,
-                0x7F, // All call
-                0x0B,
-                0x03, // ExtendedSampleDump header
-                44,
-                00, // ctx
-                28,
-                0, // len,
-                b"D"[0],
-                b"L"[0],
-                b"S"[0],
-                b" "[0],
-                // Start URL
-                b"f"[0],
-                b"i"[0],
-                b"l"[0],
-                b"e"[0],
-                b":"[0],
-                b"/"[0],
-                b"/"[0],
-                b"f"[0],
-                b"o"[0],
-                b"o"[0],
-                b"."[0],
-                b"d"[0],
-                b"l"[0],
-                b"s"[0],
-                0, // End of url
+                0xF0, 0x7E, 0x7F, // All call
+                0x0B, 0x03, // ExtendedSampleDump header
+                44, 00, // ctx
+                28, 0, // len,
+                b"D"[0], b"L"[0], b"S"[0], b" "[0], // Start URL
+                b"f"[0], b"i"[0], b"l"[0], b"e"[0], b":"[0], b"/"[0], b"/"[0], b"f"[0], b"o"[0],
+                b"o"[0], b"."[0], b"d"[0], b"l"[0], b"s"[0], 0, // End of url
                 1, // count
-                0,
-                8, // dst_bank
+                0, 8, // dst_bank
                 0, //dst_prog
-                0,
-                0,    // src_bank
+                0, 0,    // src_bank
                 1,    // src_prog
                 0,    // flags
                 0x7f, // vol
