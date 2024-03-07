@@ -184,13 +184,25 @@ impl MidiMsg {
                     if let Some(p) = &ctx.previous_channel_message {
                         match p {
                             Self::ChannelVoice {channel, msg: prev_msg} => {
+                                if m.len() < 2 {
+                                    return Err(ParseError::UnexpectedEnd);
+                                }
+                                match prev_msg {
+                                    // See A-2 of the MIDI spec
+                                    ChannelVoiceMsg::ControlChange { .. } => {
+                                        if m[0] >= 120 {
+                                            let (msg, len) = ChannelModeMsg::from_midi_running(m)?;
+                                            return Ok((Self::ChannelMode { channel: *channel, msg}, len));
+                                        }
+                                    }
+                                    _ => (),
+                                };
                                 let (mut msg, len) = ChannelVoiceMsg::from_midi_running(m, prev_msg)?;
 
                                 if allow_extensions {
                                     // If we can interpret this message as an extension to the previous
                                     // one, do it.
-                                    if prev_msg.is_extensible()
-                                        && msg.is_extension()
+                                    if prev_msg.is_extensible() && msg.is_extension()
                                     {
                                         match prev_msg.maybe_extend(&msg) {
                                             Ok(updated_msg) => {
@@ -204,8 +216,17 @@ impl MidiMsg {
                             }
 
                             Self::ChannelMode {channel, ..} => {
-                                let (msg, len) = ChannelModeMsg::from_midi_running(m)?;
-                                Ok((Self::ChannelMode { channel: *channel, msg}, len))
+                                if m.len() < 2 {
+                                    return Err(ParseError::UnexpectedEnd);
+                                }
+                                // See A-2 of the MIDI spec
+                                if m[0] >= 120 {
+                                    let (msg, len) = ChannelModeMsg::from_midi(m)?;
+                                    Ok((Self::ChannelMode { channel: *channel, msg}, len))
+                                } else {
+                                    let control= crate::ControlChange::from_midi(m)?;
+                                    Ok((Self::ChannelVoice { channel: *channel, msg: ChannelVoiceMsg::ControlChange { control }}, 2))
+                                }
                             }
                             _ => Err(ParseError::Invalid("ReceiverContext::previous_channel_message may only be a ChannelMode or ChannelVoice message."))
                         }
@@ -370,4 +391,81 @@ mod tests {
         assert_eq!(Ch2, Channel::from_u8(1));
         assert_eq!(Ch16, Channel::from_u8(255));
     }
+
+    #[test]
+    fn test_running_status() {
+        let noteon = MidiMsg::ChannelVoice {
+            channel: Channel::Ch1,
+            msg: ChannelVoiceMsg::NoteOn {
+                note: 0x42,
+                velocity: 0x60,
+            },
+        };
+        let running_noteon = MidiMsg::RunningChannelVoice {
+            channel: Channel::Ch1,
+            msg: ChannelVoiceMsg::NoteOn {
+                note: 0x42,
+                velocity: 0x60,
+            },
+        };
+        let reset = MidiMsg::ChannelMode {
+            channel: Channel::Ch1,
+            msg: ChannelModeMsg::ResetAllControllers,
+        };
+        let running_reset = MidiMsg::RunningChannelMode {
+            channel: Channel::Ch1,
+            msg: ChannelModeMsg::ResetAllControllers,
+        };
+        let cc = MidiMsg::ChannelVoice {
+            channel: Channel::Ch1,
+            msg: ChannelVoiceMsg::ControlChange {
+                control: crate::ControlChange::Volume(0x7F),
+            },
+        };
+        let running_cc = MidiMsg::RunningChannelVoice {
+            channel: Channel::Ch1,
+            msg: ChannelVoiceMsg::ControlChange {
+                control: crate::ControlChange::Volume(0x7F),
+            },
+        };
+
+        // Push six messages
+        let mut midi = vec![];
+        noteon.extend_midi(&mut midi);
+        running_noteon.extend_midi(&mut midi);
+        //   Ensure that control changes and channel mode messages can follow one another
+        reset.extend_midi(&mut midi);
+        running_cc.extend_midi(&mut midi);
+        cc.extend_midi(&mut midi);
+        running_reset.extend_midi(&mut midi);
+
+        // Read back six messages
+        let mut offset = 0;
+        let mut ctx = ReceiverContext::new();
+        let (msg1, len) = MidiMsg::from_midi_with_context(&midi, &mut ctx).expect("Not an error");
+        offset += len;
+        let (msg2, len) =
+            MidiMsg::from_midi_with_context(&midi[offset..], &mut ctx).expect("Not an error");
+        offset += len;
+        let (msg3, len) =
+            MidiMsg::from_midi_with_context(&midi[offset..], &mut ctx).expect("Not an error");
+        offset += len;
+        let (msg4, len) =
+            MidiMsg::from_midi_with_context(&midi[offset..], &mut ctx).expect("Not an error");
+        offset += len;
+        let (msg5, len) =
+            MidiMsg::from_midi_with_context(&midi[offset..], &mut ctx).expect("Not an error");
+        offset += len;
+        let (msg6, _) =
+            MidiMsg::from_midi_with_context(&midi[offset..], &mut ctx).expect("Not an error");
+
+        // The expected messages are not running status messages, since we never deserialize into them
+        assert_eq!(msg1, noteon);
+        assert_eq!(msg2, noteon);
+        assert_eq!(msg3, reset);
+        assert_eq!(msg4, cc);
+        assert_eq!(msg5, cc);
+        assert_eq!(msg6, reset);
+    }
+
 }
