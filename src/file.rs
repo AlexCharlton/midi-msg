@@ -1,12 +1,13 @@
 use std::str;
 
 use super::{
-    util::*, HighResTimeCode, MidiMsg, ParseError, ReceiverContext, SystemExclusiveMsg,
+    util::*, Channel, HighResTimeCode, MidiMsg, ParseError, ReceiverContext, SystemExclusiveMsg,
     TimeCodeType,
 };
 
-/// Standard Midi File 1.0 (SMF): RP-001 support
+// Standard Midi File 1.0 (SMF): RP-001 support
 
+/// Errors that can occur when parsing a [`MidiFile`]
 #[derive(Debug, PartialEq)]
 pub struct MidiFileParseError {
     pub error: ParseError,
@@ -17,9 +18,12 @@ pub struct MidiFileParseError {
     pub next_bytes: Vec<u8>,
 }
 
-#[derive(Debug, Clone, PartialEq)]
+/// A Standard Midi File (SMF)
+#[derive(Debug, Clone, PartialEq, Default)]
 pub struct MidiFile {
+    /// The header chunk: Contains the file format, number of tracks, and division
     pub header: Header,
+    /// The track chunks: Contains the actual midi events
     pub tracks: Vec<Track>,
 }
 
@@ -77,6 +81,7 @@ impl<'a, 'b> ParseCtx<'a, 'b> {
 }
 
 impl MidiFile {
+    /// Turn a series of bytes into a `MidiFile`.
     pub fn from_midi(v: &[u8]) -> Result<Self, MidiFileParseError> {
         let mut file = MidiFile {
             header: Header::default(),
@@ -123,24 +128,51 @@ impl MidiFile {
         Ok(file)
     }
 
+    /// Turn a `MidiFile` into a series of bytes.
     pub fn to_midi(&self) -> Vec<u8> {
         let mut r: Vec<u8> = vec![];
-        self.extend_midi(&mut r);
+        self.header.extend_midi(&mut r);
+        for track in &self.tracks {
+            track.extend_midi(&mut r);
+        }
         r
     }
 
-    pub fn extend_midi(&self, v: &mut Vec<u8>) {
-        self.header.extend_midi(v);
-        for track in &self.tracks {
-            track.extend_midi(v);
+    /// Add a track to the file. Increments the `num_tracks` field in the header.
+    pub fn add_track(&mut self, track: Track) {
+        self.tracks.push(track);
+        self.header.num_tracks += 1;
+    }
+
+    /// Add a midi event to a track in the file, given its absolute beat or frame time. The event delta time is calculated from the previous event in the track and the time division of the file.
+    pub fn extend_track(&mut self, track_num: usize, event: MidiMsg, beat_or_frame: f32) {
+        match &mut self.tracks[track_num] {
+            Track::Midi(events) => {
+                let last_beat_or_frame = events.last().map(|e| e.beat_or_frame).unwrap_or(0.0);
+                let delta_time = self
+                    .header
+                    .division
+                    .beat_or_frame_to_tick(beat_or_frame - last_beat_or_frame);
+                events.push(TrackEvent {
+                    delta_time,
+                    event,
+                    beat_or_frame,
+                })
+            }
+
+            Track::AlienChunk(_) => panic!("Cannot extend an alien chunk"),
         }
     }
 }
 
+/// The header chunk of a Standard Midi File
 #[derive(Debug, Clone, PartialEq, Default)]
 pub struct Header {
+    /// The format of the file
     pub format: SMFFormat,
+    /// How many tracks are in the file
     pub num_tracks: u16,
+    /// The "division" of the file, which specifies the meaning of the delta times in the file
     pub division: Division,
 }
 
@@ -206,10 +238,14 @@ impl Header {
     }
 }
 
+/// The format of a Standard Midi File
 #[derive(Debug, Clone, PartialEq)]
 pub enum SMFFormat {
+    /// A single track file
     SingleTrack,
+    /// The file contains multiple tracks, but they are all meant to be played simultaneously
     MultiTrack,
+    /// The file contains multiple tracks, but they are independent of each other
     MultiSong,
 }
 
@@ -245,10 +281,12 @@ impl SMFFormat {
     }
 }
 
-#[derive(Debug, Clone, PartialEq)]
+/// The division of a Standard Midi File, which specifies the meaning of the delta times in the file
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub enum Division {
-    // Metrical time. Number of "ticks" per quarter note.
+    /// Metrical time. Number of "ticks" per quarter note.
     TicksPerQuarterNote(u16),
+    /// Time code based time.
     TimeCode {
         frames_per_second: TimeCodeType,
         ticks_per_frame: u8,
@@ -261,13 +299,43 @@ impl Default for Division {
     }
 }
 
+impl Division {
+    /// Convert a beat or frame to the number of "ticks" in a file with this division.
+    pub fn beat_or_frame_to_tick(&self, beat_or_frame: f32) -> u32 {
+        match self {
+            Division::TicksPerQuarterNote(tpqn) => (beat_or_frame * *tpqn as f32) as u32,
+            Division::TimeCode {
+                ticks_per_frame, ..
+            } => (beat_or_frame * *ticks_per_frame as f32) as u32,
+        }
+    }
+
+    /// Convert a number of file "ticks" to a beat or frame in a file with this division.
+    pub fn ticks_to_beats_or_frames(&self, ticks: u32) -> f32 {
+        match self {
+            Division::TicksPerQuarterNote(tpqn) => ticks as f32 / *tpqn as f32,
+            Division::TimeCode {
+                ticks_per_frame, ..
+            } => ticks as f32 / *ticks_per_frame as f32,
+        }
+    }
+}
+
+/// A track in a Standard Midi File
 #[derive(Debug, Clone, PartialEq)]
 pub enum Track {
-    // Standard MTrk chunk
+    /// A standard "MTrk" chunk
     Midi(Vec<TrackEvent>),
-    // Any other chunk data
-    // This includes the entire chuck data, include whatever chunk type and length
+    /// Any other chunk data.
+    ///
+    /// This includes the entire chuck data, include whatever chunk type and length.
     AlienChunk(Vec<u8>),
+}
+
+impl Default for Track {
+    fn default() -> Self {
+        Track::Midi(vec![])
+    }
 }
 
 impl Track {
@@ -298,9 +366,16 @@ impl Track {
         let reciever_ctx = &mut ReceiverContext::default();
 
         let mut i = 0;
+        let mut last_beat_or_frame = 0.0;
         while ctx.offset < ctx.track_end {
             ctx.parsing(format!("track {} event {}", track_num, i));
-            let (event, event_len) = TrackEvent::from_midi(ctx.data(), reciever_ctx)?;
+            let (event, event_len) = TrackEvent::from_midi(
+                ctx.data(),
+                reciever_ctx,
+                &ctx.file.header.division,
+                last_beat_or_frame,
+            )?;
+            last_beat_or_frame = event.beat_or_frame;
             ctx.extend_track(event);
             ctx.advance(event_len);
             i += 1;
@@ -333,15 +408,30 @@ impl Track {
     }
 }
 
+/// An event occurring in a track in a Standard Midi File
 #[derive(Debug, Clone, PartialEq)]
 pub struct TrackEvent {
+    /// The time since the last event. The meaning of this value is determined by the file header's [`Division`].
     pub delta_time: u32,
+    /// The actual midi event.
     pub event: MidiMsg,
+    /// Given the file's [`Division`], the time in beats or frames at which this event occurs.
+    ///
+    /// When deserializing, this is derived from the `delta_time` and the previous event's `beat_or_frame`.
+    ///
+    /// When manually constructing `TrackEvent`s (i.e. when not using the [`MidiFile::extend_track`] convenience function), this field can set to any value, as it is not used when serializing the file.
+    pub beat_or_frame: f32,
 }
 
 impl TrackEvent {
-    fn from_midi(v: &[u8], ctx: &mut ReceiverContext) -> Result<(Self, usize), ParseError> {
+    fn from_midi(
+        v: &[u8],
+        ctx: &mut ReceiverContext,
+        division: &Division,
+        last_beat_or_frame: f32,
+    ) -> Result<(Self, usize), ParseError> {
         let (delta_time, time_offset) = read_vlq(v)?;
+        let beat_or_frame = last_beat_or_frame + division.ticks_to_beats_or_frames(delta_time);
         match v[time_offset..].first() {
             Some(b) => match b >> 4 {
                 0xF => match b & 0b0000_1111 {
@@ -357,6 +447,7 @@ impl TrackEvent {
                             Self {
                                 delta_time,
                                 event: MidiMsg::SystemExclusive { msg: event },
+                                beat_or_frame,
                             },
                             p + event_len,
                         ))
@@ -370,7 +461,14 @@ impl TrackEvent {
                         if event_len != len as usize {
                             return Err(ParseError::Invalid("Invalid system exclusive message"));
                         }
-                        Ok((Self { delta_time, event }, p + event_len))
+                        Ok((
+                            Self {
+                                delta_time,
+                                event,
+                                beat_or_frame,
+                            },
+                            p + event_len,
+                        ))
                     }
                     0xF => {
                         let p = time_offset + 1;
@@ -379,6 +477,7 @@ impl TrackEvent {
                             Self {
                                 delta_time,
                                 event: MidiMsg::Meta { msg: event },
+                                beat_or_frame,
                             },
                             p + event_len,
                         ))
@@ -389,7 +488,14 @@ impl TrackEvent {
                     ctx.is_smf_sysex = false;
                     let (event, event_len) =
                         MidiMsg::from_midi_with_context(&v[time_offset..], ctx)?;
-                    Ok((Self { delta_time, event }, time_offset + event_len))
+                    Ok((
+                        Self {
+                            delta_time,
+                            event,
+                            beat_or_frame,
+                        },
+                        time_offset + event_len,
+                    ))
                 }
             },
             None => Err(ParseError::UnexpectedEnd),
@@ -422,24 +528,42 @@ impl TrackEvent {
     }
 }
 
+/// A meta event in a Standard Midi File
 #[derive(Debug, Clone, PartialEq)]
 pub enum Meta {
+    /// Must occur at the start of a track, and specifies the sequence number of the track. In a MultiSong file, this is the "pattern" number that identifies the song for cueing purposes.
     SequenceNumber(u16),
+    /// Any text, describing anything
     Text(String),
+    /// A copyright notice
     Copyright(String),
+    /// The name of the track
     TrackName(String),
+    /// The name of the instrument used in the track
     InstrumentName(String),
+    /// A lyric. See RP-017 for guidance on the use of this meta event.
     Lyric(String),
+    /// Normally only used in a SingleTrack file, or the first track of a MultiTrack file. Used to mark significant points in the music.
     Marker(String),
+    /// A description of something happening at a point in time
     CuePoint(String),
-    ChannelPrefix(u8),
+    /// The MIDI channel that the following track events are intended for. Effective until the next event that specifies a channel.
+    ChannelPrefix(Channel),
+    /// Marks the end of a track. This event is not optional. It must be the last event in every track.
     EndOfTrack,
-    // Microseconds per quarter note
+    /// The tempo in microseconds per quarter note.
     SetTempo(u32),
+    /// If present, the time at which the track is supposed to start. Should be present at the start of the track.
     SmpteOffset(HighResTimeCode),
+    /// A time signature.
     TimeSignature(FileTimeSignature),
+    /// A key signature.
     KeySignature(KeySignature),
+    /// A chunk of data that is specific to the sequencer that created the file.
     SequencerSpecific(Vec<u8>),
+    // TODO: RP-32
+    // TODO: RP-19
+    /// Any other meta event that is not recognized
     Unknown { meta_type: u8, data: Vec<u8> },
 }
 
@@ -480,7 +604,7 @@ impl Meta {
                 Self::CuePoint(String::from_utf8_lossy(data).to_string()),
                 end,
             )),
-            0x20 => Ok((Self::ChannelPrefix(data[0]), end)),
+            0x20 => Ok((Self::ChannelPrefix(Channel::from_u8(data[0])), end)),
             0x2F => Ok((Self::EndOfTrack, end)),
             0x51 => Ok((
                 Self::SetTempo(u32::from_be_bytes([0, data[0], data[1], data[2]])),
@@ -515,43 +639,50 @@ impl Meta {
             }
             Meta::Text(s) => {
                 v.push(0x01);
-                push_vlq(s.len() as u32, v);
-                v.extend_from_slice(s.as_bytes());
+                let bytes = s.as_bytes();
+                push_vlq(bytes.len() as u32, v);
+                v.extend_from_slice(bytes);
             }
             Meta::Copyright(s) => {
                 v.push(0x02);
-                push_vlq(s.len() as u32, v);
-                v.extend_from_slice(s.as_bytes());
+                let bytes = s.as_bytes();
+                push_vlq(bytes.len() as u32, v);
+                v.extend_from_slice(bytes);
             }
             Meta::TrackName(s) => {
                 v.push(0x03);
-                push_vlq(s.len() as u32, v);
-                v.extend_from_slice(s.as_bytes());
+                let bytes = s.as_bytes();
+                push_vlq(bytes.len() as u32, v);
+                v.extend_from_slice(bytes);
             }
             Meta::InstrumentName(s) => {
                 v.push(0x04);
-                push_vlq(s.len() as u32, v);
-                v.extend_from_slice(s.as_bytes());
+                let bytes = s.as_bytes();
+                push_vlq(bytes.len() as u32, v);
+                v.extend_from_slice(bytes);
             }
             Meta::Lyric(s) => {
                 v.push(0x05);
-                push_vlq(s.len() as u32, v);
-                v.extend_from_slice(s.as_bytes());
+                let bytes = s.as_bytes();
+                push_vlq(bytes.len() as u32, v);
+                v.extend_from_slice(bytes);
             }
             Meta::Marker(s) => {
                 v.push(0x06);
-                push_vlq(s.len() as u32, v);
-                v.extend_from_slice(s.as_bytes());
+                let bytes = s.as_bytes();
+                push_vlq(bytes.len() as u32, v);
+                v.extend_from_slice(bytes);
             }
             Meta::CuePoint(s) => {
                 v.push(0x07);
-                push_vlq(s.len() as u32, v);
-                v.extend_from_slice(s.as_bytes());
+                let bytes = s.as_bytes();
+                push_vlq(bytes.len() as u32, v);
+                v.extend_from_slice(bytes);
             }
             Meta::ChannelPrefix(n) => {
                 v.push(0x20);
                 push_vlq(1, v);
-                v.push(*n);
+                v.push(*n as u8);
             }
             Meta::EndOfTrack => {
                 v.push(0x2F);
@@ -591,11 +722,18 @@ impl Meta {
     }
 }
 
+/// A time signature occurring in a Standard Midi File.
 #[derive(Debug, Clone, PartialEq)]
 pub struct FileTimeSignature {
+    /// The numerator of the time signature, as it would be notated.
     pub numerator: u8,
+    /// The denominator of the time signature, as it would be notated.
+    ///
+    /// This is tranformed from the power-of-two representation used in the file.
     pub denominator: u16,
+    /// The number of MIDI clocks per metronome tick.
     pub clocks_per_metronome_tick: u8,
+    /// How many 32nd notes are in a MIDI quarter note, which should usually be 8.
     pub thirty_second_notes_per_24_clocks: u8,
 }
 
@@ -620,11 +758,12 @@ impl FileTimeSignature {
     }
 }
 
+/// A key signature occurring in a Standard Midi File.
 #[derive(Debug, Clone, PartialEq)]
 pub struct KeySignature {
-    // Negative for number of flats, positive for number of sharps
+    /// Negative for number of flats, positive for number of sharps
     pub key: i8,
-    // 0 for major, 1 for minor
+    /// 0 for major, 1 for minor
     pub scale: u8,
 }
 

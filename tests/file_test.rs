@@ -21,24 +21,28 @@ fn test_smf_file() {
                             thirty_second_notes_per_24_clocks: 8,
                         }),
                     },
+                    beat_or_frame: 0.0,
                 },
                 TrackEvent {
                     delta_time: 0,
                     event: MidiMsg::Meta {
                         msg: Meta::SetTempo(500000),
                     },
+                    beat_or_frame: 0.0,
                 },
                 TrackEvent {
                     delta_time: 0,
                     event: MidiMsg::Meta {
                         msg: Meta::TrackName("Tempo Track".to_string()),
                     },
+                    beat_or_frame: 0.0,
                 },
                 TrackEvent {
                     delta_time: 7680,
                     event: MidiMsg::Meta {
                         msg: Meta::EndOfTrack,
                     },
+                    beat_or_frame: 40.0,
                 },
             ]),
             Track::Midi(vec![
@@ -47,6 +51,7 @@ fn test_smf_file() {
                     event: MidiMsg::Meta {
                         msg: Meta::TrackName("New Instrument".to_string()),
                     },
+                    beat_or_frame: 0.0,
                 },
                 TrackEvent {
                     delta_time: 0,
@@ -57,6 +62,7 @@ fn test_smf_file() {
                             velocity: 100,
                         },
                     },
+                    beat_or_frame: 0.0,
                 },
                 TrackEvent {
                     delta_time: 768,
@@ -67,12 +73,14 @@ fn test_smf_file() {
                             velocity: 0,
                         },
                     },
+                    beat_or_frame: 4.0,
                 },
                 TrackEvent {
                     delta_time: 6912,
                     event: MidiMsg::Meta {
                         msg: Meta::EndOfTrack,
                     },
+                    beat_or_frame: 40.0,
                 },
             ]),
         ],
@@ -83,4 +91,222 @@ fn test_smf_file() {
 
     let serialized = expected.to_midi();
     assert_eq!(&serialized, test1);
+}
+
+#[test]
+fn test_score_file() {
+    // File generated from MuseScore 4. The file is a simple score with a single track, but MuseScore adds a number of meta events and control changes.
+    let test_score1 = include_bytes!("./test_score1.mid");
+    let expected = MidiFile {
+        header: Header {
+            format: SMFFormat::MultiTrack,
+            num_tracks: 1,
+            division: Division::TicksPerQuarterNote(480),
+        },
+        tracks: vec![Track::Midi(vec![
+            TrackEvent {
+                delta_time: 0,
+                event: MidiMsg::Meta {
+                    msg: Meta::TrackName("Piccolo".to_string()),
+                },
+                beat_or_frame: 0.0,
+            },
+            TrackEvent {
+                delta_time: 0,
+                event: MidiMsg::Meta {
+                    msg: Meta::TimeSignature(FileTimeSignature {
+                        numerator: 4,
+                        denominator: 4,
+                        clocks_per_metronome_tick: 24,
+                        thirty_second_notes_per_24_clocks: 8,
+                    }),
+                },
+                beat_or_frame: 0.0,
+            },
+            TrackEvent {
+                delta_time: 0,
+                event: MidiMsg::Meta {
+                    msg: Meta::KeySignature(KeySignature { key: 0, scale: 0 }),
+                },
+                beat_or_frame: 0.0,
+            },
+            TrackEvent {
+                delta_time: 0,
+                event: MidiMsg::Meta {
+                    msg: Meta::SetTempo(500000),
+                },
+                beat_or_frame: 0.0,
+            },
+            TrackEvent {
+                delta_time: 0,
+                event: MidiMsg::ChannelMode {
+                    channel: Channel::Ch1,
+                    msg: ChannelModeMsg::ResetAllControllers,
+                },
+                beat_or_frame: 0.0,
+            },
+            TrackEvent {
+                delta_time: 0,
+                event: MidiMsg::ChannelVoice {
+                    channel: Channel::Ch1,
+                    msg: ChannelVoiceMsg::ControlChange {
+                        control: ControlChange::Undefined {
+                            control: 100,
+                            value: 0,
+                        },
+                    },
+                },
+                beat_or_frame: 0.0,
+            },
+            TrackEvent {
+                delta_time: 0,
+                event: MidiMsg::ChannelVoice {
+                    channel: Channel::Ch1,
+                    msg: ChannelVoiceMsg::ControlChange {
+                        control: ControlChange::Undefined {
+                            control: 101,
+                            value: 0,
+                        },
+                    },
+                },
+                beat_or_frame: 0.0,
+            },
+            TrackEvent {
+                delta_time: 0,
+                event: MidiMsg::ChannelVoice {
+                    channel: Channel::Ch1,
+                    msg: ChannelVoiceMsg::ControlChange {
+                        control: ControlChange::DataEntry(1536),
+                    },
+                },
+                beat_or_frame: 0.0,
+            },
+            TrackEvent {
+                delta_time: 0,
+                event: MidiMsg::ChannelVoice {
+                    channel: Channel::Ch1,
+                    msg: ChannelVoiceMsg::ControlChange {
+                        control: ControlChange::Undefined {
+                            control: 100,
+                            value: 127,
+                        },
+                    },
+                },
+                beat_or_frame: 0.0,
+            },
+            TrackEvent {
+                delta_time: 0,
+                event: MidiMsg::ChannelVoice {
+                    channel: Channel::Ch1,
+                    msg: ChannelVoiceMsg::ControlChange {
+                        control: ControlChange::Undefined {
+                            control: 101,
+                            value: 127,
+                        },
+                    },
+                },
+                beat_or_frame: 0.0,
+            },
+            TrackEvent {
+                delta_time: 0,
+                event: MidiMsg::ChannelVoice {
+                    channel: Channel::Ch1,
+                    msg: ChannelVoiceMsg::ProgramChange { program: 72 },
+                },
+                beat_or_frame: 0.0,
+            },
+            TrackEvent {
+                delta_time: 0,
+                event: MidiMsg::ChannelVoice {
+                    channel: Channel::Ch1,
+                    msg: ChannelVoiceMsg::ControlChange {
+                        control: ControlChange::Volume(12800),
+                    },
+                },
+                beat_or_frame: 0.0,
+            },
+            TrackEvent {
+                delta_time: 0,
+                event: MidiMsg::ChannelVoice {
+                    channel: Channel::Ch1,
+                    msg: ChannelVoiceMsg::ControlChange {
+                        control: ControlChange::Pan(8192),
+                    },
+                },
+                beat_or_frame: 0.0,
+            },
+            TrackEvent {
+                delta_time: 0,
+                event: MidiMsg::ChannelVoice {
+                    channel: Channel::Ch1,
+                    msg: ChannelVoiceMsg::ControlChange {
+                        control: ControlChange::Effects1Depth(0),
+                    },
+                },
+                beat_or_frame: 0.0,
+            },
+            TrackEvent {
+                delta_time: 0,
+                event: MidiMsg::ChannelVoice {
+                    channel: Channel::Ch1,
+                    msg: ChannelVoiceMsg::ControlChange {
+                        control: ControlChange::Effects3Depth(0),
+                    },
+                },
+                beat_or_frame: 0.0,
+            },
+            TrackEvent {
+                delta_time: 0,
+                event: MidiMsg::Meta {
+                    msg: Meta::Unknown {
+                        meta_type: 33,
+                        data: vec![0],
+                    },
+                },
+                beat_or_frame: 0.0,
+            },
+            TrackEvent {
+                delta_time: 0,
+                event: MidiMsg::ChannelVoice {
+                    channel: Channel::Ch1,
+                    msg: ChannelVoiceMsg::NoteOn {
+                        note: 84,
+                        velocity: 80,
+                    },
+                },
+                beat_or_frame: 0.0,
+            },
+            TrackEvent {
+                delta_time: 0,
+                event: MidiMsg::ChannelVoice {
+                    channel: Channel::Ch1,
+                    msg: ChannelVoiceMsg::ControlChange {
+                        control: ControlChange::Breath(10240),
+                    },
+                },
+                beat_or_frame: 0.0,
+            },
+            TrackEvent {
+                delta_time: 479,
+                event: MidiMsg::ChannelVoice {
+                    channel: Channel::Ch1,
+                    msg: ChannelVoiceMsg::NoteOn {
+                        note: 84,
+                        velocity: 0,
+                    },
+                },
+                beat_or_frame: 0.99791664,
+            },
+            TrackEvent {
+                delta_time: 1,
+                event: MidiMsg::Meta {
+                    msg: Meta::EndOfTrack,
+                },
+                beat_or_frame: 1.0,
+            },
+        ])],
+    };
+    let deserialize_result = MidiFile::from_midi(test_score1);
+    assert!(deserialize_result.is_ok());
+    assert_eq!(deserialize_result.unwrap(), expected);
 }

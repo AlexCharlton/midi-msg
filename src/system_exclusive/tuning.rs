@@ -10,7 +10,7 @@ pub struct TuningNoteChange {
     pub tuning_program_num: u8,
     /// Which tuning bank is targeted, 0-127. See [`Parameter::TuningBankSelect`](crate::Parameter::TuningBankSelect).
     pub tuning_bank_num: Option<u8>,
-    /// At most 127 (MIDI note number, Option<Tuning>) pairs.
+    /// At most 127 `(MIDI note number, Option<Tuning>)`` pairs.
     /// A `None` value represents "No change".
     pub tunings: Vec<(u8, Option<Tuning>)>,
 }

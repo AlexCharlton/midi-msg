@@ -5,7 +5,7 @@
 
 midi-msg aims to be a complete representation of the MIDI 1.0 Detailed Specification and its many extensions and addenda, to allow for the serialization and deserialization of MIDI byte streams to and from a typed representation. MIDI 2.0 may be supported at a later date.
 
-midi-msg types follow the taxonomy detailed in the MIDI spec, and have the goal of being entirely safe. That is to say, any `MidiMsg` can be serialized into a valid MIDI byte sequence. Likewise, as it strives for completeness, any valid MIDI byte sequence can be deserialized into a `MidiMsg`. A corollary to this is that "MIDI-like" messages that do not conform to the spec are mostly not representable. Additionally, midi-msg strives to capture the semantic meaning of MIDI with types that are not simply "bags of bytes". Any values that are not numeric atoms are represented with their meaning in mind. Nonetheless, much of what MIDI achieves is predicated on passing around numeric values and as such they are handled according to the following approach.
+midi-msg types follow the taxonomy detailed in the MIDI spec, and have the goal of being entirely safely serializable. That is to say, any `MidiMsg` can be serialized into a valid MIDI byte sequence. Likewise, as it strives for completeness, any valid MIDI byte sequence can be deserialized into a `MidiMsg`. A corollary to this is that "MIDI-like" messages that do not conform to the spec are mostly not representable. Additionally, midi-msg strives to capture the semantic meaning of MIDI with types that are not simply "bags of bytes". Any values that are not numeric atoms are represented with their meaning in mind. Nonetheless, much of what MIDI achieves is predicated on passing around numeric values and as such they are handled according to the following approach.
 
 Since the MIDI spec makes extensive use of non-byte-aligned integers, a Rust representation could either be achieved by introducing "exotic" integer types or by clamping Rust's primitive types to the desired range. For the sake of ergonomics, the latter approach was taken, though this does make this typed representation slightly "lossy". Any overflows between these representations are treated as max values (or min, for negative signed values). Other libraries, which have taken other approaches with respect to these design decisions, can be found below.
 
@@ -36,6 +36,7 @@ The default `sysex` and `file` Cargo features can be disabled to exclude code re
 MIDI messages described by the following [Midi Manufacturer Association (MMA) documents](https://www.midi.org/specifications/midi1-specifications) are supported (with their corresponding Midi Manufacturer Association [MMA] publication number, Recommended Practice [RP] number, or Changes/Additions [CA] number as noted):
 
 - MIDI 1.0 Detailed Specification 4.2.1 (The base specification. All types should be assumed to be defined by this document unless otherwise specified)
+- Standard MIDI Files 1.0 (RP-001)
 - MIDI Time Code (MTC) (MMA-001 / RP-004 / RP-008)
 - General MIDI System Level 1 (GM1) (MMA-007 / RP-003)
 - General MIDI 2 1.2 (GM2) (RP-024/RP-036/RP-037/RP-045)
@@ -49,7 +50,6 @@ MIDI messages described by the following [Midi Manufacturer Association (MMA) do
 - Modulation Depth Range RPN (CA-026)
 - Extension 00-01 to File Reference Sysex Message (CA-028)
 - CC #88 High Resolution Velocity Prefix (CA-031)
-- Standard MIDI Files 1.0 (RP-001)
 - Response to Data Inc/Dec Controllers (RP-018)
 - Sound Controller Defaults (RP-021)
 - Redefinition of RPN 01/02 (RP-022)
@@ -62,13 +62,16 @@ The following addenda are not yet fully supported by midi-msg, though hooks are 
 
 - MIDI Machine Control 1.0 (MMC) (MMA-016 / RP-013) (partial support)
 - MIDI Show Control 1.1.1 (MSC) (RP-002/RP-014)
+- SMF Device Name and Program Name Meta Events (RP-019)
+- SMF Meta-Event for XMF Patch Type Prefix (RP-032)
 
 
 The following addenda were consulted but considered not relevant to this library:
 
+- SMF Lyric Events Definition (RP-017)
 - Response to Reset All Controllers (RP-018)
+- SMF Language and Display Extensions (RP-026)
 - Default Pan Formula (RP-036)
-
 
 
 ## Other Rust MIDI representation libraries
@@ -77,6 +80,7 @@ The following addenda were consulted but considered not relevant to this library
 - [midi-control](https://crates.io/crates/midi-control)
 - [midi-types](https://crates.io/crates/midi-types)
 - [midly](https://crates.io/crates/midly)
+
 
 ## Exploring
 
@@ -95,6 +99,7 @@ This will produce output like:
 
 Note that `midir` is installed as a dev-dependency and this does not impose any
 requirement on the use of `midir` when specifying this crate as a dependency.
+
 
 ## Contributing
 [Pull requests](https://github.com/AlexCharlton/midi-msg/pulls) for the features listed above as not-yet supported, for bug fixes (any omissions from the spec are considered bugs), or for documentation additions are most welcome, as are [bug reports](https://github.com/AlexCharlton/midi-msg/issues).

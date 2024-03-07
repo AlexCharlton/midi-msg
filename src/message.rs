@@ -49,6 +49,8 @@ pub enum MidiMsg {
     /// Also the home of manufacturer-specific messages.
     #[cfg(feature = "sysex")]
     SystemExclusive { msg: SystemExclusiveMsg },
+
+    /// A Meta event, which occur within MIDI files.
     #[cfg(feature = "file")]
     Meta { msg: Meta },
 }

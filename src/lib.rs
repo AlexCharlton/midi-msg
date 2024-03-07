@@ -89,6 +89,42 @@
 //!
 //! ```
 //!
+//! ## Midi files
+//! We can work with Standard Midi Files (SMF) in much the same way. The [`MidiFile`] struct represents this data type and it can be serialized into a `Vec<u8>` and deserialized from a `Vec<u8>`. It holds a header and a list of tracks. Regular [`Track::Midi`] tracks contains a list of [`MidiMsg`] events along with the "delta time" that separates subsequent ones. The definition of the delta time is given by the `division` field in the [`Header`].
+//!
+//! Convenience functions are provided for constructing a `MidiFile` based on a series of events and absolute beat or frame timings. For example, the following creates a `MidiFile` with a single track containing a single note.
+//!
+//! ```
+//! use midi_msg::*;
+//! let mut file = MidiFile::default();
+//! // Add a track, updating the header with the number of tracks:
+//! file.add_track(Track::default());
+//! // Add a note on message at beat 0:
+//! file.extend_track(0, MidiMsg::ChannelVoice {
+//!     channel: Channel::Ch1,
+//!     msg: ChannelVoiceMsg::NoteOn {
+//!         note: 60,
+//!         velocity: 127
+//!     }
+//! }, 0.0);
+//! // Add a note off message at beat 1:
+//! file.extend_track(0, MidiMsg::ChannelVoice {
+//!     channel: Channel::Ch1,
+//!     msg: ChannelVoiceMsg::NoteOff {
+//!         note: 60,
+//!         velocity: 0
+//!     }
+//! }, 1.0);
+//! // Add an end of track message at beat 4, which is the only required (by the spec) message in a track:
+//! file.extend_track(0, MidiMsg::Meta { msg: Meta::EndOfTrack }, 4.0);
+//!
+//! // Now we can serialize the track to a Vec<u8>:
+//! let midi_bytes = file.to_midi();
+//! // And we can deserialize it back to a MidiFile:
+//! let file2 = MidiFile::from_midi(&midi_bytes).unwrap();
+//! assert_eq!(file, file2);
+//! ```
+//!
 //! ## Notes
 //!
 //! See the [readme](https://github.com/AlexCharlton/midi-msg/blob/master/readme.md) for a
