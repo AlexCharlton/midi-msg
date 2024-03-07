@@ -331,6 +331,32 @@ impl From<&MidiMsg> for Vec<u8> {
     }
 }
 
+/// Find the index of the next message in a MIDI byte sequence. This is useful for
+/// being able to skip over messages, which may be necessary when a message is
+/// unable to be deserialized.
+///
+/// This *will* skip any running status messages, since we're not parsing the byte stream,
+/// we're just looking for a "status byte" -- a byte with the upper bit set.
+pub fn next_message(m: &[u8]) -> Option<usize> {
+    if m.is_empty() {
+        return None;
+    }
+    // If the first byte has the upper bit set, it's the start of the message we're skipping over.
+    // If not, we're somewhere in the middle of a message, and we need to find the next one.
+    let start = if upper_bit_set(m[0]) { 1 } else { 0 };
+
+    for i in start..m.len() {
+        if upper_bit_set(m[i]) {
+            return Some(i);
+        }
+    }
+    None
+}
+
+fn upper_bit_set(x: u8) -> bool {
+    x & 0b10000000 != 0
+}
+
 #[cfg(feature = "std")]
 use strum::{Display, EnumIter, EnumString};
 
@@ -468,4 +494,30 @@ mod tests {
         assert_eq!(msg6, reset);
     }
 
+    #[test]
+    fn test_next_message() {
+        let mut midi = vec![];
+        MidiMsg::ChannelVoice {
+            channel: Channel::Ch1,
+            msg: ChannelVoiceMsg::NoteOn {
+                note: 0x42,
+                velocity: 0x60,
+            },
+        }
+        .extend_midi(&mut midi);
+        let first_message_len = midi.len();
+        MidiMsg::ChannelVoice {
+            channel: Channel::Ch1,
+            msg: ChannelVoiceMsg::NoteOn {
+                note: 0x42,
+                velocity: 0x60,
+            },
+        }
+        .extend_midi(&mut midi);
+
+        assert_eq!(next_message(&midi), Some(first_message_len));
+        // Offset by a byte, so we're in the middle of a message
+        assert_eq!(next_message(&midi[1..]), Some(first_message_len - 1));
+        assert_eq!(next_message(&midi[first_message_len..]), None);
+    }
 }
