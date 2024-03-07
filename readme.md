@@ -14,13 +14,13 @@ Since the MIDI spec makes extensive use of non-byte-aligned integers, a Rust rep
 Add the following line to your Cargo.toml file:
 
 ```
-midi-msg = "0.5"
+midi-msg = "0.6"
 ```
 
 If you want to use midi-msg in a `no_std` environment, add this line instead:
 
 ```
-midi-msg = { version = "0.5", default-features = false, features=["sysex"] }
+midi-msg = { version = "0.6", default-features = false, features=["sysex"/"file"] }
 ```
 
 ## Disabling system exclusive or MIDI File functionality
