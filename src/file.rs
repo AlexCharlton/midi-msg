@@ -1,4 +1,8 @@
+use alloc::fmt;
 use std::str;
+
+#[cfg(feature = "std")]
+use std::error;
 
 use super::{
     util::*, Channel, HighResTimeCode, MidiMsg, ParseError, ReceiverContext, SystemExclusiveMsg,
@@ -16,6 +20,36 @@ pub struct MidiFileParseError {
     pub parsing: String,
     pub remaining_bytes: usize,
     pub next_bytes: Vec<u8>,
+}
+
+#[cfg(feature = "std")]
+impl error::Error for MidiFileParseError {}
+
+impl fmt::Display for MidiFileParseError {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(
+            f,
+            "Error parsing MIDI file at position {}: {}",
+            &self.offset, &self.error
+        )?;
+        write!(
+            f,
+            "\nEncountered this error while parsing: {}",
+            &self.parsing
+        )?;
+        write!(
+            f,
+            "\nThe incomplete MidiFile that managed to be parsed: {:?}",
+            &self.file
+        )?;
+        write!(
+            f,
+            "\n\n{} bytes remain in the file. These are the next ones: {:x?}",
+            &self.remaining_bytes, &self.next_bytes
+        )?;
+
+        Ok(())
+    }
 }
 
 /// A Standard Midi File (SMF)
