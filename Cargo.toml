@@ -9,7 +9,7 @@ repository = "https://github.com/AlexCharlton/midi-msg"
 documentation = "https://docs.rs/midi-msg"
 homepage = "https://github.com/AlexCharlton/midi-msg"
 license = "MIT"
-keywords = ["midi", "music"]
+keywords = ["midi", "music", "smf", "no_std"]
 
 [dependencies]
 bstr = { version="1.0.0", default-features = false, features = ["alloc"], optional = true }
