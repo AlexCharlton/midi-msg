@@ -379,6 +379,13 @@ impl Track {
             Track::AlienChunk(_) => panic!("Cannot extend an alien chunk"),
         }
     }
+    /// Get the number of events in the track, or the length in bytes of an `AlienChunk`.
+    pub fn len(&self) -> usize {
+        match self {
+            Track::Midi(events) => events.len(),
+            Track::AlienChunk(data) => data.len(),
+        }
+    }
 
     fn parse_midi_file(ctx: &mut ParseCtx, track_num: u16) -> Result<(), ParseError> {
         if ctx.remaining() < 8 {
