@@ -325,6 +325,78 @@ impl MidiMsg {
             MidiMsg::Meta { msg } => msg.extend_midi(v),
         }
     }
+
+    /// Returns true if this message is a channel voice message.
+    pub fn is_channel_voice(&self) -> bool {
+        matches!(
+            self,
+            Self::ChannelVoice { .. } | Self::RunningChannelVoice { .. }
+        )
+    }
+
+    /// Returns true if this message is a note (on or off) message.
+    pub fn is_note(&self) -> bool {
+        matches!(
+            self,
+            Self::ChannelVoice {
+                msg: ChannelVoiceMsg::NoteOn { .. }
+                    | ChannelVoiceMsg::NoteOff { .. }
+                    | ChannelVoiceMsg::HighResNoteOn { .. }
+                    | ChannelVoiceMsg::HighResNoteOff { .. },
+                ..
+            } | Self::RunningChannelVoice {
+                msg: ChannelVoiceMsg::NoteOn { .. }
+                    | ChannelVoiceMsg::NoteOff { .. }
+                    | ChannelVoiceMsg::HighResNoteOn { .. }
+                    | ChannelVoiceMsg::HighResNoteOff { .. },
+                ..
+            }
+        )
+    }
+
+    /// Returns true if this message is a control change message.
+    pub fn is_cc(&self) -> bool {
+        matches!(
+            self,
+            Self::ChannelVoice {
+                msg: ChannelVoiceMsg::ControlChange { .. },
+                ..
+            } | Self::RunningChannelVoice {
+                msg: ChannelVoiceMsg::ControlChange { .. },
+                ..
+            }
+        )
+    }
+
+    /// Returns true if this message is a channel mode message.
+    pub fn is_channel_mode(&self) -> bool {
+        matches!(
+            self,
+            Self::ChannelMode { .. } | Self::RunningChannelMode { .. }
+        )
+    }
+
+    /// Returns true if this message is a system common message.
+    pub fn is_system_common(&self) -> bool {
+        matches!(self, Self::SystemCommon { .. })
+    }
+
+    /// Returns true if this message is a system real-time message.
+    pub fn is_system_real_time(&self) -> bool {
+        matches!(self, Self::SystemRealTime { .. })
+    }
+
+    #[cfg(feature = "sysex")]
+    /// Returns true if this message is a system exclusive message.
+    pub fn is_system_exclusive(&self) -> bool {
+        matches!(self, Self::SystemExclusive { .. })
+    }
+
+    #[cfg(feature = "file")]
+    /// Returns true if this message is a meta message.
+    pub fn is_meta(&self) -> bool {
+        matches!(self, Self::Meta { .. })
+    }
 }
 
 impl From<&MidiMsg> for Vec<u8> {
