@@ -1,3 +1,5 @@
+use crate::ReceiverContext;
+
 use super::parse_error::*;
 use super::util::*;
 use alloc::vec;
@@ -177,7 +179,7 @@ impl ChannelVoiceMsg {
         }
     }
 
-    pub(crate) fn from_midi(m: &[u8]) -> Result<(Self, usize), ParseError> {
+    pub(crate) fn from_midi(m: &[u8], ctx: &ReceiverContext) -> Result<(Self, usize), ParseError> {
         let status = match m.first() {
             Some(b) => match b >> 4 {
                 0x8 => Self::NoteOff {
@@ -202,11 +204,15 @@ impl ChannelVoiceMsg {
             },
             None => return Err(ParseError::UnexpectedEnd),
         };
-        let (msg, len) = Self::from_midi_running(&m[1..], &status)?;
+        let (msg, len) = Self::from_midi_running(&m[1..], &status, ctx)?;
         Ok((msg, len + 1))
     }
 
-    pub(crate) fn from_midi_running(m: &[u8], msg: &Self) -> Result<(Self, usize), ParseError> {
+    pub(crate) fn from_midi_running(
+        m: &[u8],
+        msg: &Self,
+        ctx: &ReceiverContext,
+    ) -> Result<(Self, usize), ParseError> {
         match msg {
             Self::NoteOff { .. } => Ok((
                 Self::NoteOff {
@@ -231,7 +237,7 @@ impl ChannelVoiceMsg {
             )),
             Self::ControlChange { .. } => Ok((
                 Self::ControlChange {
-                    control: ControlChange::from_midi(m)?,
+                    control: ControlChange::from_midi(m, ctx)?,
                 },
                 2,
             )),
@@ -258,7 +264,7 @@ impl ChannelVoiceMsg {
                 // midi msg sent would have been a CC.
                 Ok((
                     Self::ControlChange {
-                        control: ControlChange::from_midi(m)?,
+                        control: ControlChange::from_midi(m, ctx)?,
                     },
                     2,
                 ))
@@ -354,27 +360,34 @@ pub enum ControlNumber {
 
 /// Used by [`ChannelVoiceMsg::ControlChange`] to modify sounds.
 /// Each control targets a particular [`ControlNumber`], the meaning of which is given by convention.
+///
+/// When deserializing and [`complex_cc`](crate::ReceiverContext ) is false (the default), only `ControlChange::CC` values are returned. "Simple" CC values represent the control parameter with a number, while "complex" variants capture the semantics of the spec. Simple can be turned into their complex counterparts using the `to_complex` method, or vis-versa using the `to_simple` and `to_simple_high_res` methods.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ControlChange {
+    /// "Simple" Control Change message.
+    ///
+    /// Control number may be any valid Midi CC Control number. May not be > 119.
+    CC {
+        control: u8,
+        /// 0-127
+        value: u8,
+    },
+    /// "Simple" high-resolution Control Change message.
+    ///
+    /// `control1` is associated with the MSB of the value, `control2` with the LSB. Neither `controls` may be > 119.
+    CCHighRes {
+        control1: u8,
+        control2: u8,
+        /// 0-16383
+        value: u16,
+    },
+
     /// 0-16383
     BankSelect(u16),
     /// 0-16383
     ModWheel(u16),
     /// 0-16383
     Breath(u16),
-    /// Control number may be any valid Midi CC Control number. May not be > 119.
-    Undefined {
-        control: u8,
-        /// 0-127
-        value: u8,
-    },
-    /// `control1` is associated with the MSB of the value, `control2` with the LSB. Neither `controls` may be > 119.
-    UndefinedHighRes {
-        control1: u8,
-        control2: u8,
-        /// 0-16383
-        value: u16,
-    },
     /// 0-16383
     Foot(u16),
     /// 0-16383
@@ -496,6 +509,341 @@ pub enum ControlChange {
 }
 
 impl ControlChange {
+    pub fn to_complex(&self) -> Self {
+        match *self {
+            Self::CC { control, value } => {
+                match control {
+                    // 14 bit controls
+                    0 => Self::BankSelect((value as u16) << 7),
+                    1 => Self::ModWheel((value as u16) << 7),
+                    2 => Self::Breath((value as u16) << 7),
+                    4 => Self::Foot((value as u16) << 7),
+                    5 => Self::Portamento((value as u16) << 7),
+                    6 => Self::DataEntry((value as u16) << 7),
+                    7 => Self::Volume((value as u16) << 7),
+                    8 => Self::Balance((value as u16) << 7),
+                    10 => Self::Pan((value as u16) << 7),
+                    11 => Self::Expression((value as u16) << 7),
+                    12 => Self::Effect1((value as u16) << 7),
+                    13 => Self::Effect2((value as u16) << 7),
+                    16 => Self::GeneralPurpose1((value as u16) << 7),
+                    17 => Self::GeneralPurpose2((value as u16) << 7),
+                    18 => Self::GeneralPurpose3((value as u16) << 7),
+                    19 => Self::GeneralPurpose4((value as u16) << 7),
+                    // 7 bit controls
+                    64 => Self::Hold(value),
+                    65 => Self::TogglePortamento(value >= 0x40),
+                    66 => Self::Sostenuto(value),
+                    67 => Self::SoftPedal(value),
+                    68 => Self::ToggleLegato(value >= 0x40),
+                    69 => Self::Hold2(value),
+                    70 => Self::SoundControl1(value),
+                    71 => Self::SoundControl2(value),
+                    72 => Self::SoundControl3(value),
+                    73 => Self::SoundControl4(value),
+                    74 => Self::SoundControl5(value),
+                    75 => Self::SoundControl6(value),
+                    76 => Self::SoundControl7(value),
+                    77 => Self::SoundControl8(value),
+                    78 => Self::SoundControl9(value),
+                    79 => Self::SoundControl10(value),
+                    80 => Self::GeneralPurpose5(value),
+                    81 => Self::GeneralPurpose6(value),
+                    82 => Self::GeneralPurpose7(value),
+                    83 => Self::GeneralPurpose8(value),
+                    84 => Self::PortamentoControl(value),
+                    88 => Self::HighResVelocity(value),
+                    91 => Self::Effects1Depth(value),
+                    92 => Self::Effects2Depth(value),
+                    93 => Self::Effects3Depth(value),
+                    94 => Self::Effects4Depth(value),
+                    95 => Self::Effects5Depth(value),
+                    96 => Self::DataIncrement(value),
+                    97 => Self::DataDecrement(value),
+                    // Undefined controls
+                    3 | 9 | 14 | 15 | 20 | 21 | 22 | 23 | 24 | 25 | 26 | 27 | 28 | 29 | 30 | 31 => {
+                        Self::CCHighRes {
+                            control1: control,
+                            control2: control + 32,
+                            value: (value as u16) << 7,
+                        }
+                    }
+                    control => Self::CC { control, value },
+                }
+            }
+            Self::CCHighRes {
+                control1, value, ..
+            } => {
+                match control1 {
+                    // 14 bit controls
+                    0 => Self::BankSelect(value),
+                    1 => Self::ModWheel(value),
+                    2 => Self::Breath(value),
+                    4 => Self::Foot(value),
+                    5 => Self::Portamento(value),
+                    6 => Self::DataEntry(value),
+                    7 => Self::Volume(value),
+                    8 => Self::Balance(value),
+                    10 => Self::Pan(value),
+                    11 => Self::Expression(value),
+                    12 => Self::Effect1(value),
+                    13 => Self::Effect2(value),
+                    16 => Self::GeneralPurpose1(value),
+                    17 => Self::GeneralPurpose2(value),
+                    18 => Self::GeneralPurpose3(value),
+                    19 => Self::GeneralPurpose4(value),
+                    _ => Self::CC {
+                        control: control1,
+                        value: (value >> 7) as u8,
+                    }
+                    .to_complex(),
+                }
+            }
+            // Everything else is already complex
+            rest => rest,
+        }
+    }
+
+    pub fn to_simple(&self) -> Self {
+        Self::CC {
+            control: self.control(),
+            value: self.value(),
+        }
+    }
+
+    pub fn to_simple_high_res(&self) -> Self {
+        match self {
+            Self::CCHighRes { .. } => *self,
+            _ => {
+                let cc = self.control();
+                Self::CCHighRes {
+                    control1: cc,
+                    control2: cc + 32,
+                    value: self.value_high_res(),
+                }
+            }
+        }
+    }
+
+    pub fn control(&self) -> u8 {
+        match self {
+            Self::CC { control, .. } => *control,
+            Self::CCHighRes { control1, .. } => *control1,
+            Self::BankSelect(_) => ControlNumber::BankSelect as u8,
+            Self::ModWheel(_) => ControlNumber::ModWheel as u8,
+            Self::Breath(_) => ControlNumber::Breath as u8,
+            Self::Foot(_) => ControlNumber::Foot as u8,
+            Self::Portamento(_) => ControlNumber::Portamento as u8,
+            Self::Volume(_) => ControlNumber::Volume as u8,
+            Self::Balance(_) => ControlNumber::Balance as u8,
+            Self::Pan(_) => ControlNumber::Pan as u8,
+            Self::Expression(_) => ControlNumber::Expression as u8,
+            Self::Effect1(_) => ControlNumber::Effect1 as u8,
+            Self::Effect2(_) => ControlNumber::Effect2 as u8,
+            Self::GeneralPurpose1(_) => ControlNumber::GeneralPurpose1 as u8,
+            Self::GeneralPurpose2(_) => ControlNumber::GeneralPurpose2 as u8,
+            Self::GeneralPurpose3(_) => ControlNumber::GeneralPurpose3 as u8,
+            Self::GeneralPurpose4(_) => ControlNumber::GeneralPurpose4 as u8,
+            Self::GeneralPurpose5(_) => ControlNumber::GeneralPurpose5 as u8,
+            Self::GeneralPurpose6(_) => ControlNumber::GeneralPurpose6 as u8,
+            Self::GeneralPurpose7(_) => ControlNumber::GeneralPurpose7 as u8,
+            Self::GeneralPurpose8(_) => ControlNumber::GeneralPurpose8 as u8,
+            Self::Hold(_) => ControlNumber::Hold as u8,
+            Self::Hold2(_) => ControlNumber::Hold2 as u8,
+            Self::TogglePortamento(_) => ControlNumber::TogglePortamento as u8,
+            Self::Sostenuto(_) => ControlNumber::Sostenuto as u8,
+            Self::SoftPedal(_) => ControlNumber::SoftPedal as u8,
+            Self::ToggleLegato(_) => ControlNumber::ToggleLegato as u8,
+            Self::SoundVariation(_) => ControlNumber::SoundControl1 as u8,
+            Self::Timbre(_) => ControlNumber::SoundControl2 as u8,
+            Self::ReleaseTime(_) => ControlNumber::SoundControl3 as u8,
+            Self::AttackTime(_) => ControlNumber::SoundControl4 as u8,
+            Self::Brightness(_) => ControlNumber::SoundControl5 as u8,
+            Self::DecayTime(_) => ControlNumber::SoundControl6 as u8,
+            Self::VibratoRate(_) => ControlNumber::SoundControl7 as u8,
+            Self::VibratoDepth(_) => ControlNumber::SoundControl8 as u8,
+            Self::VibratoDelay(_) => ControlNumber::SoundControl9 as u8,
+            Self::SoundControl1(_) => ControlNumber::SoundControl1 as u8,
+            Self::SoundControl2(_) => ControlNumber::SoundControl2 as u8,
+            Self::SoundControl3(_) => ControlNumber::SoundControl3 as u8,
+            Self::SoundControl4(_) => ControlNumber::SoundControl4 as u8,
+            Self::SoundControl5(_) => ControlNumber::SoundControl5 as u8,
+            Self::SoundControl6(_) => ControlNumber::SoundControl6 as u8,
+            Self::SoundControl7(_) => ControlNumber::SoundControl7 as u8,
+            Self::SoundControl8(_) => ControlNumber::SoundControl8 as u8,
+            Self::SoundControl9(_) => ControlNumber::SoundControl9 as u8,
+            Self::SoundControl10(_) => ControlNumber::SoundControl10 as u8,
+            Self::HighResVelocity(_) => ControlNumber::HighResVelocity as u8,
+            Self::PortamentoControl(_) => ControlNumber::PortamentoControl as u8,
+            Self::Effects1Depth(_) => ControlNumber::Effects1Depth as u8,
+            Self::Effects2Depth(_) => ControlNumber::Effects2Depth as u8,
+            Self::Effects3Depth(_) => ControlNumber::Effects3Depth as u8,
+            Self::Effects4Depth(_) => ControlNumber::Effects4Depth as u8,
+            Self::Effects5Depth(_) => ControlNumber::Effects5Depth as u8,
+            Self::ReverbSendLevel(_) => ControlNumber::Effects1Depth as u8,
+            Self::TremoloDepth(_) => ControlNumber::Effects2Depth as u8,
+            Self::ChorusSendLevel(_) => ControlNumber::Effects3Depth as u8,
+            Self::CelesteDepth(_) => ControlNumber::Effects4Depth as u8,
+            Self::PhaserDepth(_) => ControlNumber::Effects5Depth as u8,
+            Self::Parameter(Parameter::Unregistered(..)) => {
+                ControlNumber::NonRegisteredParameter as u8
+            }
+            Self::Parameter(_) => ControlNumber::RegisteredParameter as u8,
+            Self::DataEntry(_) => ControlNumber::DataEntry as u8,
+            Self::DataEntry2(_, _) => ControlNumber::DataEntry as u8,
+            Self::DataIncrement(_) => ControlNumber::DataIncrement as u8,
+            Self::DataDecrement(_) => ControlNumber::DataDecrement as u8,
+        }
+    }
+
+    /// The value of the control change, 0-127. Will be 0 for `ControlChange::Parameter`.
+    pub fn value(&self) -> u8 {
+        match self {
+            Self::CC { value, .. } => *value,
+            Self::CCHighRes { value, .. } => (*value >> 7) as u8,
+            Self::BankSelect(x)
+            | Self::ModWheel(x)
+            | Self::Breath(x)
+            | Self::Foot(x)
+            | Self::Portamento(x)
+            | Self::Volume(x)
+            | Self::Balance(x)
+            | Self::Pan(x)
+            | Self::Expression(x)
+            | Self::Effect1(x)
+            | Self::Effect2(x)
+            | Self::GeneralPurpose1(x)
+            | Self::GeneralPurpose2(x)
+            | Self::GeneralPurpose3(x)
+            | Self::GeneralPurpose4(x)
+            | Self::DataEntry(x) => (x >> 7) as u8,
+            Self::Hold(x)
+            | Self::Hold2(x)
+            | Self::Sostenuto(x)
+            | Self::SoftPedal(x)
+            | Self::SoundVariation(x)
+            | Self::Timbre(x)
+            | Self::ReleaseTime(x)
+            | Self::AttackTime(x)
+            | Self::Brightness(x)
+            | Self::DecayTime(x)
+            | Self::VibratoRate(x)
+            | Self::VibratoDepth(x)
+            | Self::VibratoDelay(x)
+            | Self::SoundControl1(x)
+            | Self::SoundControl2(x)
+            | Self::SoundControl3(x)
+            | Self::SoundControl4(x)
+            | Self::SoundControl5(x)
+            | Self::SoundControl6(x)
+            | Self::SoundControl7(x)
+            | Self::SoundControl8(x)
+            | Self::SoundControl9(x)
+            | Self::SoundControl10(x)
+            | Self::GeneralPurpose5(x)
+            | Self::GeneralPurpose6(x)
+            | Self::GeneralPurpose7(x)
+            | Self::GeneralPurpose8(x)
+            | Self::PortamentoControl(x)
+            | Self::Effects1Depth(x)
+            | Self::Effects2Depth(x)
+            | Self::Effects3Depth(x)
+            | Self::Effects4Depth(x)
+            | Self::Effects5Depth(x)
+            | Self::ReverbSendLevel(x)
+            | Self::TremoloDepth(x)
+            | Self::ChorusSendLevel(x)
+            | Self::CelesteDepth(x)
+            | Self::PhaserDepth(x)
+            | Self::HighResVelocity(x)
+            | Self::DataDecrement(x)
+            | Self::DataIncrement(x) => *x,
+            Self::DataEntry2(msb, _) => *msb,
+            Self::ToggleLegato(x) | Self::TogglePortamento(x) => {
+                if *x {
+                    127
+                } else {
+                    0
+                }
+            }
+            Self::Parameter(_) => 0,
+        }
+    }
+
+    /// The 14-bit value of the control change. Non-high-res parameters are scaled to 14 bits. Will be 0 for `ControlChange::Parameter`.
+    pub fn value_high_res(&self) -> u16 {
+        match self {
+            Self::CC { value, .. } => (*value as u16) << 7,
+            Self::CCHighRes { value, .. } => *value,
+            Self::BankSelect(x)
+            | Self::ModWheel(x)
+            | Self::Breath(x)
+            | Self::Foot(x)
+            | Self::Portamento(x)
+            | Self::Volume(x)
+            | Self::Balance(x)
+            | Self::Pan(x)
+            | Self::Expression(x)
+            | Self::Effect1(x)
+            | Self::Effect2(x)
+            | Self::GeneralPurpose1(x)
+            | Self::GeneralPurpose2(x)
+            | Self::GeneralPurpose3(x)
+            | Self::GeneralPurpose4(x)
+            | Self::DataEntry(x) => *x,
+            Self::Hold(x)
+            | Self::Hold2(x)
+            | Self::Sostenuto(x)
+            | Self::SoftPedal(x)
+            | Self::SoundVariation(x)
+            | Self::Timbre(x)
+            | Self::ReleaseTime(x)
+            | Self::AttackTime(x)
+            | Self::Brightness(x)
+            | Self::DecayTime(x)
+            | Self::VibratoRate(x)
+            | Self::VibratoDepth(x)
+            | Self::VibratoDelay(x)
+            | Self::SoundControl1(x)
+            | Self::SoundControl2(x)
+            | Self::SoundControl3(x)
+            | Self::SoundControl4(x)
+            | Self::SoundControl5(x)
+            | Self::SoundControl6(x)
+            | Self::SoundControl7(x)
+            | Self::SoundControl8(x)
+            | Self::SoundControl9(x)
+            | Self::SoundControl10(x)
+            | Self::GeneralPurpose5(x)
+            | Self::GeneralPurpose6(x)
+            | Self::GeneralPurpose7(x)
+            | Self::GeneralPurpose8(x)
+            | Self::PortamentoControl(x)
+            | Self::Effects1Depth(x)
+            | Self::Effects2Depth(x)
+            | Self::Effects3Depth(x)
+            | Self::Effects4Depth(x)
+            | Self::Effects5Depth(x)
+            | Self::ReverbSendLevel(x)
+            | Self::TremoloDepth(x)
+            | Self::ChorusSendLevel(x)
+            | Self::CelesteDepth(x)
+            | Self::PhaserDepth(x)
+            | Self::HighResVelocity(x)
+            | Self::DataDecrement(x)
+            | Self::DataIncrement(x) => (*x as u16) << 7,
+            Self::DataEntry2(msb, lsb) => (*msb as u16) << 7 | *lsb as u16,
+            Self::ToggleLegato(x) | Self::TogglePortamento(x) => {
+                if *x {
+                    127 << 7
+                } else {
+                    0
+                }
+            }
+            Self::Parameter(_) => 0,
+        }
+    }
+
     fn high_res_cc(v: &mut Vec<u8>, control: u8, value: u16) {
         let [msb, lsb] = to_u14(value);
         v.push(control);
@@ -523,7 +871,7 @@ impl ControlChange {
             | Self::ModWheel(_)
             | Self::Breath(_)
             | Self::DataEntry(_)
-            | Self::UndefinedHighRes { .. }
+            | Self::CCHighRes { .. }
             | Self::Foot(_)
             | Self::Portamento(_)
             | Self::Volume(_)
@@ -536,18 +884,14 @@ impl ControlChange {
             | Self::GeneralPurpose2(_)
             | Self::GeneralPurpose3(_)
             | Self::GeneralPurpose4(_) => true,
-            Self::Undefined { control, .. }
-                if control < &32 || control == &99 || control == &101 =>
-            {
-                true
-            }
+            Self::CC { control, .. } if control < &32 || control == &99 || control == &101 => true,
             _ => false,
         }
     }
 
     fn is_lsb(&self) -> bool {
         match self {
-            Self::Undefined { control, .. }
+            Self::CC { control, .. }
                 if control >= &32 && control < &64 || control == &98 || control == &100 =>
             {
                 true
@@ -567,10 +911,8 @@ impl ControlChange {
             ControlChange::BankSelect(x) => ControlChange::high_res_cc(v, 0, x),
             ControlChange::ModWheel(x) => ControlChange::high_res_cc(v, 1, x),
             ControlChange::Breath(x) => ControlChange::high_res_cc(v, 2, x),
-            ControlChange::Undefined { control, value } => {
-                ControlChange::undefined(v, control, value)
-            }
-            ControlChange::UndefinedHighRes {
+            ControlChange::CC { control, value } => ControlChange::undefined(v, control, value),
+            ControlChange::CCHighRes {
                 control1,
                 control2,
                 value,
@@ -716,7 +1058,7 @@ impl ControlChange {
         }
     }
 
-    pub(crate) fn from_midi(m: &[u8]) -> Result<Self, ParseError> {
+    pub(crate) fn from_midi(m: &[u8], ctx: &ReceiverContext) -> Result<Self, ParseError> {
         if m.len() < 2 {
             return Err(crate::ParseError::UnexpectedEnd);
         }
@@ -728,6 +1070,12 @@ impl ControlChange {
         }
 
         let value = u8_from_u7(m[1])?;
+        if !ctx.complex_cc {
+            return Ok(ControlChange::CC {
+                control: m[0],
+                value,
+            });
+        }
         Ok(match m[0] {
             // 14 bit controls
             0 => Self::BankSelect((value as u16) << 7),
@@ -778,141 +1126,141 @@ impl ControlChange {
             97 => Self::DataDecrement(value),
             // Undefined controls (including parameters)
             3 | 9 | 14 | 15 | 20 | 21 | 22 | 23 | 24 | 25 | 26 | 27 | 28 | 29 | 30 | 31 => {
-                Self::UndefinedHighRes {
+                Self::CCHighRes {
                     control1: m[0],
                     control2: m[0] + 32,
                     value: (value as u16) << 7,
                 }
             }
-            control => Self::Undefined { control, value },
+            control => Self::CC { control, value },
         })
     }
 
     fn maybe_extend(&self, other: &Self) -> Result<Self, ()> {
         match (self, other) {
-            (Self::BankSelect(msb), Self::Undefined { control, value })
-            | (Self::Undefined { control, value }, Self::BankSelect(msb))
+            (Self::BankSelect(msb), Self::CC { control, value })
+            | (Self::CC { control, value }, Self::BankSelect(msb))
                 if *control == ControlNumber::BankSelectLSB as u8 =>
             {
                 Ok(Self::BankSelect(replace_u14_lsb(*msb, *value)))
             }
-            (Self::ModWheel(msb), Self::Undefined { control, value })
-            | (Self::Undefined { control, value }, Self::ModWheel(msb))
+            (Self::ModWheel(msb), Self::CC { control, value })
+            | (Self::CC { control, value }, Self::ModWheel(msb))
                 if *control == ControlNumber::ModWheelLSB as u8 =>
             {
                 Ok(Self::ModWheel(replace_u14_lsb(*msb, *value)))
             }
-            (Self::Breath(msb), Self::Undefined { control, value })
-            | (Self::Undefined { control, value }, Self::Breath(msb))
+            (Self::Breath(msb), Self::CC { control, value })
+            | (Self::CC { control, value }, Self::Breath(msb))
                 if *control == ControlNumber::BreathLSB as u8 =>
             {
                 Ok(Self::Breath(replace_u14_lsb(*msb, *value)))
             }
-            (Self::Foot(msb), Self::Undefined { control, value })
-            | (Self::Undefined { control, value }, Self::Foot(msb))
+            (Self::Foot(msb), Self::CC { control, value })
+            | (Self::CC { control, value }, Self::Foot(msb))
                 if *control == ControlNumber::FootLSB as u8 =>
             {
                 Ok(Self::Foot(replace_u14_lsb(*msb, *value)))
             }
-            (Self::Portamento(msb), Self::Undefined { control, value })
-            | (Self::Undefined { control, value }, Self::Portamento(msb))
+            (Self::Portamento(msb), Self::CC { control, value })
+            | (Self::CC { control, value }, Self::Portamento(msb))
                 if *control == ControlNumber::PortamentoLSB as u8 =>
             {
                 Ok(Self::Portamento(replace_u14_lsb(*msb, *value)))
             }
-            (Self::DataEntry(msb), Self::Undefined { control, value })
-            | (Self::Undefined { control, value }, Self::DataEntry(msb))
+            (Self::DataEntry(msb), Self::CC { control, value })
+            | (Self::CC { control, value }, Self::DataEntry(msb))
                 if *control == ControlNumber::DataEntryLSB as u8 =>
             {
                 Ok(Self::DataEntry(replace_u14_lsb(*msb, *value)))
             }
-            (Self::Volume(msb), Self::Undefined { control, value })
-            | (Self::Undefined { control, value }, Self::Volume(msb))
+            (Self::Volume(msb), Self::CC { control, value })
+            | (Self::CC { control, value }, Self::Volume(msb))
                 if *control == ControlNumber::VolumeLSB as u8 =>
             {
                 Ok(Self::Volume(replace_u14_lsb(*msb, *value)))
             }
-            (Self::Balance(msb), Self::Undefined { control, value })
-            | (Self::Undefined { control, value }, Self::Balance(msb))
+            (Self::Balance(msb), Self::CC { control, value })
+            | (Self::CC { control, value }, Self::Balance(msb))
                 if *control == ControlNumber::BalanceLSB as u8 =>
             {
                 Ok(Self::Balance(replace_u14_lsb(*msb, *value)))
             }
-            (Self::Pan(msb), Self::Undefined { control, value })
-            | (Self::Undefined { control, value }, Self::Pan(msb))
+            (Self::Pan(msb), Self::CC { control, value })
+            | (Self::CC { control, value }, Self::Pan(msb))
                 if *control == ControlNumber::PanLSB as u8 =>
             {
                 Ok(Self::Pan(replace_u14_lsb(*msb, *value)))
             }
-            (Self::Expression(msb), Self::Undefined { control, value })
-            | (Self::Undefined { control, value }, Self::Expression(msb))
+            (Self::Expression(msb), Self::CC { control, value })
+            | (Self::CC { control, value }, Self::Expression(msb))
                 if *control == ControlNumber::ExpressionLSB as u8 =>
             {
                 Ok(Self::Expression(replace_u14_lsb(*msb, *value)))
             }
-            (Self::Effect1(msb), Self::Undefined { control, value })
-            | (Self::Undefined { control, value }, Self::Effect1(msb))
+            (Self::Effect1(msb), Self::CC { control, value })
+            | (Self::CC { control, value }, Self::Effect1(msb))
                 if *control == ControlNumber::Effect1LSB as u8 =>
             {
                 Ok(Self::Effect1(replace_u14_lsb(*msb, *value)))
             }
-            (Self::Effect2(msb), Self::Undefined { control, value })
-            | (Self::Undefined { control, value }, Self::Effect2(msb))
+            (Self::Effect2(msb), Self::CC { control, value })
+            | (Self::CC { control, value }, Self::Effect2(msb))
                 if *control == ControlNumber::Effect2LSB as u8 =>
             {
                 Ok(Self::Effect2(replace_u14_lsb(*msb, *value)))
             }
-            (Self::GeneralPurpose1(msb), Self::Undefined { control, value })
-            | (Self::Undefined { control, value }, Self::GeneralPurpose1(msb))
+            (Self::GeneralPurpose1(msb), Self::CC { control, value })
+            | (Self::CC { control, value }, Self::GeneralPurpose1(msb))
                 if *control == ControlNumber::GeneralPurpose1LSB as u8 =>
             {
                 Ok(Self::GeneralPurpose1(replace_u14_lsb(*msb, *value)))
             }
-            (Self::GeneralPurpose2(msb), Self::Undefined { control, value })
-            | (Self::Undefined { control, value }, Self::GeneralPurpose2(msb))
+            (Self::GeneralPurpose2(msb), Self::CC { control, value })
+            | (Self::CC { control, value }, Self::GeneralPurpose2(msb))
                 if *control == ControlNumber::GeneralPurpose2LSB as u8 =>
             {
                 Ok(Self::GeneralPurpose2(replace_u14_lsb(*msb, *value)))
             }
-            (Self::GeneralPurpose3(msb), Self::Undefined { control, value })
-            | (Self::Undefined { control, value }, Self::GeneralPurpose3(msb))
+            (Self::GeneralPurpose3(msb), Self::CC { control, value })
+            | (Self::CC { control, value }, Self::GeneralPurpose3(msb))
                 if *control == ControlNumber::GeneralPurpose3LSB as u8 =>
             {
                 Ok(Self::GeneralPurpose3(replace_u14_lsb(*msb, *value)))
             }
-            (Self::GeneralPurpose4(msb), Self::Undefined { control, value })
-            | (Self::Undefined { control, value }, Self::GeneralPurpose4(msb))
+            (Self::GeneralPurpose4(msb), Self::CC { control, value })
+            | (Self::CC { control, value }, Self::GeneralPurpose4(msb))
                 if *control == ControlNumber::GeneralPurpose4LSB as u8 =>
             {
                 Ok(Self::GeneralPurpose4(replace_u14_lsb(*msb, *value)))
             }
             (
-                Self::UndefinedHighRes {
+                Self::CCHighRes {
                     control1,
                     control2,
                     value: msb,
                 },
-                Self::Undefined { control, value },
+                Self::CC { control, value },
             )
             | (
-                Self::Undefined { control, value },
-                Self::UndefinedHighRes {
+                Self::CC { control, value },
+                Self::CCHighRes {
                     control1,
                     control2,
                     value: msb,
                 },
-            ) if control == control2 => Ok(Self::UndefinedHighRes {
+            ) if control == control2 => Ok(Self::CCHighRes {
                 control1: *control1,
                 control2: *control2,
                 value: replace_u14_lsb(*msb, *value),
             }),
             // Parameters
             (
-                Self::Undefined {
+                Self::CC {
                     control: ctrl1,
                     value: val1,
                 },
-                Self::Undefined {
+                Self::CC {
                     control: ctrl2,
                     value: val2,
                 },
@@ -939,8 +1287,8 @@ impl ControlChange {
                     Err(())
                 }
             }
-            (Self::Parameter(param), Self::Undefined { control, value })
-            | (Self::Undefined { control, value }, Self::Parameter(param))
+            (Self::Parameter(param), Self::CC { control, value })
+            | (Self::CC { control, value }, Self::Parameter(param))
                 if *control == ControlNumber::DataEntryLSB as u8 =>
             {
                 Ok(Self::Parameter(param.maybe_extend(None, Some(*value))?))
@@ -1446,7 +1794,7 @@ mod tests {
             MidiMsg::ChannelVoice {
                 channel: Channel::Ch4,
                 msg: ChannelVoiceMsg::ControlChange {
-                    control: ControlChange::Undefined {
+                    control: ControlChange::CC {
                         control: 85,
                         value: 77
                     }
@@ -1460,7 +1808,7 @@ mod tests {
             MidiMsg::ChannelVoice {
                 channel: Channel::Ch2,
                 msg: ChannelVoiceMsg::ControlChange {
-                    control: ControlChange::UndefinedHighRes {
+                    control: ControlChange::CCHighRes {
                         control1: 3,
                         control2: 35,
                         value: 1000
@@ -1507,7 +1855,7 @@ mod tests {
 
     #[test]
     fn deserialize_channel_voice_msg() {
-        let mut ctx = ReceiverContext::new();
+        let mut ctx = ReceiverContext::new().complex_cc();
 
         test_serialization(
             MidiMsg::ChannelVoice {
@@ -1542,7 +1890,7 @@ mod tests {
             MidiMsg::ChannelVoice {
                 channel: Channel::Ch4,
                 msg: ChannelVoiceMsg::ControlChange {
-                    control: ControlChange::Undefined {
+                    control: ControlChange::CC {
                         control: 85,
                         value: 77,
                     },
@@ -1555,7 +1903,7 @@ mod tests {
             MidiMsg::ChannelVoice {
                 channel: Channel::Ch2,
                 msg: ChannelVoiceMsg::ControlChange {
-                    control: ControlChange::UndefinedHighRes {
+                    control: ControlChange::CCHighRes {
                         control1: 3,
                         control2: 35,
                         value: 1000,
@@ -1644,6 +1992,103 @@ mod tests {
                 },
             },
             &mut ctx,
+        );
+    }
+
+    #[test]
+    fn test_cc_control_and_value() {
+        assert_eq!(
+            ControlChange::CC {
+                control: 20,
+                value: 40
+            }
+            .control(),
+            20
+        );
+        assert_eq!(
+            ControlChange::CC {
+                control: 20,
+                value: 40
+            }
+            .value(),
+            40
+        );
+        assert_eq!(
+            ControlChange::CC {
+                control: 20,
+                value: 40
+            }
+            .value_high_res(),
+            40 << 7
+        );
+
+        assert_eq!(ControlChange::Breath(40 << 7).control(), 2);
+        assert_eq!(ControlChange::Breath(40 << 7).value(), 40);
+        assert_eq!(ControlChange::Breath(40 << 7).value_high_res(), 40 << 7);
+    }
+
+    #[test]
+    fn test_cc_to_complex_and_to_simple() {
+        assert_eq!(
+            ControlChange::CC {
+                control: 2,
+                value: 40
+            }
+            .to_complex(),
+            ControlChange::Breath(40 << 7)
+        );
+        assert_eq!(
+            ControlChange::Breath(40 << 7).to_simple(),
+            ControlChange::CC {
+                control: 2,
+                value: 40
+            }
+        );
+        assert_eq!(
+            ControlChange::Breath(40 << 7).to_simple_high_res(),
+            ControlChange::CCHighRes {
+                control1: 2,
+                control2: 34,
+                value: 40 << 7
+            }
+        );
+
+        assert_eq!(
+            ControlChange::CC {
+                control: 20,
+                value: 40
+            }
+            .to_complex(),
+            ControlChange::CCHighRes {
+                control1: 20,
+                control2: 52,
+                value: 40 << 7,
+            }
+        );
+        assert_eq!(
+            ControlChange::CCHighRes {
+                control1: 20,
+                control2: 52,
+                value: 40 << 7,
+            }
+            .to_simple(),
+            ControlChange::CC {
+                control: 20,
+                value: 40,
+            },
+        );
+        assert_eq!(
+            ControlChange::CCHighRes {
+                control1: 20,
+                control2: 52,
+                value: 40 << 7,
+            }
+            .to_simple_high_res(),
+            ControlChange::CCHighRes {
+                control1: 20,
+                control2: 52,
+                value: 40 << 7,
+            }
         );
     }
 }

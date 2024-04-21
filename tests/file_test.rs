@@ -150,7 +150,7 @@ fn test_score_file() {
                 event: MidiMsg::ChannelVoice {
                     channel: Channel::Ch1,
                     msg: ChannelVoiceMsg::ControlChange {
-                        control: ControlChange::Undefined {
+                        control: ControlChange::CC {
                             control: 100,
                             value: 0,
                         },
@@ -163,7 +163,7 @@ fn test_score_file() {
                 event: MidiMsg::ChannelVoice {
                     channel: Channel::Ch1,
                     msg: ChannelVoiceMsg::ControlChange {
-                        control: ControlChange::Undefined {
+                        control: ControlChange::CC {
                             control: 101,
                             value: 0,
                         },
@@ -176,7 +176,10 @@ fn test_score_file() {
                 event: MidiMsg::ChannelVoice {
                     channel: Channel::Ch1,
                     msg: ChannelVoiceMsg::ControlChange {
-                        control: ControlChange::DataEntry(1536),
+                        control: ControlChange::CC {
+                            control: 6,
+                            value: 12,
+                        },
                     },
                 },
                 beat_or_frame: 0.0,
@@ -186,7 +189,7 @@ fn test_score_file() {
                 event: MidiMsg::ChannelVoice {
                     channel: Channel::Ch1,
                     msg: ChannelVoiceMsg::ControlChange {
-                        control: ControlChange::Undefined {
+                        control: ControlChange::CC {
                             control: 100,
                             value: 127,
                         },
@@ -199,7 +202,7 @@ fn test_score_file() {
                 event: MidiMsg::ChannelVoice {
                     channel: Channel::Ch1,
                     msg: ChannelVoiceMsg::ControlChange {
-                        control: ControlChange::Undefined {
+                        control: ControlChange::CC {
                             control: 101,
                             value: 127,
                         },
@@ -220,7 +223,10 @@ fn test_score_file() {
                 event: MidiMsg::ChannelVoice {
                     channel: Channel::Ch1,
                     msg: ChannelVoiceMsg::ControlChange {
-                        control: ControlChange::Volume(12800),
+                        control: ControlChange::CC {
+                            control: 7,
+                            value: 100,
+                        },
                     },
                 },
                 beat_or_frame: 0.0,
@@ -230,7 +236,10 @@ fn test_score_file() {
                 event: MidiMsg::ChannelVoice {
                     channel: Channel::Ch1,
                     msg: ChannelVoiceMsg::ControlChange {
-                        control: ControlChange::Pan(8192),
+                        control: ControlChange::CC {
+                            control: 10,
+                            value: 64,
+                        },
                     },
                 },
                 beat_or_frame: 0.0,
@@ -240,7 +249,10 @@ fn test_score_file() {
                 event: MidiMsg::ChannelVoice {
                     channel: Channel::Ch1,
                     msg: ChannelVoiceMsg::ControlChange {
-                        control: ControlChange::Effects1Depth(0),
+                        control: ControlChange::CC {
+                            control: 91,
+                            value: 0,
+                        },
                     },
                 },
                 beat_or_frame: 0.0,
@@ -250,7 +262,10 @@ fn test_score_file() {
                 event: MidiMsg::ChannelVoice {
                     channel: Channel::Ch1,
                     msg: ChannelVoiceMsg::ControlChange {
-                        control: ControlChange::Effects3Depth(0),
+                        control: ControlChange::CC {
+                            control: 93,
+                            value: 0,
+                        },
                     },
                 },
                 beat_or_frame: 0.0,
@@ -281,7 +296,10 @@ fn test_score_file() {
                 event: MidiMsg::ChannelVoice {
                     channel: Channel::Ch1,
                     msg: ChannelVoiceMsg::ControlChange {
-                        control: ControlChange::Breath(10240),
+                        control: ControlChange::CC {
+                            control: 2,
+                            value: 80,
+                        },
                     },
                 },
                 beat_or_frame: 0.0,

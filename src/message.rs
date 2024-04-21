@@ -108,7 +108,7 @@ impl MidiMsg {
         let (mut midi_msg, mut len) = match m.first() {
             Some(b) => match b >> 4 {
                 0x8 | 0x9 | 0xA | 0xC | 0xD | 0xE => {
-                    let (msg, len) = ChannelVoiceMsg::from_midi(m)?;
+                    let (msg, len) = ChannelVoiceMsg::from_midi(m, ctx)?;
                     let channel = Channel::from_u8(b & 0x0F);
                     let midi_msg = Self::ChannelVoice { channel, msg };
 
@@ -123,7 +123,7 @@ impl MidiMsg {
                             let (msg, len) = ChannelModeMsg::from_midi(m)?;
                             (Self::ChannelMode { channel, msg }, len)
                         } else {
-                            let (mut msg, len) = ChannelVoiceMsg::from_midi(m)?;
+                            let (mut msg, len) = ChannelVoiceMsg::from_midi(m, ctx)?;
 
                             if allow_extensions {
                                 // If we can interpret this message as an extension to the previous
@@ -199,7 +199,7 @@ impl MidiMsg {
                                     }
                                     _ => (),
                                 };
-                                let (mut msg, len) = ChannelVoiceMsg::from_midi_running(m, prev_msg)?;
+                                let (mut msg, len) = ChannelVoiceMsg::from_midi_running(m, prev_msg, ctx)?;
 
                                 if allow_extensions {
                                     // If we can interpret this message as an extension to the previous
@@ -226,7 +226,7 @@ impl MidiMsg {
                                     let (msg, len) = ChannelModeMsg::from_midi(m)?;
                                     Ok((Self::ChannelMode { channel: *channel, msg}, len))
                                 } else {
-                                    let control= crate::ControlChange::from_midi(m)?;
+                                    let control= crate::ControlChange::from_midi(m, ctx)?;
                                     Ok((Self::ChannelVoice { channel: *channel, msg: ChannelVoiceMsg::ControlChange { control }}, 2))
                                 }
                             }
@@ -469,7 +469,7 @@ mod tests {
 
         // Read back six messages
         let mut offset = 0;
-        let mut ctx = ReceiverContext::new();
+        let mut ctx = ReceiverContext::new().complex_cc();
         let (msg1, len) = MidiMsg::from_midi_with_context(&midi, &mut ctx).expect("Not an error");
         offset += len;
         let (msg2, len) =
