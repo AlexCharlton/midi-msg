@@ -373,17 +373,26 @@ impl Default for Track {
 }
 
 impl Track {
-    fn extend(&mut self, event: TrackEvent) {
-        match self {
-            Track::Midi(events) => events.push(event),
-            Track::AlienChunk(_) => panic!("Cannot extend an alien chunk"),
-        }
-    }
     /// Get the number of events in the track, or the length in bytes of an `AlienChunk`.
     pub fn len(&self) -> usize {
         match self {
             Track::Midi(events) => events.len(),
             Track::AlienChunk(data) => data.len(),
+        }
+    }
+
+    /// Get the `TrackEvent` events in the track. Will be empty for an `AlienChunk`.
+    pub fn events(&self) -> &[TrackEvent] {
+        match self {
+            Track::Midi(events) => events,
+            Track::AlienChunk(_) => &[],
+        }
+    }
+
+    fn extend(&mut self, event: TrackEvent) {
+        match self {
+            Track::Midi(events) => events.push(event),
+            Track::AlienChunk(_) => panic!("Cannot extend an alien chunk"),
         }
     }
 
