@@ -1,7 +1,7 @@
 [package]
 name = "midi-msg"
 description = "A (eventually) complete representation of the MIDI 1.0 Detailed Specification and its many extensions and addenda, allowing for the serialization and deserialization of MIDI byte streams to and from a typed representation."
-version = "0.6.1"
+version = "0.7.0"
 authors = ["Alex Charlton"]
 edition = "2018"
 readme = "readme.md"

@@ -381,7 +381,7 @@ impl Track {
         }
     }
 
-    /// Get the `TrackEvent` events in the track. Will be empty for an `AlienChunk`.
+    /// Get the [`TrackEvent`] events in the track. Will be empty for an `AlienChunk`.
     pub fn events(&self) -> &[TrackEvent] {
         match self {
             Track::Midi(events) => events,

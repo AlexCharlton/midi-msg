@@ -361,7 +361,7 @@ pub enum ControlNumber {
 /// Used by [`ChannelVoiceMsg::ControlChange`] to modify sounds.
 /// Each control targets a particular [`ControlNumber`], the meaning of which is given by convention.
 ///
-/// When deserializing and [`complex_cc`](crate::ReceiverContext ) is false (the default), only `ControlChange::CC` values are returned. "Simple" CC values represent the control parameter with a number, while "complex" variants capture the semantics of the spec. Simple can be turned into their complex counterparts using the `to_complex` method, or vis-versa using the `to_simple` and `to_simple_high_res` methods.
+/// When deserializing and [`complex_cc`](crate::ReceiverContext) is false (the default), only [ControlChange::CC] values are returned. "Simple" CC values represent the control parameter with a number, while "complex" variants capture the semantics of the spec. Simple can be turned into their complex counterparts using the [`to_complex`](ControlChange::to_complex) method, or vis-versa using the [`to_simple`](ControlChange::to_simple) and [`to_simple_high_res`](ControlChange::to_simple_high_res) methods.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ControlChange {
     /// "Simple" Control Change message.

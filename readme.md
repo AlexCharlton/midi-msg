@@ -14,13 +14,13 @@ Since the MIDI spec makes extensive use of non-byte-aligned integers, a Rust rep
 Add the following line to your Cargo.toml file:
 
 ```
-midi-msg = "0.6"
+midi-msg = "0.7"
 ```
 
 If you want to use midi-msg in a `no_std` environment, add this line instead:
 
 ```
-midi-msg = { version = "0.6", default-features = false, features=["sysex"/"file"] }
+midi-msg = { version = "0.7", default-features = false, features=["sysex"/"file"] }
 ```
 
 ## Disabling system exclusive or MIDI File functionality
@@ -103,3 +103,11 @@ requirement on the use of `midir` when specifying this crate as a dependency.
 
 ## Contributing
 [Pull requests](https://github.com/AlexCharlton/midi-msg/pulls) for the features listed above as not-yet supported, for bug fixes (any omissions from the spec are considered bugs), or for documentation additions are most welcome, as are [bug reports](https://github.com/AlexCharlton/midi-msg/issues).
+
+## Changelog
+- **0.7**
+  - Added "simple" CC deserialization and made it the default. See [RecieverContext](https://docs.rs/midi-msg/latest/midi_msg/struct.ReceiverContext.html) and [ControlChange](https://docs.rs/midi-msg/latest/midi_msg/enum.ControlChange.html). This renames `ControlChange::Undefined` and `ControlChange::UndefinedHighRes` to `ControlChange::CC` and `ControlChange::CCHighRes`.
+  - Added `is_*` predicates to `MidiMsg` (i.e. `is_note`).
+  - Added `Track::len` and `Track::events` methods.
+- **0.6**
+  - Added MIDI File (SMF) support
