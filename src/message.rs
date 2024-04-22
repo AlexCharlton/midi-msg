@@ -569,6 +569,65 @@ mod tests {
     }
 
     #[test]
+    fn test_simple_cc_running_status() {
+        let cc = MidiMsg::ChannelVoice {
+            channel: Channel::Ch1,
+            msg: ChannelVoiceMsg::ControlChange {
+                control: crate::ControlChange::Volume(0x7F),
+            },
+        };
+        let running_cc = MidiMsg::RunningChannelVoice {
+            channel: Channel::Ch1,
+            msg: ChannelVoiceMsg::ControlChange {
+                control: crate::ControlChange::Volume(0x7F),
+            },
+        };
+        let simple_cc_msb = MidiMsg::ChannelVoice {
+            channel: Channel::Ch1,
+            msg: ChannelVoiceMsg::ControlChange {
+                control: crate::ControlChange::CC {
+                    control: 7,
+                    value: 0,
+                },
+            },
+        };
+        let simple_cc_lsb = MidiMsg::ChannelVoice {
+            channel: Channel::Ch1,
+            msg: ChannelVoiceMsg::ControlChange {
+                control: crate::ControlChange::CC {
+                    control: 7 + 32,
+                    value: 0x7F,
+                },
+            },
+        };
+
+        // Push two messages
+        let mut midi = vec![];
+        cc.extend_midi(&mut midi);
+        running_cc.extend_midi(&mut midi);
+
+        // Read back 4 messages (two are running status messages)
+        let mut offset = 0;
+        let mut ctx = ReceiverContext::new();
+        let (msg1, len) = MidiMsg::from_midi_with_context(&midi, &mut ctx).expect("Not an error");
+        offset += len;
+        let (msg2, len) =
+            MidiMsg::from_midi_with_context(&midi[offset..], &mut ctx).expect("Not an error");
+        offset += len;
+        let (msg3, len) =
+            MidiMsg::from_midi_with_context(&midi[offset..], &mut ctx).expect("Not an error");
+        offset += len;
+        let (msg4, _) =
+            MidiMsg::from_midi_with_context(&midi[offset..], &mut ctx).expect("Not an error");
+
+        // The expected messages are not running status messages, since we never deserialize into them
+        assert_eq!(msg1, simple_cc_msb);
+        assert_eq!(msg2, simple_cc_lsb);
+        assert_eq!(msg3, simple_cc_msb);
+        assert_eq!(msg4, simple_cc_lsb);
+    }
+
+    #[test]
     fn test_next_message() {
         let mut midi = vec![];
         MidiMsg::ChannelVoice {
