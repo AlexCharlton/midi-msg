@@ -183,12 +183,13 @@ impl MidiFile {
         match &mut self.tracks[track_num] {
             Track::Midi(events) => {
                 let last_beat_or_frame = events.last().map(|e| e.beat_or_frame).unwrap_or(0.0);
-                let delta_time = self
+                let last_event_tick = self
                     .header
                     .division
-                    .beat_or_frame_to_tick(beat_or_frame - last_beat_or_frame);
+                    .beat_or_frame_to_tick(last_beat_or_frame);
+                let this_event_tick = self.header.division.beat_or_frame_to_tick(beat_or_frame);
                 events.push(TrackEvent {
-                    delta_time,
+                    delta_time: this_event_tick - last_event_tick,
                     event,
                     beat_or_frame,
                 })
@@ -554,6 +555,7 @@ impl TrackEvent {
 
     fn extend_midi(&self, v: &mut Vec<u8>) {
         push_vlq(self.delta_time, v);
+        // TODO this doesn't handle running-status events
         let event = self.event.to_midi();
 
         let is_meta = match self.event {
