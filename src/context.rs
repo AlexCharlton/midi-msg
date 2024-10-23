@@ -12,9 +12,10 @@ use super::{MidiMsg, TimeCode};
 /// messages.
 #[derive(Debug, Clone, PartialEq, Default)]
 pub struct ReceiverContext {
-    pub previous_channel_message: Option<MidiMsg>,
-    pub time_code: TimeCode,
-    pub is_smf_sysex: bool,
+    pub(crate) previous_channel_message: Option<MidiMsg>,
+    pub(crate) time_code: TimeCode,
+    pub(crate) is_smf_sysex: bool,
+    pub(crate) parsing_smf: bool,
     /// If true, CC messages will be treated as complex CC messages, with their semantics taken from the Midi spec. Otherwise, they will be treated as simple CC messages - i.e. [`ControlChange::CC`](crate::ControlChange::CC).
     pub complex_cc: bool,
 }
@@ -27,6 +28,11 @@ impl ReceiverContext {
     /// Interpret CC messages as complex CC messages.
     pub fn complex_cc(mut self) -> Self {
         self.complex_cc = true;
+        self
+    }
+
+    pub(crate) fn parsing_smf(mut self) -> Self {
+        self.parsing_smf = true;
         self
     }
 }

@@ -166,7 +166,7 @@ impl MidiMsg {
                         }
                         #[cfg(not(feature = "sysex"))]
                         return Err(ParseError::SystemExclusiveDisabled);
-                    } else if b & 0b00001111 == 0xF {
+                    } else if b & 0b00001111 == 0xF && ctx.parsing_smf {
                         #[cfg(feature = "file")]
                         {
                             let (msg, len) = Meta::from_midi(m)?;

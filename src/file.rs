@@ -414,7 +414,7 @@ impl Track {
         ctx.add_track(Self::Midi(vec![]));
         ctx.advance(8);
         ctx.track_length(len);
-        let reciever_ctx = &mut ReceiverContext::default();
+        let reciever_ctx = &mut ReceiverContext::default().parsing_smf();
 
         let mut i = 0;
         let mut last_beat_or_frame = 0.0;

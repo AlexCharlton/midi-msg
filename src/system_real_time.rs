@@ -74,4 +74,16 @@ mod tests {
             &mut ctx,
         );
     }
+
+    #[test]
+    fn serde_system_reset() {
+        let system_reset = MidiMsg::SystemRealTime {
+            msg: SystemRealTimeMsg::SystemReset,
+        };
+        println!("{:?}", system_reset.to_midi());
+        assert_eq!(
+            MidiMsg::from_midi_with_context(&system_reset.to_midi(), &mut ReceiverContext::new()),
+            Ok((system_reset, 1)),
+        );
+    }
 }
