@@ -178,6 +178,12 @@ impl MidiFile {
         self.header.num_tracks += 1;
     }
 
+    /// Remove a track from the file. Decrements the `num_tracks` field in the header.
+    pub fn remove_track(&mut self, track_num: usize) {
+        self.tracks.remove(track_num);
+        self.header.num_tracks -= 1;
+    }
+
     /// Add a midi event to a track in the file, given its absolute beat or frame time. The event delta time is calculated from the previous event in the track and the time division of the file.
     pub fn extend_track(&mut self, track_num: usize, event: MidiMsg, beat_or_frame: f32) {
         match &mut self.tracks[track_num] {
