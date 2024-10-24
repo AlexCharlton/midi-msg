@@ -17,6 +17,7 @@ bstr = { version = "1.0.0", default-features = false, features = [
 ], optional = true }
 micromath = "1.1.1"
 strum = { version = "0.24.1", features = ["derive"], optional = true }
+log = "0.4"
 
 [dev-dependencies]
 midir = "0.8.0"

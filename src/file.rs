@@ -451,6 +451,7 @@ impl Track {
                 v.extend_from_slice(b"MTrk");
                 let s = v.len();
                 push_u32(0, v); // We will fill this in after we know the length
+
                 for event in events {
                     event.extend_midi(v);
                 }
@@ -560,14 +561,21 @@ impl TrackEvent {
     }
 
     fn extend_midi(&self, v: &mut Vec<u8>) {
+        if matches!(
+            self.event,
+            MidiMsg::SystemRealTime {
+                msg: crate::SystemRealTimeMsg::SystemReset,
+            }
+        ) {
+            log::warn!("SMF contains System Reset event, which is not valid. Skipping.");
+            return;
+        }
+
         push_vlq(self.delta_time, v);
         // TODO this doesn't handle running-status events
         let event = self.event.to_midi();
 
-        let is_meta = match self.event {
-            MidiMsg::Meta { .. } => true,
-            _ => false,
-        };
+        let is_meta = matches!(self.event, MidiMsg::Meta { .. });
         // Any kind of system event
         let is_system = match self.event {
             MidiMsg::SystemExclusive { .. }
@@ -839,5 +847,158 @@ impl KeySignature {
     pub(crate) fn extend_midi(&self, v: &mut Vec<u8>) {
         v.push(self.key as u8);
         v.push(self.scale);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_file_time_signature() {
+        let midi_data = vec![4, 2, 24, 8];
+        let time_sig = FileTimeSignature::from_midi(&midi_data).unwrap();
+
+        assert_eq!(time_sig.numerator, 4);
+        assert_eq!(time_sig.denominator, 4);
+        assert_eq!(time_sig.clocks_per_metronome_tick, 24);
+        assert_eq!(time_sig.thirty_second_notes_per_24_clocks, 8);
+
+        let mut output = Vec::new();
+        time_sig.extend_midi(&mut output);
+        assert_eq!(output, midi_data);
+    }
+
+    #[test]
+    fn test_file_time_signature_error() {
+        let midi_data = vec![4, 2, 24];
+        assert!(matches!(
+            FileTimeSignature::from_midi(&midi_data),
+            Err(ParseError::UnexpectedEnd)
+        ));
+    }
+
+    #[test]
+    fn test_key_signature() {
+        let midi_data = vec![2, 0];
+        let key_sig = KeySignature::from_midi(&midi_data).unwrap();
+
+        assert_eq!(key_sig.key, 2);
+        assert_eq!(key_sig.scale, 0);
+
+        let mut output = Vec::new();
+        key_sig.extend_midi(&mut output);
+        assert_eq!(output, midi_data);
+    }
+
+    #[test]
+    fn test_key_signature_error() {
+        let midi_data = vec![2];
+        assert!(matches!(
+            KeySignature::from_midi(&midi_data),
+            Err(ParseError::UnexpectedEnd)
+        ));
+    }
+
+    #[test]
+    fn test_file_serde() {
+        use crate::message::MidiMsg;
+        use crate::Channel;
+        use crate::ChannelVoiceMsg;
+
+        // Create a simple MIDI file
+        let mut file = MidiFile::default();
+        // Set the division
+        file.header.division = Division::TicksPerQuarterNote(480);
+
+        file.add_track(Track::default());
+
+        // Add some events to the track
+        file.extend_track(
+            0,
+            MidiMsg::Meta {
+                msg: Meta::TrackName("Test Track".to_string()),
+            },
+            0.0,
+        );
+
+        file.extend_track(
+            0,
+            MidiMsg::Meta {
+                msg: Meta::TimeSignature(FileTimeSignature {
+                    numerator: 4,
+                    denominator: 4,
+                    clocks_per_metronome_tick: 24,
+                    thirty_second_notes_per_24_clocks: 8,
+                }),
+            },
+            0.0,
+        );
+
+        file.extend_track(
+            0,
+            MidiMsg::ChannelVoice {
+                channel: Channel::Ch1,
+                msg: ChannelVoiceMsg::NoteOn {
+                    note: 60,
+                    velocity: 64,
+                },
+            },
+            0.0,
+        );
+
+        file.extend_track(
+            0,
+            MidiMsg::ChannelVoice {
+                channel: Channel::Ch1,
+                msg: ChannelVoiceMsg::NoteOff {
+                    note: 60,
+                    velocity: 64,
+                },
+            },
+            1.0,
+        );
+        file.extend_track(
+            0,
+            MidiMsg::Meta {
+                msg: Meta::EndOfTrack,
+            },
+            2.0,
+        );
+
+        // Convert the file to bytes
+        let bytes = file.to_midi();
+
+        // Assert that we've created a valid MIDI file
+        assert!(bytes.starts_with(b"MThd"));
+        assert!(bytes[14..].starts_with(b"MTrk"));
+
+        let deserialized_file = MidiFile::from_midi(&bytes).unwrap();
+        assert_eq!(deserialized_file.tracks.len(), 1);
+        assert_eq!(deserialized_file.tracks[0].events().len(), 5);
+        assert_eq!(
+            deserialized_file.header.division,
+            Division::TicksPerQuarterNote(480)
+        );
+        assert_eq!(deserialized_file, file);
+    }
+
+    #[test]
+    fn test_file_system_reset() {
+        let mut file = MidiFile::default();
+        file.add_track(Track::default());
+        file.extend_track(
+            0,
+            MidiMsg::SystemRealTime {
+                msg: crate::SystemRealTimeMsg::SystemReset,
+            },
+            0.0,
+        );
+        let bytes = file.to_midi();
+
+        let deserialized_file = MidiFile::from_midi(&bytes).unwrap();
+        assert_eq!(deserialized_file.tracks.len(), 1);
+        // The system reset message should not be included in the track, since it is not a valid MIDI file message
+        assert_eq!(deserialized_file.tracks[0].events().len(), 0);
     }
 }
