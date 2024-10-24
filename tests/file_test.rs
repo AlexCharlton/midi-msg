@@ -1,6 +1,7 @@
 use midi_msg::*;
 
 #[test]
+#[cfg(feature = "file")]
 fn test_smf_file() {
     let test1 = include_bytes!("./test1.mid");
     let expected = MidiFile {
@@ -94,6 +95,7 @@ fn test_smf_file() {
 }
 
 #[test]
+#[cfg(feature = "file")]
 fn test_score_file() {
     // File generated from MuseScore 4. The file is a simple score with a single track, but MuseScore adds a number of meta events and control changes.
     let test_score1 = include_bytes!("./test_score1.mid");

@@ -95,7 +95,10 @@
 //! Convenience functions are provided for constructing a `MidiFile` based on a series of events and absolute beat or frame timings. For example, the following creates a `MidiFile` with a single track containing a single note.
 //!
 //! ```
+//! # #[cfg(feature = "file")]
+//! # fn main() {
 //! use midi_msg::*;
+//!
 //! let mut file = MidiFile::default();
 //! // Add a track, updating the header with the number of tracks:
 //! file.add_track(Track::default());
@@ -115,7 +118,8 @@
 //!         velocity: 0
 //!     }
 //! }, 1.0);
-//! // Add an end of track message at beat 4, which is the only required (by the spec) message in a track:
+//! // Add an end of track message at beat 4,
+//! // which is the only required (by the spec) message in a track:
 //! file.extend_track(0, MidiMsg::Meta { msg: Meta::EndOfTrack }, 4.0);
 //!
 //! // Now we can serialize the track to a Vec<u8>:
@@ -123,6 +127,10 @@
 //! // And we can deserialize it back to a MidiFile:
 //! let file2 = MidiFile::from_midi(&midi_bytes).unwrap();
 //! assert_eq!(file, file2);
+//! # }
+//!
+//! # #[cfg(not(feature = "file"))]
+//! # fn main() {}
 //! ```
 //!
 //! ## Notes

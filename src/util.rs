@@ -257,7 +257,7 @@ pub use sysex_util::*;
 mod file_util {
     use super::ParseError;
     use alloc::vec::Vec;
-    use std::convert::TryInto;
+    use core::convert::TryInto;
 
     #[inline]
     pub fn push_u16(x: u16, v: &mut Vec<u8>) {

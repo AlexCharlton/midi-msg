@@ -1,5 +1,13 @@
 use alloc::fmt;
-use std::str;
+use alloc::format;
+use alloc::string::{String, ToString};
+use alloc::vec;
+use alloc::vec::Vec;
+use core::ops;
+use core::str;
+
+#[cfg(not(feature = "std"))]
+use micromath::F32Ext;
 
 #[cfg(feature = "std")]
 use std::error;
@@ -89,7 +97,7 @@ impl<'a, 'b> ParseCtx<'a, 'b> {
         &self.input[self.offset..]
     }
 
-    fn slice(&self, range: std::ops::Range<usize>) -> &[u8] {
+    fn slice(&self, range: ops::Range<usize>) -> &[u8] {
         &self.input[range.start + self.offset..range.end + self.offset]
     }
 
@@ -567,6 +575,7 @@ impl TrackEvent {
                 msg: crate::SystemRealTimeMsg::SystemReset,
             }
         ) {
+            #[cfg(feature = "std")]
             log::warn!("SMF contains System Reset event, which is not valid. Skipping.");
             return;
         }

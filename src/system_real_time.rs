@@ -17,6 +17,10 @@ pub enum SystemRealTimeMsg {
     /// Used to indicate that the given device is still connected.
     ActiveSensing,
     /// Request that all devices are reset to their power-up state.
+    ///
+    /// This is not a valid message in a MIDI file, since it overlaps
+    /// with the MIDI file's Meta messages. If you add this message to a
+    /// MIDI file, it will be ignored upon serialization.
     SystemReset,
 }
 
@@ -80,7 +84,6 @@ mod tests {
         let system_reset = MidiMsg::SystemRealTime {
             msg: SystemRealTimeMsg::SystemReset,
         };
-        println!("{:?}", system_reset.to_midi());
         assert_eq!(
             MidiMsg::from_midi_with_context(&system_reset.to_midi(), &mut ReceiverContext::new()),
             Ok((system_reset, 1)),
