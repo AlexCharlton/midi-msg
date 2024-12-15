@@ -330,3 +330,12 @@ fn test_score_file() {
     assert!(deserialize_result.is_ok());
     assert_eq!(deserialize_result.unwrap(), expected);
 }
+
+#[test]
+#[cfg(feature = "file")]
+fn test_smf_file_with_sysex() {
+    let test_file = include_bytes!("./breaking-the-law.mid");
+
+    let deserialize_result = MidiFile::from_midi(test_file);
+    assert!(deserialize_result.is_ok());
+}

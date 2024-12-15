@@ -506,7 +506,8 @@ impl TrackEvent {
                         let p = time_offset + len_offset + 1;
                         ctx.is_smf_sysex = true;
                         let (event, event_len) = SystemExclusiveMsg::from_midi(&v[p..], ctx)?;
-                        if event_len != len as usize {
+                        // event_length does not include the terminating 0xF7 byte, while len is the length of the entire message
+                        if event_len != len as usize + 1 {
                             return Err(ParseError::Invalid("Invalid system exclusive message"));
                         }
                         Ok((
@@ -515,7 +516,7 @@ impl TrackEvent {
                                 event: MidiMsg::SystemExclusive { msg: event },
                                 beat_or_frame,
                             },
-                            p + event_len,
+                            p + len as usize,
                         ))
                     }
                     0x7 => {
@@ -524,7 +525,7 @@ impl TrackEvent {
                         ctx.is_smf_sysex = false;
                         let (event, event_len) = MidiMsg::from_midi_with_context(&v[p..], ctx)?;
 
-                        if event_len != len as usize {
+                        if event_len != len as usize + 1 {
                             return Err(ParseError::Invalid("Invalid system exclusive message"));
                         }
                         Ok((
@@ -533,7 +534,7 @@ impl TrackEvent {
                                 event,
                                 beat_or_frame,
                             },
-                            p + event_len,
+                            p + len as usize,
                         ))
                     }
                     0xF => {
