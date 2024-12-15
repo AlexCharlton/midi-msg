@@ -223,7 +223,7 @@ impl MidiMsg {
                                 }
                                 // See A-2 of the MIDI spec
                                 if m[0] >= 120 {
-                                    let (msg, len) = ChannelModeMsg::from_midi(m)?;
+                                    let (msg, len) = ChannelModeMsg::from_midi_running(m)?;
                                     Ok((Self::ChannelMode { channel: *channel, msg}, len))
                                 } else {
                                     let control= crate::ControlChange::from_midi(m, ctx)?;
@@ -529,17 +529,23 @@ mod tests {
             },
         };
 
-        // Push six messages
+        // Push 10 messages
         let mut midi = vec![];
         noteon.extend_midi(&mut midi);
         running_noteon.extend_midi(&mut midi);
+        // Ensure that channel mode messages can follow one another
+        reset.extend_midi(&mut midi);
+        running_reset.extend_midi(&mut midi);
+        // Ensure that control changes can follow one another
+        cc.extend_midi(&mut midi);
+        running_cc.extend_midi(&mut midi);
         //   Ensure that control changes and channel mode messages can follow one another
         reset.extend_midi(&mut midi);
         running_cc.extend_midi(&mut midi);
         cc.extend_midi(&mut midi);
         running_reset.extend_midi(&mut midi);
 
-        // Read back six messages
+        // Read back ten messages
         let mut offset = 0;
         let mut ctx = ReceiverContext::new().complex_cc();
         let (msg1, len) = MidiMsg::from_midi_with_context(&midi, &mut ctx).expect("Not an error");
@@ -556,16 +562,32 @@ mod tests {
         let (msg5, len) =
             MidiMsg::from_midi_with_context(&midi[offset..], &mut ctx).expect("Not an error");
         offset += len;
-        let (msg6, _) =
+        let (msg6, len) =
+            MidiMsg::from_midi_with_context(&midi[offset..], &mut ctx).expect("Not an error");
+        offset += len;
+        let (msg7, len) =
+            MidiMsg::from_midi_with_context(&midi[offset..], &mut ctx).expect("Not an error");
+        offset += len;
+        let (msg8, len) =
+            MidiMsg::from_midi_with_context(&midi[offset..], &mut ctx).expect("Not an error");
+        offset += len;
+        let (msg9, len) =
+            MidiMsg::from_midi_with_context(&midi[offset..], &mut ctx).expect("Not an error");
+        offset += len;
+        let (msg10, _) =
             MidiMsg::from_midi_with_context(&midi[offset..], &mut ctx).expect("Not an error");
 
         // The expected messages are not running status messages, since we never deserialize into them
         assert_eq!(msg1, noteon);
         assert_eq!(msg2, noteon);
         assert_eq!(msg3, reset);
-        assert_eq!(msg4, cc);
+        assert_eq!(msg4, reset);
         assert_eq!(msg5, cc);
-        assert_eq!(msg6, reset);
+        assert_eq!(msg6, cc);
+        assert_eq!(msg7, reset);
+        assert_eq!(msg8, cc);
+        assert_eq!(msg9, cc);
+        assert_eq!(msg10, reset);
     }
 
     #[test]
