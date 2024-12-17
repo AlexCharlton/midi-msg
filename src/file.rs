@@ -680,10 +680,17 @@ impl Meta {
         let end = len as usize + len_offset + 1;
         let data = &v[len_offset + 1..end];
         match meta_type {
-            0x00 => Ok((
-                Self::SequenceNumber(u16::from_be_bytes([data[0], data[1]])),
-                end,
-            )),
+            0x00 => {
+                if data.len() != 2 {
+                    return Err(ParseError::Invalid(
+                        "Sequence number meta event must have exactly 2 bytes",
+                    ));
+                }
+                Ok((
+                    Self::SequenceNumber(u16::from_be_bytes([data[0], data[1]])),
+                    end,
+                ))
+            }
             0x01 => Ok((Self::Text(String::from_utf8_lossy(data).to_string()), end)),
             0x02 => Ok((
                 Self::Copyright(String::from_utf8_lossy(data).to_string()),
@@ -703,21 +710,54 @@ impl Meta {
                 Self::CuePoint(String::from_utf8_lossy(data).to_string()),
                 end,
             )),
-            0x20 => Ok((Self::ChannelPrefix(Channel::from_u8(data[0])), end)),
+            0x20 => {
+                if data.len() != 1 {
+                    return Err(ParseError::Invalid(
+                        "ChannelPrefix meta event must have exactly 1 byte",
+                    ));
+                }
+                Ok((Self::ChannelPrefix(Channel::from_u8(data[0])), end))
+            }
             0x2F => Ok((Self::EndOfTrack, end)),
-            0x51 => Ok((
-                Self::SetTempo(u32::from_be_bytes([0, data[0], data[1], data[2]])),
-                end,
-            )),
+            0x51 => {
+                if data.len() != 3 {
+                    return Err(ParseError::Invalid(
+                        "SetTempo meta event must have exactly 3 bytes",
+                    ));
+                }
+                Ok((
+                    Self::SetTempo(u32::from_be_bytes([0, data[0], data[1], data[2]])),
+                    end,
+                ))
+            }
             0x54 => {
+                if data.len() != 5 {
+                    return Err(ParseError::Invalid(
+                        "SmpteOffset meta event must have exactly 5 bytes",
+                    ));
+                }
                 let (time, _) = HighResTimeCode::from_midi(data)?;
                 Ok((Self::SmpteOffset(time), end))
             }
-            0x58 => Ok((
-                Self::TimeSignature(FileTimeSignature::from_midi(data)?),
-                end,
-            )),
-            0x59 => Ok((Self::KeySignature(KeySignature::from_midi(data)?), end)),
+            0x58 => {
+                if data.len() != 4 {
+                    return Err(ParseError::Invalid(
+                        "TimeSignature meta event must have exactly 4 bytes",
+                    ));
+                }
+                Ok((
+                    Self::TimeSignature(FileTimeSignature::from_midi(data)?),
+                    end,
+                ))
+            }
+            0x59 => {
+                if data.len() != 2 {
+                    return Err(ParseError::Invalid(
+                        "KeySignature meta event must have exactly 2 bytes",
+                    ));
+                }
+                Ok((Self::KeySignature(KeySignature::from_midi(data)?), end))
+            }
             0x7F => Ok((Self::SequencerSpecific(data.to_vec()), end)),
             _ => Ok((
                 Self::Unknown {

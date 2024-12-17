@@ -387,3 +387,15 @@ fn file_contains_invalid_message(file: MidiFile) -> bool {
         .iter()
         .any(|track| track.events().iter().any(|event| event.event.is_invalid()))
 }
+
+#[test]
+#[cfg(feature = "file")]
+fn test_smf_file_zero_length_meta() {
+    let test_file = include_bytes!("./kalinka.mid");
+    let deserialize_result = MidiFile::from_midi(test_file);
+    assert!(deserialize_result.is_err());
+    assert_eq!(
+        deserialize_result.unwrap_err().error,
+        ParseError::Invalid("Sequence number meta event must have exactly 2 bytes")
+    );
+}
