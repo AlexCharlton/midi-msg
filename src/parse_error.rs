@@ -3,7 +3,7 @@ use alloc::fmt;
 use std::error;
 
 /// Returned when [`MidiMsg::from_midi`](crate::MidiMsg::from_midi) and similar where not successful.
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub enum ParseError {
     /// The given input ended before a `MidiMsg` could be fully formed.
     UnexpectedEnd,

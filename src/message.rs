@@ -53,6 +53,13 @@ pub enum MidiMsg {
     /// A Meta event, which occur within MIDI files.
     #[cfg(feature = "file")]
     Meta { msg: Meta },
+
+    /// A message that was invalid.
+    ///
+    /// These can only occur in MIDI files, since only in MIDI files do we know the
+    /// length of (some) messages before we parse them.
+    #[cfg(feature = "file")]
+    Invalid { bytes: Vec<u8>, error: ParseError },
 }
 
 impl MidiMsg {
@@ -323,6 +330,10 @@ impl MidiMsg {
             MidiMsg::SystemExclusive { msg } => msg.extend_midi(v, true),
             #[cfg(feature = "file")]
             MidiMsg::Meta { msg } => msg.extend_midi(v),
+            #[cfg(feature = "file")]
+            MidiMsg::Invalid { .. } => {
+                // Do nothing
+            }
         }
     }
 
@@ -396,6 +407,12 @@ impl MidiMsg {
     /// Returns true if this message is a meta message.
     pub fn is_meta(&self) -> bool {
         matches!(self, Self::Meta { .. })
+    }
+
+    #[cfg(feature = "file")]
+    /// Returns true if this message is an invalid message.
+    pub fn is_invalid(&self) -> bool {
+        matches!(self, Self::Invalid { .. })
     }
 }
 

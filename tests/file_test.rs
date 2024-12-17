@@ -338,4 +338,52 @@ fn test_smf_file_with_sysex() {
 
     let deserialize_result = MidiFile::from_midi(test_file);
     assert!(deserialize_result.is_ok());
+
+    // Re-serializing does not produce invalid messages
+    let file = deserialize_result.unwrap();
+    let serialized = file.to_midi();
+    let deserialize_result = MidiFile::from_midi(&serialized);
+    assert!(deserialize_result.is_ok());
+    assert!(!file_contains_invalid_message(deserialize_result.unwrap()));
+}
+
+#[test]
+#[cfg(feature = "file")]
+fn test_smf_files_with_invalid_sysex() {
+    // Byte overflow
+    let test_file = include_bytes!("./echoes.mid");
+    let deserialize_result = MidiFile::from_midi(test_file);
+    assert!(deserialize_result.is_ok());
+    assert!(file_contains_invalid_message(deserialize_result.unwrap()));
+
+    // Empty sysex
+    let test_file = include_bytes!("./shine-on.mid");
+    let deserialize_result = MidiFile::from_midi(test_file);
+    assert!(deserialize_result.is_ok());
+    assert!(file_contains_invalid_message(deserialize_result.unwrap()));
+
+    // Byte overflow
+    let test_file = include_bytes!("./1442jsop26.mid");
+    let deserialize_result = MidiFile::from_midi(test_file);
+    assert!(deserialize_result.is_ok());
+    assert!(file_contains_invalid_message(deserialize_result.unwrap()));
+
+    // Empty sysex
+    let test_file = include_bytes!("./the-snow-goose.mid");
+    let deserialize_result = MidiFile::from_midi(test_file);
+    assert!(deserialize_result.is_ok());
+    assert!(file_contains_invalid_message(deserialize_result.unwrap()));
+
+    // Serializing does not produce invalid messages
+    let file = MidiFile::from_midi(test_file).unwrap();
+    let serialized = file.to_midi();
+    let deserialize_result = MidiFile::from_midi(&serialized);
+    assert!(deserialize_result.is_ok());
+    assert!(!file_contains_invalid_message(deserialize_result.unwrap()));
+}
+
+fn file_contains_invalid_message(file: MidiFile) -> bool {
+    file.tracks
+        .iter()
+        .any(|track| track.events().iter().any(|event| event.event.is_invalid()))
 }

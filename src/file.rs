@@ -505,15 +505,25 @@ impl TrackEvent {
                         let (len, len_offset) = read_vlq(&v[time_offset + 1..])?;
                         let p = time_offset + len_offset + 1;
                         ctx.is_smf_sysex = true;
-                        let (event, event_len) = SystemExclusiveMsg::from_midi(&v[p..], ctx)?;
-                        // event_length does not include the terminating 0xF7 byte, while len is the length of the entire message
-                        if event_len != len as usize + 1 {
-                            return Err(ParseError::Invalid("Invalid system exclusive message"));
-                        }
+                        let event = match SystemExclusiveMsg::from_midi(&v[p..], ctx) {
+                            Ok((event, event_len)) => {
+                                // len is not the length of the entire message, since we don't have the status byte
+                                if event_len - 1 != len as usize {
+                                    return Err(ParseError::Invalid(
+                                        "Invalid system exclusive message",
+                                    ));
+                                }
+                                MidiMsg::SystemExclusive { msg: event }
+                            }
+                            Err(e) => MidiMsg::Invalid {
+                                bytes: v[p..p + len as usize].to_vec(),
+                                error: e,
+                            },
+                        };
                         Ok((
                             Self {
                                 delta_time,
-                                event: MidiMsg::SystemExclusive { msg: event },
+                                event,
                                 beat_or_frame,
                             },
                             p + len as usize,
@@ -523,11 +533,22 @@ impl TrackEvent {
                         let (len, len_offset) = read_vlq(&v[time_offset + 1..])?;
                         let p = time_offset + len_offset + 1;
                         ctx.is_smf_sysex = false;
-                        let (event, event_len) = MidiMsg::from_midi_with_context(&v[p..], ctx)?;
+                        let event = match MidiMsg::from_midi_with_context(&v[p..], ctx) {
+                            Ok((event, event_len)) => {
+                                // len _is_ the length of the entire message
+                                if event_len != len as usize {
+                                    return Err(ParseError::Invalid(
+                                        "Invalid system exclusive message",
+                                    ));
+                                }
+                                event
+                            }
+                            Err(e) => MidiMsg::Invalid {
+                                bytes: v[p..p + len as usize].to_vec(),
+                                error: e,
+                            },
+                        };
 
-                        if event_len != len as usize + 1 {
-                            return Err(ParseError::Invalid("Invalid system exclusive message"));
-                        }
                         Ok((
                             Self {
                                 delta_time,
@@ -578,6 +599,8 @@ impl TrackEvent {
         ) {
             #[cfg(feature = "std")]
             log::warn!("SMF contains System Reset event, which is not valid. Skipping.");
+            return;
+        } else if self.event.is_invalid() {
             return;
         }
 
