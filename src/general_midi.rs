@@ -1,3 +1,5 @@
+use core::convert::TryFrom;
+
 #[cfg(feature = "std")]
 use strum::{Display, EnumIter, EnumString};
 
@@ -162,6 +164,17 @@ pub enum GMSoundSet {
     Gunshot = 127,
 }
 
+impl TryFrom<u8> for GMSoundSet {
+    type Error = &'static str;
+
+    fn try_from(value: u8) -> Result<Self, Self::Error> {
+        if value > 127 {
+            return Err("Invalid value for GMSoundSet");
+        }
+        Ok(unsafe { core::mem::transmute(value) })
+    }
+}
+
 /// The General MIDI percussion sound to play for a given note number when targeting
 /// Channel 10.
 ///
@@ -232,6 +245,17 @@ pub enum GMPercussionMap {
     OpenTriangle = 81,
 }
 
+impl TryFrom<u8> for GMPercussionMap {
+    type Error = &'static str;
+
+    fn try_from(value: u8) -> Result<Self, Self::Error> {
+        if value < 35 || value > 81 {
+            return Err("Invalid value for GMPercussionMap");
+        }
+        Ok(unsafe { core::mem::transmute(value) })
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -276,6 +300,44 @@ mod tests {
         assert_eq!(0, GMSoundSet::AcousticGrandPiano as u8);
 
         assert_eq!(127, GMSoundSet::Gunshot as u8);
+    }
+
+    #[test]
+    fn gm_from_u8() {
+        assert_eq!(
+            GMSoundSet::AcousticGrandPiano,
+            GMSoundSet::try_from(0).unwrap()
+        );
+        assert_eq!(GMSoundSet::Gunshot, GMSoundSet::try_from(127).unwrap());
+    }
+
+    #[test]
+    fn gm_from_u8_invalid() {
+        assert!(GMSoundSet::try_from(128).is_err());
+    }
+
+    #[test]
+    fn gm_percussion_as_u8() {
+        assert_eq!(35, GMPercussionMap::AcousticBassDrum as u8);
+        assert_eq!(81, GMPercussionMap::OpenTriangle as u8);
+    }
+
+    #[test]
+    fn gm_percussion_from_u8() {
+        assert_eq!(
+            GMPercussionMap::AcousticBassDrum,
+            GMPercussionMap::try_from(35).unwrap()
+        );
+        assert_eq!(
+            GMPercussionMap::OpenTriangle,
+            GMPercussionMap::try_from(81).unwrap()
+        );
+    }
+
+    #[test]
+    fn gm_percussion_from_u8_invalid() {
+        assert!(GMPercussionMap::try_from(34).is_err());
+        assert!(GMPercussionMap::try_from(82).is_err());
     }
 
     #[cfg(feature = "std")]
