@@ -1,5 +1,6 @@
 use alloc::vec;
 use alloc::vec::Vec;
+use core::convert::TryFrom;
 
 use super::{
     ChannelModeMsg, ChannelVoiceMsg, ParseError, ReceiverContext, SystemCommonMsg,
@@ -497,6 +498,17 @@ impl Channel {
     }
 }
 
+impl TryFrom<u8> for Channel {
+    type Error = &'static str;
+
+    fn try_from(value: u8) -> Result<Self, Self::Error> {
+        if value > 15 {
+            return Err("Invalid channel value");
+        }
+        Ok(Self::from_u8(value))
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -507,6 +519,14 @@ mod tests {
         assert_eq!(Ch1, Channel::from_u8(0));
         assert_eq!(Ch2, Channel::from_u8(1));
         assert_eq!(Ch16, Channel::from_u8(255));
+    }
+
+    #[test]
+    fn test_ch_try_from() {
+        assert_eq!(Ch1, Channel::try_from(0).unwrap());
+        assert_eq!(Ch2, Channel::try_from(1).unwrap());
+        assert_eq!(Ch16, Channel::try_from(15).unwrap());
+        assert!(Channel::try_from(16).is_err());
     }
 
     #[test]
