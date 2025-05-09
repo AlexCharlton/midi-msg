@@ -890,14 +890,7 @@ impl ControlChange {
     }
 
     fn is_lsb(&self) -> bool {
-        match self {
-            Self::CC { control, .. }
-                if control >= &32 && control < &64 || control == &98 || control == &100 =>
-            {
-                true
-            }
-            _ => false,
-        }
+        matches!(self, Self::CC { control, .. } if (&32..&64).contains(&control) || control == &98 || control == &100)
     }
 
     pub fn to_midi_running(&self) -> Vec<u8> {

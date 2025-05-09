@@ -266,7 +266,7 @@ mod tests {
             .to_midi(),
             vec![
                 0xF0, 0x7F, 0x7F, // Receiver device
-                04, 05, 2,    // Slot path length
+                0x4, 0x5, 0x2,  // Slot path length
                 1,    // Param ID width
                 2,    // Value width
                 1,    // Slot path 1 MSB
@@ -301,17 +301,17 @@ mod tests {
             .to_midi(),
             vec![
                 0xF0, 0x7F, 0x7F, // Receiver device
-                04, 05, 1,   // Slot path length
-                1,   // Param ID width
-                1,   // Value width
-                1,   // Slot path 1 MSB
-                2,   // Slot path 1 LSB
-                0,   // Param number 1: chorus type
-                5,   // Param value 1
-                1,   // Param number 2: mod rate
-                9,   // Param value 2
-                4,   // Param number 3: send to reverb
-                127, // Param value 3
+                0x4, 0x5, 0x1,  // Slot path length
+                0x1,  // Param ID width
+                0x1,  // Value width
+                0x1,  // Slot path 1 MSB
+                0x2,  // Slot path 1 LSB
+                0x0,  // Param number 1: chorus type
+                0x5,  // Param value 1
+                0x1,  // Param number 2: mod rate
+                0x9,  // Param value 2
+                0x4,  // Param number 3: send to reverb
+                0x7F, // Param value 3
                 0xF7
             ]
         );

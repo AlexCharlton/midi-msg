@@ -67,7 +67,7 @@ fn run() -> Result<(), Box<dyn Error>> {
         "midir-read-input",
         move |stamp, midi_bytes, _| {
             let (msg, _len) =
-                MidiMsg::from_midi_with_context(&midi_bytes, &mut ctx).expect("Not an error");
+                MidiMsg::from_midi_with_context(midi_bytes, &mut ctx).expect("Not an error");
 
             // Print everything but spammy clock messages.
             if let MidiMsg::SystemRealTime {

@@ -69,7 +69,7 @@ impl SampleDumpMsg {
                 loop_type,
             } => {
                 push_u14(*sample_num, v);
-                v.push((*format).min(28).max(8));
+                v.push((*format).clamp(8, 28));
                 push_u21(*period, v);
                 push_u21(*length, v);
                 push_u21(*sustain_loop_start, v);
@@ -240,7 +240,7 @@ impl ExtendedSampleDumpMsg {
                 num_channels,
             } => {
                 push_u14(*sample_num, v);
-                v.push((*format).min(28).max(8));
+                v.push((*format).clamp(8, 28));
                 let sample_rate = sample_rate.max(0.0);
                 let sample_rate_integer = (sample_rate as u64) as f64; // for lack of no_std f64 floor
                 push_u28(sample_rate_integer as u32, v);
@@ -347,7 +347,7 @@ mod tests {
             vec![
                 0xF0, 0x7E, 0x7F, // All call
                 0x05, 0x05, // ExtendedSampleDump header
-                05, 00, // Sample number
+                0x5, 00, // Sample number
                 8,  // format,
                 0b0100000, 0b0011111, 0, 0, // 4000 LSB first
                 0, 0, 0, 0x40, // 0.5 LSB first

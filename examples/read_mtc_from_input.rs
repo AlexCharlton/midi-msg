@@ -27,26 +27,23 @@ impl TimeCodeQuarterFrameBuffer {
 
     /// Add a TimeCodeQuarterFrameX to the buffer, replacing the old one
     fn add(&mut self, message: MidiMsg) {
-        match message {
-            MidiMsg::SystemCommon { msg } => {
-                // Get the target index and timecode from the TimeCodeQuarterFrameX
-                let (index, tc) = match msg {
-                    SystemCommonMsg::TimeCodeQuarterFrame1(tc) => (0, tc),
-                    SystemCommonMsg::TimeCodeQuarterFrame2(tc) => (1, tc),
-                    SystemCommonMsg::TimeCodeQuarterFrame3(tc) => (2, tc),
-                    SystemCommonMsg::TimeCodeQuarterFrame4(tc) => (3, tc),
-                    SystemCommonMsg::TimeCodeQuarterFrame5(tc) => (4, tc),
-                    SystemCommonMsg::TimeCodeQuarterFrame6(tc) => (5, tc),
-                    SystemCommonMsg::TimeCodeQuarterFrame7(tc) => (6, tc),
-                    SystemCommonMsg::TimeCodeQuarterFrame8(tc) => (7, tc),
-                    _ => return (),
-                };
-                // Store the fitting tc at the matching position if is None
-                if self.buffer[index].is_none() {
-                    self.buffer[index] = Some(tc);
-                }
+        if let MidiMsg::SystemCommon { msg } = message {
+            // Get the target index and timecode from the TimeCodeQuarterFrameX
+            let (index, tc) = match msg {
+                SystemCommonMsg::TimeCodeQuarterFrame1(tc) => (0, tc),
+                SystemCommonMsg::TimeCodeQuarterFrame2(tc) => (1, tc),
+                SystemCommonMsg::TimeCodeQuarterFrame3(tc) => (2, tc),
+                SystemCommonMsg::TimeCodeQuarterFrame4(tc) => (3, tc),
+                SystemCommonMsg::TimeCodeQuarterFrame5(tc) => (4, tc),
+                SystemCommonMsg::TimeCodeQuarterFrame6(tc) => (5, tc),
+                SystemCommonMsg::TimeCodeQuarterFrame7(tc) => (6, tc),
+                SystemCommonMsg::TimeCodeQuarterFrame8(tc) => (7, tc),
+                _ => return,
+            };
+            // Store the fitting tc at the matching position if is None
+            if self.buffer[index].is_none() {
+                self.buffer[index] = Some(tc);
             }
-            _ => (),
         }
     }
 
@@ -126,7 +123,7 @@ fn run() -> Result<(), Box<dyn Error>> {
         in_port,
         "midir-read-input",
         move |_stamp, message, _| {
-            let (parsed_message, _len) = MidiMsg::from_midi(&message).expect("Not an error");
+            let (parsed_message, _len) = MidiMsg::from_midi(message).expect("Not an error");
 
             // Add the message to the TimeCodeQuarterFrameBuffer (ignores every message type
             // other than TimeCodeQuarterFrameX)

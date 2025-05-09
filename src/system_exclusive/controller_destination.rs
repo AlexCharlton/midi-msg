@@ -47,9 +47,9 @@ impl ControlChangeControllerDestination {
     pub(crate) fn extend_midi(&self, v: &mut Vec<u8>) {
         v.push(self.channel as u8);
         if self.control_number < 0x40 {
-            v.push(self.control_number.max(0x01).min(0x1F));
+            v.push(self.control_number.clamp(0x01, 0x1F));
         } else {
-            v.push(self.control_number.max(0x40).min(0x5F));
+            v.push(self.control_number.clamp(0x40, 0x5F));
         }
         for (p, r) in self.param_ranges.iter() {
             v.push(*p as u8);
@@ -102,8 +102,8 @@ mod tests {
             .to_midi(),
             vec![
                 0xF0, 0x7F, 0x7F, // Receiver device
-                09, 03, // Sysex IDs
-                01, 0x50, 0, 0x42, 1, 0x60, 0xF7
+                0x9, 0x3, // Sysex IDs
+                0x1, 0x50, 0x0, 0x42, 0x1, 0x60, 0xF7
             ]
         );
     }

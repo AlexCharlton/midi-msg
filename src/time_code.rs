@@ -39,7 +39,7 @@ impl TimeCode {
         let [minutes_msb, minutes_lsb] = to_nibble(minutes);
         let [codehour_msb, codehour_lsb] = to_nibble(codehour);
         [
-            (0 << 4) + frame_lsb,
+            frame_lsb,
             (1 << 4) + frame_msb,
             (2 << 4) + seconds_lsb,
             (3 << 4) + seconds_msb,
@@ -284,8 +284,8 @@ mod sysex_types {
     }
 
     impl SubFrames {
-        fn to_byte(&self) -> u8 {
-            match *self {
+        fn to_byte(self) -> u8 {
+            match self {
                 Self::FractionalFrames(ff) => ff.min(99),
                 Self::Status(s) => s.to_byte(),
             }
@@ -302,7 +302,7 @@ mod sysex_types {
     }
 
     impl TimeCodeStatus {
-        fn to_byte(&self) -> u8 {
+        fn to_byte(self) -> u8 {
             let mut b: u8 = 0;
             if self.estimated_code {
                 b += 1 << 6;
@@ -765,7 +765,7 @@ mod sysex_types {
                 Self::EventName { event_number, name } => {
                     v.push(0x0E);
                     push_u14(*event_number, v);
-                    push_nibblized_name(&name, v);
+                    push_nibblized_name(name, v);
                 }
             }
         }
@@ -799,7 +799,7 @@ mod tests {
                 },
             }
             .to_midi(),
-            vec![0xF0, 0x7E, 0x7f, 04, 00, 96, 00, 00, 00, 00, 04, 00, 0xF7]
+            vec![0xF0, 0x7E, 0x7f, 0x4, 00, 96, 00, 00, 00, 00, 0x4, 00, 0xF7]
         );
     }
 
@@ -813,7 +813,7 @@ mod tests {
                 },
             }
             .to_midi(),
-            vec![0xF0, 0x7F, 0x7f, 05, 00, 04, 00, 0xF7]
+            vec![0xF0, 0x7F, 0x7f, 0x5, 00, 0x4, 00, 0xF7]
         );
 
         assert_eq!(
@@ -827,7 +827,7 @@ mod tests {
                 },
             }
             .to_midi(),
-            vec![0xF0, 0x7F, 0x7f, 05, 05, 0x7f, 0x03, 0xF7]
+            vec![0xF0, 0x7F, 0x7f, 0x5, 0x5, 0x7f, 0x03, 0xF7]
         );
 
         assert_eq!(
@@ -848,7 +848,7 @@ mod tests {
             }
             .to_midi(),
             vec![
-                0xF0, 0x7F, 0x7f, 05, 07, 0x7f, 0x03,
+                0xF0, 0x7F, 0x7f, 0x5, 0x7, 0x7f, 0x03,
                 // Note on midi msg: 0x91, 0x55, 0x67
                 0x01, 0x09, 0x05, 0x05, 0x07, 0x06, // End
                 0xF7

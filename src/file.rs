@@ -13,8 +13,8 @@ use micromath::F32Ext;
 use std::error;
 
 use super::{
-    util::*, Channel, HighResTimeCode, MidiMsg, ParseError, ReceiverContext, SystemExclusiveMsg,
-    TimeCodeType,
+    Channel, HighResTimeCode, MidiMsg, ParseError, ReceiverContext, SystemExclusiveMsg,
+    TimeCodeType, util::*,
 };
 
 // Standard Midi File 1.0 (SMF): RP-001 support
@@ -288,20 +288,15 @@ impl Header {
 }
 
 /// The format of a Standard Midi File
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Default)]
 pub enum SMFFormat {
     /// A single track file
     SingleTrack,
     /// The file contains multiple tracks, but they are all meant to be played simultaneously
+    #[default]
     MultiTrack,
     /// The file contains multiple tracks, but they are independent of each other
     MultiSong,
-}
-
-impl Default for SMFFormat {
-    fn default() -> Self {
-        SMFFormat::MultiTrack
-    }
 }
 
 impl SMFFormat {
@@ -396,6 +391,11 @@ impl Track {
         }
     }
 
+    #[must_use]
+    pub fn is_empty(&self) -> bool {
+        self.len() == 0
+    }
+
     /// Get the [`TrackEvent`] events in the track. Will be empty for an `AlienChunk`.
     pub fn events(&self) -> &[TrackEvent] {
         match self {
@@ -468,7 +468,7 @@ impl Track {
                 v[s..s + 4].copy_from_slice(&(e as u32 - s as u32 - 4).to_be_bytes());
             }
             Track::AlienChunk(data) => {
-                v.extend_from_slice(&data);
+                v.extend_from_slice(data);
             }
         }
     }
@@ -610,12 +610,12 @@ impl TrackEvent {
 
         let is_meta = matches!(self.event, MidiMsg::Meta { .. });
         // Any kind of system event
-        let is_system = match self.event {
+        let is_system = matches!(
+            self.event,
             MidiMsg::SystemExclusive { .. }
-            | MidiMsg::SystemCommon { .. }
-            | MidiMsg::SystemRealTime { .. } => true,
-            _ => false,
-        };
+                | MidiMsg::SystemCommon { .. }
+                | MidiMsg::SystemRealTime { .. }
+        );
         if is_meta {
             v.push(0xFF);
         } else if is_system {
@@ -975,9 +975,9 @@ mod tests {
 
     #[test]
     fn test_file_serde() {
-        use crate::message::MidiMsg;
         use crate::Channel;
         use crate::ChannelVoiceMsg;
+        use crate::message::MidiMsg;
 
         // Create a simple MIDI file
         let mut file = MidiFile::default();
