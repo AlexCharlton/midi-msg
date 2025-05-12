@@ -55,14 +55,14 @@ impl MachineControlCommandMsg {
             Self::MMCReset => v.push(0x0D),
             Self::LocateInformationField(f) => {
                 v.push(0x44);
-                v.push(2); // Byte count
-                v.push(0); // Sub command
+                v.push(0x2); // Byte count
+                v.push(0x0); // Sub command
                 v.push(*f as u8);
             }
             Self::LocateTarget(stc) => {
                 v.push(0x44);
-                v.push(6); // Byte count
-                v.push(1); // Sub command
+                v.push(0x6); // Byte count
+                v.push(0x1); // Sub command
                 stc.extend_midi(v);
             }
             Self::Wait => v.push(0x01),
@@ -133,8 +133,8 @@ pub struct StandardSpeed(f32);
 
 impl StandardSpeed {
     #[allow(dead_code)]
-    pub(crate) fn extend_midi(&self, _v: &mut Vec<u8>) {
-        // TODO
+    pub(crate) fn extend_midi(&self, _: &mut Vec<u8>) {
+        todo!()
     }
 }
 
@@ -153,8 +153,8 @@ pub struct StandardTrack {
 
 impl StandardTrack {
     #[allow(dead_code)]
-    pub(crate) fn extend_midi(&self, _v: &mut Vec<u8>) {
-        // TODO
+    pub(crate) fn extend_midi(&self, _: &mut Vec<u8>) {
+        todo!()
     }
 }
 
@@ -175,7 +175,7 @@ mod tests {
                 },
             }
             .to_midi(),
-            vec![0xF0, 0x7F, 0x7f, 06, 01, 0xF7]
+            vec![0xF0, 0x7F, 0x7f, 0x6, 0x1, 0xF7]
         );
 
         assert_eq!(
@@ -194,11 +194,11 @@ mod tests {
             .to_midi(),
             vec![
                 0xF0, 0x7F, 0x7f, // Call call
-                06,   // MCC
+                0x6,  // MCC
                 0x44, // Locate
                 0x06, // Bytes
-                01,   // Target
-                0, 0, 0x20, 0, 0, // Rest of MTC
+                0x1,  // Target
+                0x0, 0x0, 0x20, 0x0, 0x0, // Rest of MTC
                 0xF7
             ]
         );

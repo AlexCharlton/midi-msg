@@ -171,7 +171,7 @@ impl TryFrom<u8> for GMSoundSet {
         if value > 127 {
             return Err("Invalid value for GMSoundSet");
         }
-        Ok(unsafe { core::mem::transmute(value) })
+        Ok(unsafe { core::mem::transmute::<u8, GMSoundSet>(value) })
     }
 }
 
@@ -249,10 +249,10 @@ impl TryFrom<u8> for GMPercussionMap {
     type Error = &'static str;
 
     fn try_from(value: u8) -> Result<Self, Self::Error> {
-        if value < 35 || value > 81 {
+        if !(35..=81).contains(&value) {
             return Err("Invalid value for GMPercussionMap");
         }
-        Ok(unsafe { core::mem::transmute(value) })
+        Ok(unsafe { core::mem::transmute::<u8, GMPercussionMap>(value) })
     }
 }
 

@@ -79,13 +79,11 @@ impl TimeSignature {
         self.signature.extend_midi(v);
         v.push(to_u7(self.midi_clocks_in_metronome_click));
         v.push(to_u7(self.thirty_second_notes_in_midi_quarter_note));
-        let mut i = 0;
-        for s in self.compound.iter() {
+        for (i, s) in self.compound.iter().enumerate() {
             if i >= 61 {
                 break;
             }
             s.extend_midi(v);
-            i += 1;
         }
     }
 
@@ -141,7 +139,7 @@ pub enum BeatValue {
 }
 
 impl BeatValue {
-    fn to_u8(&self) -> u8 {
+    fn to_u8(self) -> u8 {
         match self {
             Self::Whole => 0,
             Self::Half => 1,
@@ -150,7 +148,7 @@ impl BeatValue {
             Self::Sixteenth => 4,
             Self::ThirtySecond => 5,
             Self::SixtyFourth => 6,
-            Self::Other(x) => to_u7(*x),
+            Self::Other(x) => to_u7(x),
         }
     }
 
@@ -176,7 +174,7 @@ mod tests {
                 },
             }
             .to_midi(),
-            vec![0xF0, 0x7F, 0x7f, 03, 01, 0x00, 0x40, 0xF7]
+            vec![0xF0, 0x7F, 0x7f, 0x3, 0x1, 0x00, 0x40, 0xF7]
         );
 
         assert_eq!(
@@ -187,7 +185,7 @@ mod tests {
                 },
             }
             .to_midi(),
-            vec![0xF0, 0x7F, 0x7f, 03, 01, 0x7f, 0x7f, 0xF7]
+            vec![0xF0, 0x7F, 0x7f, 0x3, 0x1, 0x7f, 0x7f, 0xF7]
         );
 
         assert_eq!(
@@ -198,7 +196,7 @@ mod tests {
                 },
             }
             .to_midi(),
-            vec![0xF0, 0x7F, 0x7f, 03, 01, 0x01, 0x00, 0xF7]
+            vec![0xF0, 0x7F, 0x7f, 0x3, 0x1, 0x01, 0x00, 0xF7]
         );
 
         assert_eq!(
@@ -209,7 +207,7 @@ mod tests {
                 },
             }
             .to_midi(),
-            vec![0xF0, 0x7F, 0x7f, 03, 01, 0x7f, 0x3f, 0xF7]
+            vec![0xF0, 0x7F, 0x7f, 0x3, 0x1, 0x7f, 0x3f, 0xF7]
         );
     }
 
@@ -223,7 +221,7 @@ mod tests {
                 },
             }
             .to_midi(),
-            vec![0xF0, 0x7F, 0x7f, 03, 0x42, 4, 4, 2, 24, 8, 0xF7]
+            vec![0xF0, 0x7F, 0x7f, 0x3, 0x42, 4, 4, 2, 24, 8, 0xF7]
         );
 
         assert_eq!(
@@ -240,7 +238,7 @@ mod tests {
                 },
             }
             .to_midi(),
-            vec![0xF0, 0x7F, 0x7f, 03, 0x02, 6, 4, 2, 24, 8, 3, 3, 0xF7]
+            vec![0xF0, 0x7F, 0x7f, 0x3, 0x02, 6, 4, 2, 24, 8, 3, 3, 0xF7]
         );
     }
 }

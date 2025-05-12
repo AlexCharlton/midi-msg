@@ -69,8 +69,8 @@ mod tests {
             .to_midi(),
             vec![
                 0xF0, 0x7F, 0x7F, // Receiver device
-                0x0A, 01, // Sysex IDs
-                01, 0x60, 0x01, 0x40, 94, 0x20, 0xF7
+                0xA, 0x1, // Sysex IDs
+                0x1, 0x60, 0x01, 0x40, 94, 0x20, 0xF7
             ]
         );
     }
