@@ -65,7 +65,7 @@ impl ChannelModeMsg {
     }
 
     pub(crate) fn from_midi_running(m: &[u8]) -> Result<(Self, usize), ParseError> {
-        if let (Some(b1), Some(b2)) = (m.get(0), m.get(1)) {
+        if let (Some(b1), Some(b2)) = (m.first(), m.get(1)) {
             if *b2 > 127 {
                 return Err(ParseError::ByteOverflow);
             }
@@ -78,7 +78,9 @@ impl ChannelModeMsg {
                 (125, _) => Ok((Self::OmniMode(true), 2)),
                 (126, b2) => Ok((Self::PolyMode(PolyMode::Mono(u8_from_u7(*b2)?)), 2)),
                 (127, _) => Ok((Self::PolyMode(PolyMode::Poly), 2)),
-                _ => Err(ParseError::Invalid("This shouldn't be possible: values below 120 should be control change messages")),
+                _ => Err(ParseError::Invalid(
+                    "This shouldn't be possible: values below 120 should be control change messages",
+                )),
             }
         } else {
             Err(ParseError::UnexpectedEnd)

@@ -121,7 +121,7 @@ impl Tuning {
         } else {
             let (semitone, c) = freq_to_midi_note_cents(freq);
             Self {
-                semitone: semitone as u8,
+                semitone,
                 fraction: cents_to_u14(c).min(0x3FFE),
             }
         }
@@ -417,7 +417,7 @@ mod tests {
                                 }),
                             ),
                             (0x45, None),
-                            (0x78, Some(Tuning::from_freq(8372.0630)))
+                            (0x78, Some(Tuning::from_freq(8_372.063)))
                         ],
                     }),
                 },

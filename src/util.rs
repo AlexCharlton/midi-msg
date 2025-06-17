@@ -37,7 +37,7 @@ pub fn u8_from_u7(x: u8) -> Result<u8, ParseError> {
 
 #[inline]
 pub fn u7_from_midi(m: &[u8]) -> Result<u8, ParseError> {
-    if m.len() < 1 {
+    if m.is_empty() {
         Err(ParseError::UnexpectedEnd)
     } else {
         u8_from_u7(m[0])
@@ -192,7 +192,7 @@ mod sysex_util {
     /// Takes a positive value between 0.0 and 100.0 and fits it into the u14 range
     /// 1 = 0.0061 cents
     pub fn cents_to_u14(cents: f32) -> u16 {
-        let cents = cents.max(0.0).min(100.0);
+        let cents = cents.clamp(0.0, 100.0);
         super::F32Ext::round(cents / 100.0 * (0b11111111111111 as f32)) as u16
     }
 
@@ -472,13 +472,13 @@ mod tests {
         // Expected bytes : 78 00 00
         // Actual bytes   : 78 00 01
         // Error          : 0.0061 cents
-        assert_eq!(freq_to_midi_note_u14(8372.0190), (0x78, 0x01));
+        assert_eq!(freq_to_midi_note_u14(8_372.019), (0x78, 0x01));
 
         // Frequency      : 12543.8800 Hz
         // Expected bytes : 7f 00 00
         // Actual bytes   : 7f 00 02
         // Error          : 0.0061 * 2 = 0.0122 cents
-        assert_eq!(freq_to_midi_note_u14(12543.8800), (0x7F, 0x02));
+        assert_eq!(freq_to_midi_note_u14(12_543.88), (0x7F, 0x02));
     }
 
     #[test]

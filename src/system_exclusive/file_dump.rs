@@ -42,7 +42,7 @@ impl FileDumpMsg {
                 length,
                 name,
             } => {
-                v.push(01);
+                v.push(0x1);
                 v.push(sender_device.to_u8());
                 file_type.extend_midi(v);
                 push_u28(*length, v);
@@ -53,7 +53,7 @@ impl FileDumpMsg {
                 data,
                 ..
             } => {
-                v.push(02);
+                v.push(0x2);
                 v.push(to_u7(*running_count));
                 let mut len = data.len().min(112);
                 // Add number of extra encoded bytes
@@ -69,7 +69,7 @@ impl FileDumpMsg {
                 file_type,
                 name,
             } => {
-                v.push(03);
+                v.push(0x3);
                 v.push(requester_device.to_u8());
                 file_type.extend_midi(v);
                 v.extend_from_slice(name);
@@ -214,9 +214,9 @@ mod tests {
             .to_midi(),
             vec![
                 0xF0, 0x7E, 0x7F, // Receiver device
-                07, 01, 9, // Sender device
+                0x7, 0x1, 0x9, // Sender device
                 b"M"[0], b"I"[0], b"D"[0], b"I"[0], 66, // Size LSB
-                0, 0, 0, b"H"[0], b"e"[0], b"l"[0], b"l"[0], b"o"[0], 0xF7
+                0x0, 0x0, 0x0, b"H"[0], b"e"[0], b"l"[0], b"l"[0], b"o"[0], 0xF7
             ]
         );
     }

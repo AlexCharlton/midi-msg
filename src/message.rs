@@ -136,24 +136,19 @@ impl MidiMsg {
                             if allow_extensions {
                                 // If we can interpret this message as an extension to the previous
                                 // one, do it.
-                                match ctx.previous_channel_message {
-                                    Some(Self::ChannelVoice {
-                                        channel: prev_channel,
-                                        msg: prev_msg,
-                                    }) => {
-                                        if channel == prev_channel
-                                            && prev_msg.is_extensible()
-                                            && msg.is_extension()
-                                        {
-                                            match prev_msg.maybe_extend(&msg) {
-                                                Ok(updated_msg) => {
-                                                    msg = updated_msg;
-                                                }
-                                                _ => (),
-                                            }
+                                if let Some(Self::ChannelVoice {
+                                    channel: prev_channel,
+                                    msg: prev_msg,
+                                }) = ctx.previous_channel_message
+                                {
+                                    if channel == prev_channel
+                                        && prev_msg.is_extensible()
+                                        && msg.is_extension()
+                                    {
+                                        if let Ok(updated_msg) = prev_msg.maybe_extend(&msg) {
+                                            msg = updated_msg;
                                         }
                                     }
-                                    _ => (),
                                 }
                             }
                             (Self::ChannelVoice { channel, msg }, len)
@@ -193,7 +188,10 @@ impl MidiMsg {
                 _ => {
                     if let Some(p) = &ctx.previous_channel_message {
                         match p {
-                            Self::ChannelVoice {channel, msg: prev_msg} => {
+                            Self::ChannelVoice {
+                                channel,
+                                msg: prev_msg,
+                            } => {
                                 if m.len() < 2 {
                                     return Err(ParseError::UnexpectedEnd);
                                 }
@@ -202,43 +200,66 @@ impl MidiMsg {
                                     ChannelVoiceMsg::ControlChange { .. } => {
                                         if m[0] >= 120 {
                                             let (msg, len) = ChannelModeMsg::from_midi_running(m)?;
-                                            return Ok((Self::ChannelMode { channel: *channel, msg}, len));
+                                            return Ok((
+                                                Self::ChannelMode {
+                                                    channel: *channel,
+                                                    msg,
+                                                },
+                                                len,
+                                            ));
                                         }
                                     }
                                     _ => (),
                                 };
-                                let (mut msg, len) = ChannelVoiceMsg::from_midi_running(m, prev_msg, ctx)?;
+                                let (mut msg, len) =
+                                    ChannelVoiceMsg::from_midi_running(m, prev_msg, ctx)?;
 
                                 if allow_extensions {
                                     // If we can interpret this message as an extension to the previous
                                     // one, do it.
-                                    if prev_msg.is_extensible() && msg.is_extension()
-                                    {
-                                        match prev_msg.maybe_extend(&msg) {
-                                            Ok(updated_msg) => {
-                                                msg = updated_msg;
-                                            }
-                                            _ => (),
+                                    if prev_msg.is_extensible() && msg.is_extension() {
+                                        if let Ok(updated_msg) = prev_msg.maybe_extend(&msg) {
+                                            msg = updated_msg;
                                         }
                                     }
                                 }
-                                Ok((Self::ChannelVoice { channel: *channel, msg}, len))
+                                Ok((
+                                    Self::ChannelVoice {
+                                        channel: *channel,
+                                        msg,
+                                    },
+                                    len,
+                                ))
                             }
 
-                            Self::ChannelMode {channel, ..} => {
+                            Self::ChannelMode { channel, .. } => {
                                 if m.len() < 2 {
                                     return Err(ParseError::UnexpectedEnd);
                                 }
                                 // See A-2 of the MIDI spec
                                 if m[0] >= 120 {
                                     let (msg, len) = ChannelModeMsg::from_midi_running(m)?;
-                                    Ok((Self::ChannelMode { channel: *channel, msg}, len))
+                                    Ok((
+                                        Self::ChannelMode {
+                                            channel: *channel,
+                                            msg,
+                                        },
+                                        len,
+                                    ))
                                 } else {
-                                    let control= crate::ControlChange::from_midi(m, ctx)?;
-                                    Ok((Self::ChannelVoice { channel: *channel, msg: ChannelVoiceMsg::ControlChange { control }}, 2))
+                                    let control = crate::ControlChange::from_midi(m, ctx)?;
+                                    Ok((
+                                        Self::ChannelVoice {
+                                            channel: *channel,
+                                            msg: ChannelVoiceMsg::ControlChange { control },
+                                        },
+                                        2,
+                                    ))
                                 }
                             }
-                            _ => Err(ParseError::Invalid("ReceiverContext::previous_channel_message may only be a ChannelMode or ChannelVoice message."))
+                            _ => Err(ParseError::Invalid(
+                                "ReceiverContext::previous_channel_message may only be a ChannelMode or ChannelVoice message.",
+                            )),
                         }
                     } else {
                         Err(ParseError::ContextlessRunningStatus)
@@ -249,6 +270,9 @@ impl MidiMsg {
         }?;
 
         if allow_extensions {
+            // TODO: this loop could be written as a `while let` loop
+            // for further information visit https://rust-lang.github.io/rust-clippy/master/index.html#while_let_loop
+
             // If this is an extensible message, try to extend it
             loop {
                 if let Self::ChannelVoice { channel, msg } = midi_msg {
@@ -437,12 +461,7 @@ pub fn next_message(m: &[u8]) -> Option<usize> {
     // If not, we're somewhere in the middle of a message, and we need to find the next one.
     let start = if upper_bit_set(m[0]) { 1 } else { 0 };
 
-    for i in start..m.len() {
-        if upper_bit_set(m[i]) {
-            return Some(i);
-        }
-    }
-    None
+    (start..m.len()).find(|&i| upper_bit_set(m[i]))
 }
 
 fn upper_bit_set(x: u8) -> bool {

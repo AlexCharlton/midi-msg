@@ -3,7 +3,7 @@ name = "midi-msg"
 description = "A (eventually) complete representation of the MIDI 1.0 Detailed Specification and its many extensions and addenda, allowing for the serialization and deserialization of MIDI byte streams to and from a typed representation."
 version = "0.8.0"
 authors = ["Alex Charlton"]
-edition = "2018"
+edition = "2024"
 readme = "readme.md"
 repository = "https://github.com/AlexCharlton/midi-msg"
 documentation = "https://docs.rs/midi-msg"
@@ -13,7 +13,7 @@ keywords = ["midi", "music", "smf", "no_std"]
 
 [dependencies]
 bstr = { version = "1.0.0", default-features = false, features = [
-    "alloc",
+  "alloc",
 ], optional = true }
 micromath = "1.1.1"
 strum = { version = "0.24.1", features = ["derive"], optional = true }
