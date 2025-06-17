@@ -1,4 +1,4 @@
-use super::{MidiMsg, TimeCode};
+use super::{MidiMsg, TimeCode, TimeCodeType};
 
 /// Passed to [`MidiMsg::from_midi_with_context`](crate::MidiMsg::from_midi_with_context) to allow
 /// for the capture and use of captured context while reading from a MIDI stream.
@@ -21,8 +21,20 @@ pub struct ReceiverContext {
 }
 
 impl ReceiverContext {
-    pub fn new() -> Self {
-        Self::default()
+    pub const fn new() -> Self {
+        Self {
+            previous_channel_message: None,
+            time_code: TimeCode {
+                frames: 0,
+                seconds: 0,
+                minutes: 0,
+                hours: 0,
+                code_type: TimeCodeType::NDF30,
+            },
+            is_smf_sysex: false,
+            parsing_smf: false,
+            complex_cc: false,
+        }
     }
 
     /// Interpret CC messages as complex CC messages.
