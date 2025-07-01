@@ -9,8 +9,7 @@ use core::str;
 #[cfg(not(feature = "std"))]
 use micromath::F32Ext;
 
-#[cfg(feature = "std")]
-use std::error;
+use core::error;
 
 use super::{
     Channel, HighResTimeCode, MidiMsg, ParseError, ReceiverContext, SystemExclusiveMsg,
@@ -30,7 +29,6 @@ pub struct MidiFileParseError {
     pub next_bytes: Vec<u8>,
 }
 
-#[cfg(feature = "std")]
 impl error::Error for MidiFileParseError {}
 
 impl fmt::Display for MidiFileParseError {

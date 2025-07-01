@@ -1,6 +1,5 @@
 use alloc::fmt;
-#[cfg(feature = "std")]
-use std::error;
+use core::error;
 
 /// Returned when [`MidiMsg::from_midi`](crate::MidiMsg::from_midi) and similar where not successful.
 #[derive(Debug, PartialEq, Clone)]
@@ -35,7 +34,6 @@ pub enum ParseError {
     UndefinedSystemExclusiveMessage(Option<u8>),
 }
 
-#[cfg(feature = "std")]
 impl error::Error for ParseError {}
 
 impl fmt::Display for ParseError {
@@ -50,16 +48,25 @@ impl fmt::Display for ParseError {
                 "Received a non-status byte with no prior channel messages"
             ),
             Self::NoEndOfSystemExclusiveFlag => {
-                write!(f, "Tried to read a SystemExclusiveMsg, but reached the end without an End of System Exclusive flag")
+                write!(
+                    f,
+                    "Tried to read a SystemExclusiveMsg, but reached the end without an End of System Exclusive flag"
+                )
             }
             Self::UnexpectedEndOfSystemExclusiveFlag => {
                 write!(f, "Encountered an unexpected End of System Exclusive flag")
             }
             Self::SystemExclusiveDisabled => {
-                write!(f, "Received a system exclusive message but the crate was built without the sysex feature")
+                write!(
+                    f,
+                    "Received a system exclusive message but the crate was built without the sysex feature"
+                )
             }
             Self::FileDisabled => {
-                write!(f, "Received a meta event message but the crate was built without the file feature")
+                write!(
+                    f,
+                    "Received a meta event message but the crate was built without the file feature"
+                )
             }
             Self::NotImplemented(msg) => {
                 write!(f, "{} is not yet implemented", msg)
