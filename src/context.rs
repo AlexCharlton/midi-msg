@@ -43,6 +43,7 @@ impl ReceiverContext {
         self
     }
 
+    #[cfg(feature = "file")]
     pub(crate) fn parsing_smf(mut self) -> Self {
         self.parsing_smf = true;
         self

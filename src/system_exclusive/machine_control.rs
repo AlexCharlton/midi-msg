@@ -129,7 +129,7 @@ impl MachineControlResponseMsg {
 
 #[doc(hidden)]
 /// As defined in MIDI Machine Control 1.0 (MMA0016 / RP013)
-pub struct StandardSpeed(f32);
+pub struct StandardSpeed(pub f32);
 
 impl StandardSpeed {
     #[allow(dead_code)]

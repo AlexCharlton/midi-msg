@@ -102,6 +102,8 @@ impl Default for TimeCodeType {
 }
 
 impl TimeCodeType {
+    // Not used by all features
+    #[allow(dead_code)]
     fn from_code_hour(code_hour: u8) -> Self {
         match (code_hour & 0b01100000) >> 5 {
             0 => Self::FPS24,
