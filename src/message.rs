@@ -469,10 +469,10 @@ fn upper_bit_set(x: u8) -> bool {
 }
 
 #[cfg(feature = "std")]
-use strum::{Display, EnumIter, EnumString};
+use strum::{EnumIter, EnumString};
 
 /// The MIDI channel, 1-16. Used by [`MidiMsg`] and elsewhere.
-#[cfg_attr(feature = "std", derive(EnumIter, Display, EnumString))]
+#[cfg_attr(feature = "std", derive(EnumIter, EnumString))]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[repr(u8)]
 pub enum Channel {
@@ -492,6 +492,12 @@ pub enum Channel {
     Ch14,
     Ch15,
     Ch16,
+}
+
+impl core::fmt::Display for Channel {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        write!(f, "Ch{}", *self as u8 + 1)
+    }
 }
 
 impl Channel {
