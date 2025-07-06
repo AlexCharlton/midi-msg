@@ -7,6 +7,7 @@ use core::ops;
 use core::str;
 
 #[cfg(not(feature = "std"))]
+#[allow(unused_imports)] // This will be unused unless on an embedded target
 use micromath::F32Ext;
 
 use core::error;
