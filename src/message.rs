@@ -370,6 +370,32 @@ impl MidiMsg {
         )
     }
 
+    pub fn is_note_on(&self) -> bool {
+        matches!(
+            self,
+            Self::ChannelVoice {
+                msg: ChannelVoiceMsg::NoteOn { .. } | ChannelVoiceMsg::HighResNoteOn { .. },
+                ..
+            } | Self::RunningChannelVoice {
+                msg: ChannelVoiceMsg::NoteOn { .. } | ChannelVoiceMsg::HighResNoteOn { .. },
+                ..
+            }
+        )
+    }
+
+    pub fn is_note_off(&self) -> bool {
+        matches!(
+            self,
+            Self::ChannelVoice {
+                msg: ChannelVoiceMsg::NoteOff { .. } | ChannelVoiceMsg::HighResNoteOff { .. },
+                ..
+            } | Self::RunningChannelVoice {
+                msg: ChannelVoiceMsg::NoteOff { .. } | ChannelVoiceMsg::HighResNoteOff { .. },
+                ..
+            }
+        )
+    }
+
     /// Returns true if this message is a note (on or off) message.
     pub fn is_note(&self) -> bool {
         matches!(
