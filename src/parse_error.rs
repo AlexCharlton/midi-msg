@@ -1,5 +1,5 @@
-use alloc::fmt;
 use core::error;
+use core::fmt;
 
 /// Returned when [`MidiMsg::from_midi`](crate::MidiMsg::from_midi) and similar where not successful.
 #[derive(Debug, PartialEq, Clone)]

@@ -3,7 +3,9 @@ use crate::ReceiverContext;
 
 use super::parse_error::*;
 use super::util::*;
+#[cfg(test)]
 use alloc::vec;
+#[cfg(feature = "alloc")]
 use alloc::vec::Vec;
 
 /// Channel-level messages that act on a voice. For instance, turning notes on off,
@@ -880,9 +882,10 @@ impl ControlChange {
         matches!(self, Self::CC { control, .. } if (&32..&64).contains(&control) || control == &98 || control == &100)
     }
 
+    #[cfg(feature = "alloc")]
     pub fn to_midi_running(&self) -> Vec<u8> {
-        let mut r: Vec<u8> = vec![];
-        self.extend_midi_running(&mut r);
+        let mut r = Vec::new();
+        self.extend_midi_running(&mut r).expect("Vec can't expand?");
         r
     }
 

@@ -1,4 +1,6 @@
+#[cfg(test)]
 use alloc::vec;
+#[cfg(feature = "alloc")]
 use alloc::vec::Vec;
 use core::convert::TryFrom;
 
@@ -68,8 +70,9 @@ pub enum MidiMsg {
 
 impl MidiMsg {
     /// Turn a `MidiMsg` into a series of bytes.
+    #[cfg(feature = "alloc")]
     pub fn to_midi(&self) -> Vec<u8> {
-        let mut r: Vec<u8> = vec![];
+        let mut r = Vec::new();
         self.extend_midi(&mut r).expect("Vec can't expand?");
         r
     }
@@ -322,8 +325,9 @@ impl MidiMsg {
 
     /// Turn a set of `MidiMsg`s into a series of bytes, with fewer allocations than
     /// repeatedly concatenating the results of `to_midi`.
+    #[cfg(feature = "alloc")]
     pub fn messages_to_midi(msgs: &[Self]) -> Vec<u8> {
-        let mut r: Vec<u8> = vec![];
+        let mut r = Vec::new();
         for m in msgs.iter() {
             m.extend_midi(&mut r).expect("Vec can't expand?");
         }
@@ -455,6 +459,7 @@ impl MidiMsg {
     }
 }
 
+#[cfg(feature = "alloc")]
 impl From<&MidiMsg> for Vec<u8> {
     fn from(m: &MidiMsg) -> Vec<u8> {
         m.to_midi()

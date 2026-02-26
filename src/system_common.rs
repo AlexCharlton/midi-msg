@@ -35,37 +35,19 @@ pub enum SystemCommonMsg {
 impl SystemCommonMsg {
     pub(crate) fn extend_midi<E>(&self, mut v: impl Write<Error = E>) -> Result<(), E> {
         match self {
-            SystemCommonMsg::TimeCodeQuarterFrame1(qf) => {
-                v.write(&[0xF1, qf.to_nibbles()[0]])
-            }
-            SystemCommonMsg::TimeCodeQuarterFrame2(qf) => {
-                v.write(&[0xF1, qf.to_nibbles()[1]])
-            }
-            SystemCommonMsg::TimeCodeQuarterFrame3(qf) => {
-                v.write(&[0xF1, qf.to_nibbles()[2]])
-            }
-            SystemCommonMsg::TimeCodeQuarterFrame4(qf) => {
-                v.write(&[0xF1, qf.to_nibbles()[3]])
-            }
-            SystemCommonMsg::TimeCodeQuarterFrame5(qf) => {
-                v.write(&[0xF1, qf.to_nibbles()[4]])
-            }
-            SystemCommonMsg::TimeCodeQuarterFrame6(qf) => {
-                v.write(&[0xF1, qf.to_nibbles()[5]])
-            }
-            SystemCommonMsg::TimeCodeQuarterFrame7(qf) => {
-                v.write(&[0xF1, qf.to_nibbles()[6]])
-            }
-            SystemCommonMsg::TimeCodeQuarterFrame8(qf) => {
-                v.write(&[0xF1, qf.to_nibbles()[7]])
-            }
+            SystemCommonMsg::TimeCodeQuarterFrame1(qf) => v.write(&[0xF1, qf.to_nibbles()[0]]),
+            SystemCommonMsg::TimeCodeQuarterFrame2(qf) => v.write(&[0xF1, qf.to_nibbles()[1]]),
+            SystemCommonMsg::TimeCodeQuarterFrame3(qf) => v.write(&[0xF1, qf.to_nibbles()[2]]),
+            SystemCommonMsg::TimeCodeQuarterFrame4(qf) => v.write(&[0xF1, qf.to_nibbles()[3]]),
+            SystemCommonMsg::TimeCodeQuarterFrame5(qf) => v.write(&[0xF1, qf.to_nibbles()[4]]),
+            SystemCommonMsg::TimeCodeQuarterFrame6(qf) => v.write(&[0xF1, qf.to_nibbles()[5]]),
+            SystemCommonMsg::TimeCodeQuarterFrame7(qf) => v.write(&[0xF1, qf.to_nibbles()[6]]),
+            SystemCommonMsg::TimeCodeQuarterFrame8(qf) => v.write(&[0xF1, qf.to_nibbles()[7]]),
             SystemCommonMsg::SongPosition(pos) => {
                 v.write(&[0xF2])?;
                 push_u14(*pos, v)
             }
-            SystemCommonMsg::SongSelect(song) => {
-                v.write(&[0xF3, to_u7(*song)])
-            }
+            SystemCommonMsg::SongSelect(song) => v.write(&[0xF3, to_u7(*song)]),
             SystemCommonMsg::TuneRequest => v.write(&[0xF6]),
         }
     }

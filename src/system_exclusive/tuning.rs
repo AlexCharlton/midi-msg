@@ -225,7 +225,7 @@ pub struct ScaleTuning1Byte {
 
 impl ScaleTuning1Byte {
     pub(crate) fn extend_midi<E>(&self, mut v: impl Write<Error = E>) -> Result<(), E> {
-        self.channels.extend_midi(&mut v);
+        self.channels.extend_midi(&mut v)?;
         v.write_iter(self.tuning.iter().copied().map(i_to_u7))
     }
 
@@ -251,7 +251,7 @@ pub struct ScaleTuning2Byte {
 
 impl ScaleTuning2Byte {
     pub(crate) fn extend_midi<E>(&self, mut v: impl Write<Error = E>) -> Result<(), E> {
-        self.channels.extend_midi(&mut v);
+        self.channels.extend_midi(&mut v)?;
         for t in self.tuning.iter() {
             let [msb, lsb] = i_to_u14(*t);
             v.push(lsb)?;

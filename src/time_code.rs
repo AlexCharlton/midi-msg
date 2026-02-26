@@ -515,6 +515,7 @@ mod sysex_types {
         },
     }
 
+    #[cfg(feature = "defmt")]
     impl defmt::Format for TimeCodeCueingSetupMsg {
         fn format(&self, fmt: defmt::Formatter) {
             match self {

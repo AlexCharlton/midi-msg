@@ -175,9 +175,9 @@ impl MidiFile {
     /// Turn a `MidiFile` into a series of bytes.
     pub fn to_midi(&self) -> Vec<u8> {
         let mut r: Vec<u8> = vec![];
-        self.header.extend_midi(&mut r);
+        self.header.extend_midi(&mut r).expect("Vec can't expand?");
         for track in &self.tracks {
-            track.extend_midi(&mut r);
+            track.extend_midi(&mut r).expect("Vec can't expand?");
         }
         r
     }

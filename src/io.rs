@@ -7,6 +7,7 @@
 
 use core::marker::PhantomData;
 
+#[cfg(feature = "alloc")]
 use alloc::vec::Vec;
 
 pub type StdResult<T, E> = core::result::Result<T, E>;
@@ -293,7 +294,7 @@ impl<'a> Write for Cursor<'a> {
     }
     fn push(&mut self, b: u8) -> WriteResult<Self> {
         if self.cur >= self.buf.len() {
-            return Err(CursorError::OutOfSpace)
+            return Err(CursorError::OutOfSpace);
         };
         self.buf[self.cur] = b;
         self.cur += 1;
@@ -347,7 +348,7 @@ impl<'a> Write for &'a mut [u8] {
     #[inline]
     fn push(&mut self, b: u8) -> WriteResult<Self> {
         if self.len() == 0 {
-            return Err(CursorError::OutOfSpace)
+            return Err(CursorError::OutOfSpace);
         };
         self[0] = b;
         let slice = core::mem::replace(self, &mut []);
