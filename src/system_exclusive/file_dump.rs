@@ -1,6 +1,7 @@
 use super::DeviceID;
 use crate::parse_error::*;
 use crate::util::*;
+use crate::Write;
 use alloc::vec::Vec;
 use bstr::BString;
 
@@ -33,8 +34,9 @@ pub enum FileDumpMsg {
     },
 }
 
-impl FileDumpMsg {
-    pub(crate) fn extend_midi(&self, v: &mut Vec<u8>) {
+#[cfg(feature = "defmt")]
+impl defmt::Format for FileDumpMsg {
+    fn format(&self, fmt: defmt::Formatter) {
         match self {
             Self::Header {
                 sender_device,
@@ -42,37 +44,77 @@ impl FileDumpMsg {
                 length,
                 name,
             } => {
-                v.push(0x1);
-                v.push(sender_device.to_u8());
-                file_type.extend_midi(v);
-                push_u28(*length, v);
-                v.extend_from_slice(name);
+                defmt::write!(
+                    fmt,
+                    "FileDumpMsg::Header {{ sender_device: {:?}, file_type: {:?}, length: {}, name: {:?} }}",
+                    sender_device, file_type, length, name.as_slice()
+                )
             }
             Self::Packet {
                 running_count,
                 data,
-                ..
             } => {
-                v.push(0x2);
-                v.push(to_u7(*running_count));
-                let mut len = data.len().min(112);
-                // Add number of extra encoded bytes
-                // (/ 7 is -1 of actual number of encoded bytes, but it's sent as length - 1)
-                len += len / 7;
-                assert!(len < 128);
-                v.push(len as u8);
-                v.extend(Self::encode_data(data));
-                v.push(0); // Checksum <- Will be written over by `SystemExclusiveMsg.extend_midi`
+                defmt::write!(
+                    fmt,
+                    "FileDumpMsg::Packet {{ running_count: {}, data: {:?} }}",
+                    running_count,
+                    data
+                )
             }
             Self::Request {
                 requester_device,
                 file_type,
                 name,
             } => {
-                v.push(0x3);
-                v.push(requester_device.to_u8());
-                file_type.extend_midi(v);
-                v.extend_from_slice(name);
+                defmt::write!(
+                    fmt,
+                    "FileDumpMsg::Request {{ requester_device: {:?}, file_type: {:?}, name: {:?} }}",
+                    requester_device, file_type, name.as_slice()
+                )
+            }
+        }
+    }
+}
+
+impl FileDumpMsg {
+    pub(crate) fn extend_midi<E>(&self, mut v: impl Write<Error = E>) -> Result<(), E> {
+        match self {
+            Self::Header {
+                sender_device,
+                file_type,
+                length,
+                name,
+            } => {
+                v.push(01)?;
+                v.push(sender_device.to_u8())?;
+                file_type.extend_midi(&mut v)?;
+                push_u28(*length, &mut v)?;
+                v.write(name)
+            }
+            Self::Packet {
+                running_count,
+                data,
+                ..
+            } => {
+                v.push(02)?;
+                v.push(to_u7(*running_count))?;
+                let mut len = data.len().min(112);
+                // Add number of extra encoded bytes
+                // (/ 7 is -1 of actual number of encoded bytes, but it's sent as length - 1)
+                len += len / 7;
+                assert!(len < 128);
+                v.push(len as u8)?;
+                v.write(&Self::encode_data(data))
+            }
+            Self::Request {
+                requester_device,
+                file_type,
+                name,
+            } => {
+                v.push(03)?;
+                v.push(requester_device.to_u8())?;
+                file_type.extend_midi(&mut v)?;
+                v.write(name)
             }
         }
     }
@@ -119,6 +161,7 @@ impl FileDumpMsg {
 
 /// A four-character file type used by [`FileDumpMsg`].
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub enum FileType {
     MIDI,
     MIEX,
@@ -130,15 +173,15 @@ pub enum FileType {
 }
 
 impl FileType {
-    fn extend_midi(&self, v: &mut Vec<u8>) {
+    fn extend_midi<E>(&self, mut v: impl Write<Error = E>) -> Result<(), E> {
         match self {
-            Self::MIDI => b"MIDI".iter().for_each(|c| v.push(*c)),
-            Self::MIEX => b"MIEX".iter().for_each(|c| v.push(*c)),
-            Self::ESEQ => b"ESEQ".iter().for_each(|c| v.push(*c)),
-            Self::TEXT => b"TEXT".iter().for_each(|c| v.push(*c)),
-            Self::BIN => b"BIN ".iter().for_each(|c| v.push(*c)),
-            Self::MAC => b"MAC ".iter().for_each(|c| v.push(*c)),
-            Self::Custom(chars) => chars[0..4].iter().for_each(|c| v.push(*c)),
+            Self::MIDI => v.write(b"MIDI"),
+            Self::MIEX => v.write(b"MIEX"),
+            Self::ESEQ => v.write(b"ESEQ"),
+            Self::TEXT => v.write(b"TEXT"),
+            Self::BIN => v.write(b"BIN "),
+            Self::MAC => v.write(b"MAC "),
+            Self::Custom(chars) => v.write(chars),
         }
     }
 }

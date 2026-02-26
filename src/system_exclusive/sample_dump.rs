@@ -1,11 +1,13 @@
 use crate::parse_error::*;
 use crate::util::*;
+use crate::Write;
 use alloc::vec::Vec;
 use bstr::BString;
 
 /// Used to request and transmit sampler data.
 /// Used by [`UniversalNonRealTimeMsg::SampleDump`](crate::UniversalNonRealTimeMsg::SampleDump).
 #[derive(Debug, Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub enum SampleDumpMsg {
     /// Request that the receiver send the given sample.
     Request {
@@ -57,7 +59,7 @@ pub enum SampleDumpMsg {
 }
 
 impl SampleDumpMsg {
-    pub(crate) fn extend_midi(&self, v: &mut Vec<u8>) {
+    pub(crate) fn extend_midi<E>(&self, mut v: impl Write<Error = E>) -> Result<(), E> {
         match self {
             Self::Header {
                 sample_num,
@@ -68,32 +70,22 @@ impl SampleDumpMsg {
                 sustain_loop_end,
                 loop_type,
             } => {
-                push_u14(*sample_num, v);
-                v.push((*format).clamp(8, 28));
-                push_u21(*period, v);
-                push_u21(*length, v);
-                push_u21(*sustain_loop_start, v);
-                push_u21(*sustain_loop_end, v);
-                v.push(*loop_type as u8);
+                push_u14(*sample_num, &mut v)?;
+                v.write(&[(*format).clamp(8, 28)])?;
+                push_u21(*period, &mut v)?;
+                push_u21(*length, &mut v)?;
+                push_u21(*sustain_loop_start, &mut v)?;
+                push_u21(*sustain_loop_end, &mut v)?;
+                v.write(&[*loop_type as u8])
             }
             Self::Packet {
                 running_count,
                 data,
             } => {
-                let mut p: [u8; 120] = [0; 120];
-                for (i, b) in data.iter().enumerate() {
-                    if i > 119 {
-                        break;
-                    }
-                    p[i] = to_u7(*b);
-                }
-                v.push(to_u7(*running_count));
-                v.extend_from_slice(&p);
-                v.push(0); // Checksum <- Will be written over by `SystemExclusiveMsg.extend_midi`
+                v.push(to_u7(*running_count))?;
+                v.write_iter(data.iter().map(|b| to_u7(*b)))
             }
-            Self::Request { sample_num } => {
-                push_u14(*sample_num, v);
-            }
+            Self::Request { sample_num } => push_u14(*sample_num, v),
             Self::LoopPointTransmission {
                 sample_num,
                 loop_num,
@@ -101,18 +93,18 @@ impl SampleDumpMsg {
                 start_addr,
                 end_addr,
             } => {
-                push_u14(*sample_num, v);
-                loop_num.extend_midi(v);
-                v.push(*loop_type as u8);
-                push_u21(*start_addr, v);
-                push_u21(*end_addr, v);
+                push_u14(*sample_num, &mut v)?;
+                loop_num.extend_midi(&mut v)?;
+                v.push(*loop_type as u8)?;
+                push_u21(*start_addr, &mut v)?;
+                push_u21(*end_addr, &mut v)
             }
             Self::LoopPointsRequest {
                 sample_num,
                 loop_num,
             } => {
-                push_u14(*sample_num, v);
-                loop_num.extend_midi(v);
+                push_u14(*sample_num, &mut v)?;
+                loop_num.extend_midi(v)
             }
         }
     }
@@ -138,6 +130,7 @@ impl SampleDumpMsg {
 
 /// What loop a [`SampleDumpMsg`] or [`ExtendedSampleDumpMsg`] is referring to.
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub enum LoopNumber {
     /// A loop with the given ID, 0-16382.
     Loop(u16),
@@ -148,16 +141,10 @@ pub enum LoopNumber {
 }
 
 impl LoopNumber {
-    fn extend_midi(&self, v: &mut Vec<u8>) {
+    fn extend_midi<E>(&self, mut v: impl Write<Error = E>) -> Result<(), E> {
         match self {
-            Self::RequestAll => {
-                v.push(0x7F);
-                v.push(0x7F);
-            }
-            Self::DeleteAll => {
-                v.push(0x7F);
-                v.push(0x7F);
-            }
+            Self::RequestAll => v.write(&[0x7F, 0x7F]),
+            Self::DeleteAll => v.write(&[0x7F, 0x7F]),
             Self::Loop(x) => push_u14(*x, v),
         }
     }
@@ -165,6 +152,7 @@ impl LoopNumber {
 
 /// The type of loop being described by a [`SampleDumpMsg`].
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub enum LoopType {
     /// Forward only
     Forward = 0,
@@ -226,8 +214,9 @@ pub enum ExtendedSampleDumpMsg {
     },
 }
 
-impl ExtendedSampleDumpMsg {
-    pub(crate) fn extend_midi(&self, v: &mut Vec<u8>) {
+#[cfg(feature = "defmt")]
+impl defmt::Format for ExtendedSampleDumpMsg {
+    fn format(&self, fmt: defmt::Formatter) {
         match self {
             Self::Header {
                 sample_num,
@@ -239,20 +228,11 @@ impl ExtendedSampleDumpMsg {
                 loop_type,
                 num_channels,
             } => {
-                push_u14(*sample_num, v);
-                v.push((*format).clamp(8, 28));
-                let sample_rate = sample_rate.max(0.0);
-                let sample_rate_integer = (sample_rate as u64) as f64; // for lack of no_std f64 floor
-                push_u28(sample_rate_integer as u32, v);
-                push_u28(
-                    ((sample_rate - sample_rate_integer) * ((1 << 28) as f64)) as u32,
-                    v,
-                );
-                push_u35((*length).min(34359738368), v);
-                push_u35((*sustain_loop_start).min(34359738367), v);
-                push_u35((*sustain_loop_end).min(34359738367), v);
-                v.push(*loop_type as u8);
-                push_u7(*num_channels, v);
+                defmt::write!(
+                    fmt,
+                    "ExtendedSampleDumpMsg::Header {{ sample_num: {}, format: {}, sample_rate: {}, length: {}, sustain_loop_start: {}, sustain_loop_end: {}, loop_type: {:?}, num_channels: {} }}",
+                    sample_num, format, sample_rate, length, sustain_loop_start, sustain_loop_end, loop_type, num_channels
+                )
             }
             Self::LoopPointTransmission {
                 sample_num,
@@ -261,29 +241,98 @@ impl ExtendedSampleDumpMsg {
                 start_addr,
                 end_addr,
             } => {
-                push_u14(*sample_num, v);
-                loop_num.extend_midi(v);
-                v.push(*loop_type as u8);
-                push_u35(*start_addr, v);
-                push_u35(*end_addr, v);
+                defmt::write!(
+                    fmt,
+                    "ExtendedSampleDumpMsg::LoopPointTransmission {{ sample_num: {}, loop_num: {:?}, loop_type: {:?}, start_addr: {}, end_addr: {} }}",
+                    sample_num, loop_num, loop_type, start_addr, end_addr
+                )
             }
             Self::LoopPointsRequest {
                 sample_num,
                 loop_num,
             } => {
-                push_u14(*sample_num, v);
-                loop_num.extend_midi(v);
+                defmt::write!(
+                    fmt,
+                    "ExtendedSampleDumpMsg::LoopPointsRequest {{ sample_num: {}, loop_num: {:?} }}",
+                    sample_num,
+                    loop_num
+                )
             }
             Self::SampleName { sample_num, name } => {
-                push_u14(*sample_num, v);
-                v.push(0); // Language tag length (0 is the only allowable value)
-                let len = name.len().min(127);
-                v.push(len as u8);
-                v.extend_from_slice(&name[0..len]);
+                defmt::write!(
+                    fmt,
+                    "ExtendedSampleDumpMsg::SampleName {{ sample_num: {}, name: {:?} }}",
+                    sample_num,
+                    name.as_slice()
+                )
             }
             Self::SampleNameRequest { sample_num } => {
-                push_u14(*sample_num, v);
+                defmt::write!(
+                    fmt,
+                    "ExtendedSampleDumpMsg::SampleNameRequest {{ sample_num: {} }}",
+                    sample_num
+                )
             }
+        }
+    }
+}
+
+impl ExtendedSampleDumpMsg {
+    pub(crate) fn extend_midi<E>(&self, mut v: impl Write<Error = E>) -> Result<(), E> {
+        match self {
+            Self::Header {
+                sample_num,
+                format,
+                sample_rate,
+                length,
+                sustain_loop_start,
+                sustain_loop_end,
+                loop_type,
+                num_channels,
+            } => {
+                push_u14(*sample_num, &mut v)?;
+                v.push((*format).clamp(8, 28))?;
+                let sample_rate = sample_rate.max(0.0);
+                let sample_rate_integer = (sample_rate as u64) as f64; // for lack of no_std f64 floor
+                push_u28(sample_rate_integer as u32, &mut v)?;
+                push_u28(
+                    ((sample_rate - sample_rate_integer) * ((1 << 28) as f64)) as u32,
+                    &mut v,
+                )?;
+                push_u35((*length).min(34359738368), &mut v)?;
+                push_u35((*sustain_loop_start).min(34359738367), &mut v)?;
+                push_u35((*sustain_loop_end).min(34359738367), &mut v)?;
+                v.push(*loop_type as u8)?;
+                push_u7(*num_channels, &mut v)
+            }
+            Self::LoopPointTransmission {
+                sample_num,
+                loop_num,
+                loop_type,
+                start_addr,
+                end_addr,
+            } => {
+                push_u14(*sample_num, &mut v)?;
+                loop_num.extend_midi(&mut v)?;
+                v.push(*loop_type as u8)?;
+                push_u35(*start_addr, &mut v)?;
+                push_u35(*end_addr, &mut v)
+            }
+            Self::LoopPointsRequest {
+                sample_num,
+                loop_num,
+            } => {
+                push_u14(*sample_num, &mut v)?;
+                loop_num.extend_midi(v)
+            }
+            Self::SampleName { sample_num, name } => {
+                push_u14(*sample_num, &mut v)?;
+                v.push(0)?; // Language tag length (0 is the only allowable value)
+                let len = name.len().min(127);
+                v.push(len as u8)?;
+                v.write(&name[0..len])
+            }
+            Self::SampleNameRequest { sample_num } => push_u14(*sample_num, v),
         }
     }
 
@@ -295,6 +344,7 @@ impl ExtendedSampleDumpMsg {
 
 /// The type of loop being described by a [`SampleDumpMsg`].
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub enum ExtendedLoopType {
     /// A forward, unidirectional loop
     Forward = 0x00,

@@ -18,12 +18,15 @@ bstr = { version = "1.0.0", default-features = false, features = [
 micromath = "1.1.1"
 strum = { version = "0.24.1", features = ["derive"], optional = true }
 log = { version = "0.4", optional = true }
+defmt = { version = "0.3", optional = true }
 
 [dev-dependencies]
 midir = "0.8.0"
 
 [features]
 default = ["std", "sysex", "file"]
-std = ["strum", "log"]
-sysex = ["bstr"]
-file = ["sysex"]
+std = ["strum", "log", "alloc"]
+sysex = ["bstr", "alloc"]
+file = ["sysex", "alloc"]
+defmt = []
+alloc = ["dep:defmt", "defmt/alloc"]

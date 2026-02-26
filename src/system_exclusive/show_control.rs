@@ -1,7 +1,8 @@
-use crate::parse_error::*;
+use crate::{parse_error::*, Write};
 use alloc::vec::Vec;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "defmt", derive(defmt::Format))]
 /// A MIDI Show Control command.
 /// Used by [`UniversalRealTimeMsg::ShowControl`](crate::UniversalRealTimeMsg::ShowControl).
 ///
@@ -16,9 +17,9 @@ pub enum ShowControlMsg {
 }
 
 impl ShowControlMsg {
-    pub(crate) fn extend_midi(&self, v: &mut Vec<u8>) {
+    pub(crate) fn extend_midi<E>(&self, mut v: impl Write<Error = E>) -> Result<(), E> {
         match self {
-            Self::Unimplemented(d) => v.extend_from_slice(d),
+            Self::Unimplemented(d) => v.write(d),
         }
     }
 

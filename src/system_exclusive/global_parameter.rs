@@ -1,5 +1,6 @@
 use crate::parse_error::*;
 use crate::util::*;
+use crate::Write;
 use alloc::vec;
 use alloc::vec::Vec;
 #[allow(unused_imports)]
@@ -13,6 +14,7 @@ use micromath::F32Ext;
 ///
 /// This C/A is much more permissive than most, and thus has a pretty awkward interface.
 #[derive(Debug, Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub struct GlobalParameterControl {
     /// Between 0 and 127 `SlotPath`s, with each successive path representing a child
     /// of the preceding value. No paths refers to the "top level"
@@ -139,19 +141,20 @@ impl GlobalParameterControl {
         }
     }
 
-    pub(crate) fn extend_midi(&self, v: &mut Vec<u8>) {
-        v.push(self.slot_paths.len().min(127) as u8);
-        push_u7(self.param_id_width, v);
-        push_u7(self.value_width, v);
+    pub(crate) fn extend_midi<E>(&self, mut v: impl Write<Error = E>) -> Result<(), E> {
+        v.push(self.slot_paths.len().min(127) as u8)?;
+        push_u7(self.param_id_width, &mut v)?;
+        push_u7(self.value_width, &mut v)?;
         for (i, sp) in self.slot_paths.iter().enumerate() {
             if i > 127 {
                 break;
             }
-            sp.extend_midi(v);
+            sp.extend_midi(&mut v)?;
         }
         for p in self.params.iter() {
-            p.extend_midi_with_limits(v, self.param_id_width.max(1), self.value_width.max(1));
+            p.extend_midi_with_limits(&mut v, self.param_id_width.max(1), self.value_width.max(1))?;
         }
+        Ok(())
     }
 
     #[allow(dead_code)]
@@ -163,6 +166,7 @@ impl GlobalParameterControl {
 /// The "slot" of the device being referred to by [`GlobalParameterControl`].
 /// Values other than `Unregistered` come from the General MIDI 2 spec.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub enum SlotPath {
     Reverb,
     Chorus,
@@ -171,19 +175,19 @@ pub enum SlotPath {
 }
 
 impl SlotPath {
-    pub(crate) fn extend_midi(&self, v: &mut Vec<u8>) {
+    pub(crate) fn extend_midi<E>(&self, mut v: impl Write<Error = E>) -> Result<(), E> {
         match self {
             Self::Reverb => {
-                v.push(1);
-                v.push(1);
+                v.push(1)?;
+                v.push(1)
             }
             Self::Chorus => {
-                v.push(1);
-                v.push(2);
+                v.push(1)?;
+                v.push(2)
             }
             Self::Unregistered(a, b) => {
-                push_u7(*a, v); // MSB first ¯\_(ツ)_/¯
-                push_u7(*b, v);
+                push_u7(*a, &mut v)?; // MSB first ¯\_(ツ)_/¯
+                push_u7(*b, v)
             }
         }
     }
@@ -196,34 +200,36 @@ impl SlotPath {
 
 /// An `id`:`value` pair that must line up with the [`GlobalParameterControl`] that it is placed in.
 #[derive(Debug, Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub struct GlobalParameter {
     pub id: Vec<u8>,
     pub value: Vec<u8>,
 }
 
 impl GlobalParameter {
-    pub(crate) fn extend_midi_with_limits(
+    pub(crate) fn extend_midi_with_limits<E>(
         &self,
-        v: &mut Vec<u8>,
+        mut v: impl Write<Error = E>,
         param_id_width: u8,
         value_width: u8,
-    ) {
+    ) -> Result<(), E> {
         for i in 0..param_id_width {
             // MSB first
             if let Some(x) = self.id.get(i as usize) {
-                push_u7(*x, v);
+                push_u7(*x, &mut v)?;
             } else {
-                v.push(0);
+                v.push(0)?;
             }
         }
         for i in (0..value_width).rev() {
             // LSB first
             if let Some(x) = self.value.get(i as usize) {
-                push_u7(*x, v);
+                push_u7(*x, &mut v)?;
             } else {
-                v.push(0);
+                v.push(0)?;
             }
         }
+        Ok(())
     }
 
     #[allow(dead_code)]

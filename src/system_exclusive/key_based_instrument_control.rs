@@ -1,6 +1,7 @@
 use crate::message::Channel;
 use crate::parse_error::*;
 use crate::util::*;
+use crate::Write;
 use alloc::vec::Vec;
 
 /// Intended to act like Control Change messages, but targeted at an individual key.
@@ -9,6 +10,7 @@ use alloc::vec::Vec;
 ///
 /// Defined in CA-023.
 #[derive(Debug, Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub struct KeyBasedInstrumentControl {
     pub channel: Channel,
     /// The MIDI key number.
@@ -24,17 +26,18 @@ pub struct KeyBasedInstrumentControl {
 }
 
 impl KeyBasedInstrumentControl {
-    pub(crate) fn extend_midi(&self, v: &mut Vec<u8>) {
-        v.push(self.channel as u8);
-        push_u7(self.key, v);
+    pub(crate) fn extend_midi<E>(&self, mut v: impl Write<Error = E>) -> Result<(), E> {
+        v.push(self.channel as u8)?;
+        push_u7(self.key, &mut v)?;
         for (cc, x) in self.control_values.iter().cloned() {
             if cc == 0x06 || cc == 0x26 || cc == 0x60 || cc == 0x65 || cc >= 0x78 {
-                v.push(1);
+                v.push(1)?;
             } else {
-                v.push(cc);
+                v.push(cc)?;
             }
-            push_u7(x, v);
+            push_u7(x, &mut v)?;
         }
+        Ok(())
     }
 
     #[allow(dead_code)]

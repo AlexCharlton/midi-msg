@@ -7,6 +7,7 @@ use strum::{Display, EnumIter, EnumString};
 ///
 /// Used in [`UniversalNonRealTimeMsg::GeneralMidi`](crate::UniversalNonRealTimeMsg::GeneralMidi)
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub enum GeneralMidi {
     GM1 = 1,
     GM2 = 3,

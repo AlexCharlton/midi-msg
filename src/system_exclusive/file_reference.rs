@@ -1,5 +1,6 @@
 use crate::parse_error::*;
 use crate::util::*;
+use crate::Write;
 use alloc::vec::Vec;
 use bstr::BString;
 
@@ -44,25 +45,25 @@ pub enum FileReferenceMsg {
     },
 }
 
-impl FileReferenceMsg {
-    pub(crate) fn extend_midi(&self, v: &mut Vec<u8>) {
+#[cfg(feature = "defmt")]
+impl defmt::Format for FileReferenceMsg {
+    fn format(&self, fmt: defmt::Formatter) {
         match self {
             Self::Open {
                 ctx,
                 file_type,
                 url,
             } => {
-                push_u14(*ctx, v);
-                let len = 4 + url.len().min(260) + 1;
-                push_u14(len as u16, v);
-                file_type.extend_midi(v);
-                v.extend_from_slice(&url[0..url.len().min(260)]);
-                v.push(0); // Null terminate URL
+                defmt::write!(
+                    fmt,
+                    "Open {{ ctx: {}, file_type: {:?}, url: {} }}",
+                    ctx,
+                    file_type,
+                    url.as_slice()
+                );
             }
             Self::SelectContents { ctx, map } => {
-                push_u14(*ctx, v);
-                push_u14(map.len() as u16, v);
-                map.extend_midi(v);
+                defmt::write!(fmt, "SelectContents {{ ctx: {}, map: {:?} }}", ctx, map);
             }
             Self::OpenSelectContents {
                 ctx,
@@ -70,18 +71,60 @@ impl FileReferenceMsg {
                 url,
                 map,
             } => {
-                push_u14(*ctx, v);
-                let len = 4 + url.len().min(260) + 1 + map.len();
-                push_u14(len as u16, v);
-                file_type.extend_midi(v);
-                v.extend_from_slice(&url[0..url.len().min(260)]);
-                v.push(0); // Null terminate URL
-                map.extend_midi(v);
+                defmt::write!(
+                    fmt,
+                    "OpenSelectContents {{ ctx: {}, file_type: {:?}, url: {}, map: {:?} }}",
+                    ctx,
+                    file_type,
+                    url.as_slice(),
+                    map
+                );
             }
             Self::Close { ctx } => {
-                push_u14(*ctx, v);
-                v.push(0); // Len is zero
-                v.push(0); // And here's another byte for some reason ¯\_(ツ)_/¯
+                defmt::write!(fmt, "Close {{ ctx: {} }}", ctx);
+            }
+        }
+    }
+}
+
+impl FileReferenceMsg {
+    pub(crate) fn extend_midi<E>(&self, mut v: impl Write<Error = E>) -> Result<(), E> {
+        match self {
+            Self::Open {
+                ctx,
+                file_type,
+                url,
+            } => {
+                push_u14(*ctx, &mut v)?;
+                let len = 4 + url.len().min(260) + 1;
+                push_u14(len as u16, &mut v)?;
+                file_type.extend_midi(&mut v)?;
+                v.write(&url[0..url.len().min(260)])?;
+                v.push(0) // Null terminate URL
+            }
+            Self::SelectContents { ctx, map } => {
+                push_u14(*ctx, &mut v)?;
+                push_u14(map.len() as u16, &mut v)?;
+                map.extend_midi(&mut v)
+            }
+            Self::OpenSelectContents {
+                ctx,
+                file_type,
+                url,
+                map,
+            } => {
+                push_u14(*ctx, &mut v)?;
+                let len = 4 + url.len().min(260) + 1 + map.len();
+                push_u14(len as u16, &mut v)?;
+                file_type.extend_midi(&mut v)?;
+                v.write(&url[0..url.len().min(260)])?;
+                v.push(0)?; // Null terminate URL
+                map.extend_midi(v)
+            }
+            Self::Close { ctx } => {
+                push_u14(*ctx, &mut v)?;
+                v.push(0)?; // Len is zero
+                v.push(0) // And here's another byte for some reason ¯\_(ツ)_/¯
             }
         }
     }
@@ -94,6 +137,7 @@ impl FileReferenceMsg {
 
 /// The file type of a given file, as used by [`FileReferenceMsg`].
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub enum FileReferenceType {
     DLS,
     SF2,
@@ -101,17 +145,18 @@ pub enum FileReferenceType {
 }
 
 impl FileReferenceType {
-    fn extend_midi(&self, v: &mut Vec<u8>) {
+    fn extend_midi<E>(&self, mut v: impl Write<Error = E>) -> Result<(), E> {
         match self {
-            Self::DLS => b"DLS ".iter().for_each(|c| v.push(*c)),
-            Self::SF2 => b"SF2 ".iter().for_each(|c| v.push(*c)),
-            Self::WAV => b"WAV ".iter().for_each(|c| v.push(*c)),
+            Self::DLS => v.write(b"DLS "),
+            Self::SF2 => v.write(b"SF2 "),
+            Self::WAV => v.write(b"WAV "),
         }
     }
 }
 
 /// How to map a `DLS` or `SF2` file for MIDI reference. Used by [`SelectMap`].
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub struct SoundFileMap {
     /// MIDI bank number required to select sound for playing. 0-16383
     pub dst_bank: u16,
@@ -144,11 +189,11 @@ impl Default for SoundFileMap {
 }
 
 impl SoundFileMap {
-    fn extend_midi(&self, v: &mut Vec<u8>) {
-        push_u14(self.dst_bank, v);
-        push_u7(self.dst_prog, v);
-        push_u14(self.src_bank, v);
-        push_u7(self.src_prog, v);
+    fn extend_midi<E>(&self, mut v: impl Write<Error = E>) -> Result<(), E> {
+        push_u14(self.dst_bank, &mut v)?;
+        push_u7(self.dst_prog, &mut v)?;
+        push_u14(self.src_bank, &mut v)?;
+        push_u7(self.src_prog, &mut v)?;
         let mut flags: u8 = 0;
         if self.src_drum {
             flags += 1 << 0;
@@ -156,13 +201,14 @@ impl SoundFileMap {
         if self.dst_drum {
             flags += 1 << 1;
         }
-        v.push(flags);
-        push_u7(self.volume, v);
+        v.push(flags)?;
+        push_u7(self.volume, v)
     }
 }
 
 /// How to map a `WAV` file for MIDI reference. Used by [`SelectMap`].
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub struct WAVMap {
     /// MIDI bank number required to select sound for playing. 0-16383
     pub dst_bank: u16,
@@ -182,16 +228,16 @@ pub struct WAVMap {
 }
 
 impl WAVMap {
-    fn extend_midi(&self, v: &mut Vec<u8>) {
-        push_u14(self.dst_bank, v);
-        push_u7(self.dst_prog, v);
-        push_u7(self.base, v);
-        push_u7(self.lokey, v);
-        push_u7(self.hikey, v);
+    fn extend_midi<E>(&self, mut v: impl Write<Error = E>) -> Result<(), E> {
+        push_u14(self.dst_bank, &mut v)?;
+        push_u7(self.dst_prog, &mut v)?;
+        push_u7(self.base, &mut v)?;
+        push_u7(self.lokey, &mut v)?;
+        push_u7(self.hikey, &mut v)?;
         let [msb, lsb] = i_to_u14(self.fine);
-        v.push(lsb);
-        v.push(msb);
-        push_u7(self.volume, v);
+        v.push(lsb)?;
+        v.push(msb)?;
+        push_u7(self.volume, v)
     }
 }
 
@@ -211,6 +257,7 @@ impl Default for WAVMap {
 
 /// How to map a file for MIDI reference. Used by [`FileReferenceMsg::SelectContents`].
 #[derive(Debug, Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub enum SelectMap {
     /// Used for DLS or SF2 files. No more than 127 `SoundFileMap`s.
     ///
@@ -239,7 +286,7 @@ pub enum SelectMap {
 }
 
 impl SelectMap {
-    fn extend_midi(&self, v: &mut Vec<u8>) {
+    fn extend_midi<E>(&self, mut v: impl Write<Error = E>) -> Result<(), E> {
         match self {
             Self::WAV(m) => m.extend_midi(v),
             Self::WAVBankOffset {
@@ -247,39 +294,40 @@ impl SelectMap {
                 bank_offset,
                 src_drum,
             } => {
-                map.extend_midi(v);
-                v.push(0); // count
-                v.push(0); // Extension ID 1
-                v.push(1); // Extension ID 2
-                v.push(3); // len
-                push_u14(*bank_offset, v);
+                map.extend_midi(&mut v)?;
+                v.push(0)?; // count
+                v.push(0)?; // Extension ID 1
+                v.push(1)?; // Extension ID 2
+                v.push(3)?; // len
+                push_u14(*bank_offset, &mut v)?;
                 let mut flags: u8 = 0;
                 if *src_drum {
                     flags += 1 << 0;
                 }
-                push_u7(flags, v);
+                push_u7(flags, v)
             }
             Self::SoundFileBankOffset {
                 bank_offset,
                 src_drum,
             } => {
-                v.push(0); // count
-                v.push(0); // Extension ID 1
-                v.push(1); // Extension ID 2
-                v.push(3); // len
-                push_u14(*bank_offset, v);
+                v.push(0)?; // count
+                v.push(0)?; // Extension ID 1
+                v.push(1)?; // Extension ID 2
+                v.push(3)?; // len
+                push_u14(*bank_offset, &mut v)?;
                 let mut flags: u8 = 0;
                 if *src_drum {
                     flags += 1 << 0;
                 }
-                push_u7(flags, v);
+                push_u7(flags, v)
             }
             Self::SoundFile(maps) => {
                 let count = maps.len().min(127);
-                push_u7(count as u8, v);
+                push_u7(count as u8, &mut v)?;
                 for m in maps[0..count].iter() {
-                    m.extend_midi(v);
+                    m.extend_midi(&mut v)?;
                 }
+                Ok(())
             }
         }
     }

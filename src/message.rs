@@ -2,6 +2,8 @@ use alloc::vec;
 use alloc::vec::Vec;
 use core::convert::TryFrom;
 
+use crate::io::Write;
+
 use super::{
     ChannelModeMsg, ChannelVoiceMsg, ParseError, ReceiverContext, SystemCommonMsg,
     SystemRealTimeMsg,
@@ -15,6 +17,7 @@ use super::Meta;
 
 /// The primary interface of this library. Used to encode MIDI messages.
 #[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub enum MidiMsg {
     /// Channel-level messages that act on a voice, such as turning notes on and off.
     ChannelVoice {
@@ -67,7 +70,7 @@ impl MidiMsg {
     /// Turn a `MidiMsg` into a series of bytes.
     pub fn to_midi(&self) -> Vec<u8> {
         let mut r: Vec<u8> = vec![];
-        self.extend_midi(&mut r);
+        self.extend_midi(&mut r).expect("Vec can't expand?");
         r
     }
 
@@ -322,32 +325,16 @@ impl MidiMsg {
     pub fn messages_to_midi(msgs: &[Self]) -> Vec<u8> {
         let mut r: Vec<u8> = vec![];
         for m in msgs.iter() {
-            m.extend_midi(&mut r);
+            m.extend_midi(&mut r).expect("Vec can't expand?");
         }
         r
     }
 
-    /// Given a `Vec<u8>`, append this `MidiMsg` to it.
-    pub fn extend_midi(&self, v: &mut Vec<u8>) {
+    pub fn extend_midi<E>(&self, mut v: impl Write<Error = E>) -> Result<(), E> {
         match self {
-            MidiMsg::ChannelVoice { channel, msg } => {
-                let p = v.len();
-                msg.extend_midi(v);
-                v[p] += *channel as u8;
-                match msg {
-                    ChannelVoiceMsg::HighResNoteOff { .. }
-                    | ChannelVoiceMsg::HighResNoteOn { .. } => {
-                        v[p + 3] += *channel as u8;
-                    }
-                    _ => (),
-                }
-            }
-            MidiMsg::RunningChannelVoice { msg, .. } => msg.extend_midi_running(v),
-            MidiMsg::ChannelMode { channel, msg } => {
-                let p = v.len();
-                msg.extend_midi(v);
-                v[p] += *channel as u8;
-            }
+            MidiMsg::ChannelVoice { channel, msg } => msg.extend_midi(*channel as u8, &mut v),
+            MidiMsg::RunningChannelVoice { msg, .. } => msg.extend_midi_running(0, v),
+            MidiMsg::ChannelMode { channel, msg } => msg.extend_midi(*channel as u8, &mut v),
             MidiMsg::RunningChannelMode { msg, .. } => msg.extend_midi_running(v),
             MidiMsg::SystemCommon { msg } => msg.extend_midi(v),
             MidiMsg::SystemRealTime { msg } => msg.extend_midi(v),
@@ -358,6 +345,7 @@ impl MidiMsg {
             #[cfg(feature = "file")]
             MidiMsg::Invalid { .. } => {
                 // Do nothing
+                Ok(())
             }
         }
     }
@@ -499,6 +487,7 @@ use strum::{EnumIter, EnumString};
 
 /// The MIDI channel, 1-16. Used by [`MidiMsg`] and elsewhere.
 #[cfg_attr(feature = "std", derive(EnumIter, EnumString))]
+#[cfg_attr(feature = "defmt", derive(defmt::Format))]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[repr(u8)]
 pub enum Channel {

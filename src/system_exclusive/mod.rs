@@ -21,16 +21,19 @@ pub use tuning::*;
 
 use alloc::vec::Vec;
 
-use super::ReceiverContext;
+use crate::Write;
+
 use super::general_midi::GeneralMidi;
 use super::parse_error::*;
 use super::time_code::*;
 use super::util::*;
+use super::ReceiverContext;
 
 /// The bulk of the MIDI spec lives here, in "Universal System Exclusive" messages.
 /// Also used for manufacturer-specific messages.
 /// Used in [`MidiMsg`](crate::MidiMsg).
 #[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub enum SystemExclusiveMsg {
     /// An arbitrary set of 7-bit "bytes", the meaning of which must be derived from the
     /// message, the definition of which is determined by the given manufacturer.
@@ -52,58 +55,62 @@ pub enum SystemExclusiveMsg {
 }
 
 impl SystemExclusiveMsg {
-    pub(crate) fn extend_midi(&self, v: &mut Vec<u8>, first_byte_is_f0: bool) {
+    pub(crate) fn extend_midi<E>(
+        &self,
+        mut v: impl Write<Error = E>,
+        first_byte_is_f0: bool,
+    ) -> Result<(), E> {
         if first_byte_is_f0 {
-            v.push(0xF0);
+            v.push(0xF0)?;
         }
         match self {
             SystemExclusiveMsg::Commercial { id, data } => {
-                id.extend_midi(v);
-                data.iter().for_each(|d| v.push(to_u7(*d)));
+                id.extend_midi(&mut v)?;
+                for d in data {
+                    v.write(&[to_u7(*d)])?;
+                }
             }
             SystemExclusiveMsg::NonCommercial { data } => {
-                v.push(0x7D);
-                data.iter().for_each(|d| v.push(to_u7(*d)));
+                v.write(&[0x7D])?;
+                for d in data {
+                    v.write(&[to_u7(*d)])?;
+                }
             }
             SystemExclusiveMsg::UniversalRealTime { device, msg } => {
-                v.push(0x7F);
-                v.push(device.to_u8());
-                msg.extend_midi(v);
+                v.write(&[0x7F, device.to_u8()])?;
+                msg.extend_midi(&mut v)?;
             }
             SystemExclusiveMsg::UniversalNonRealTime { device, msg } => {
-                let p = v.len();
-                v.push(0x7E);
-                v.push(device.to_u8());
-                msg.extend_midi(v);
-                if let UniversalNonRealTimeMsg::SampleDump(SampleDumpMsg::Packet { .. }) = msg {
-                    let q = v.len();
-                    v[q - 1] = checksum(&v[p..q - 1]);
-                }
-                if let UniversalNonRealTimeMsg::KeyBasedTuningDump(_) = msg {
-                    let q = v.len();
-                    v[q - 1] = checksum(&v[p..q - 1]);
-                }
-                if let UniversalNonRealTimeMsg::ScaleTuning1Byte(_) = msg {
-                    let q = v.len();
-                    v[q - 1] = checksum(&v[p..q - 1]);
-                }
-                if let UniversalNonRealTimeMsg::ScaleTuning2Byte(_) = msg {
-                    let q = v.len();
-                    v[q - 1] = checksum(&v[p..q - 1]);
-                }
-                if let UniversalNonRealTimeMsg::FileDump(FileDumpMsg::Packet { .. }) = msg {
-                    let q = v.len();
-                    v[q - 1] = checksum(&v[p..q - 1]);
+                if matches!(
+                    msg,
+                    UniversalNonRealTimeMsg::SampleDump(SampleDumpMsg::Packet { .. })
+                        | UniversalNonRealTimeMsg::KeyBasedTuningDump(_)
+                        | UniversalNonRealTimeMsg::ScaleTuning1Byte(_)
+                        | UniversalNonRealTimeMsg::ScaleTuning2Byte(_)
+                        | UniversalNonRealTimeMsg::FileDump(FileDumpMsg::Packet { .. })
+                ) {
+                    let mut w = ChecksummingWriter::new(&mut v);
+                    w.write(&[0x7E, device.to_u8()])?;
+                    msg.extend_midi(&mut w)?;
+                    w.finish()?;
+                } else {
+                    v.write(&[0x7E, device.to_u8()])?;
+                    msg.extend_midi(&mut v)?;
                 }
             }
         }
-        v.push(0xF7);
+        v.write(&[0xF7])?;
+        Ok(())
     }
 
     fn sysex_bytes_from_midi(m: &[u8], first_byte_is_f0: bool) -> Result<&[u8], ParseError> {
         if first_byte_is_f0 && m.first() != Some(&0xF0) {
             return Err(ParseError::UndefinedSystemExclusiveMessage(
-                m.first().copied(),
+                if let Some(first_byte) = m.first() {
+                    Some(*first_byte)
+                } else {
+                    None
+                },
             ));
         }
         let offset = if first_byte_is_f0 { 1 } else { 0 };
@@ -123,7 +130,7 @@ impl SystemExclusiveMsg {
         ctx: &mut ReceiverContext,
     ) -> Result<(Self, usize), ParseError> {
         let m = Self::sysex_bytes_from_midi(m, !ctx.is_smf_sysex)?;
-        match m.first() {
+        match m.get(0) {
             Some(0x7D) => Ok((
                 Self::NonCommercial {
                     data: m[1..].to_vec(),
@@ -165,16 +172,15 @@ impl SystemExclusiveMsg {
 /// If second byte is None, it is a one-byte ID.
 /// The first byte in a one-byte ID may not be greater than 0x7C.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub struct ManufacturerID(pub u8, pub Option<u8>);
 
 impl ManufacturerID {
-    fn extend_midi(&self, v: &mut Vec<u8>) {
+    fn extend_midi<E>(&self, mut v: impl Write<Error = E>) -> Result<(), E> {
         if let Some(second) = self.1 {
-            v.push(0x00);
-            v.push(to_u7(self.0));
-            v.push(to_u7(second));
+            v.write(&[0x00, to_u7(self.0), to_u7(second)])
         } else {
-            v.push(self.0.min(0x7C))
+            v.write(&[self.0.min(0x7C)])
         }
     }
 
@@ -208,16 +214,17 @@ impl From<(u8, u8)> for ManufacturerID {
 /// The device ID being addressed, either a number between 0-126 or `AllCall` (all devices).
 /// Used by [`SystemExclusiveMsg::UniversalNonRealTime`] and [`SystemExclusiveMsg::UniversalRealTime`].
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub enum DeviceID {
     Device(u8),
     AllCall,
 }
 
 impl DeviceID {
-    fn to_u8(self) -> u8 {
+    fn to_u8(&self) -> u8 {
         match self {
             Self::AllCall => 0x7F,
-            Self::Device(x) => to_u7(x),
+            Self::Device(x) => to_u7(*x),
         }
     }
 
@@ -233,6 +240,7 @@ impl DeviceID {
 
 /// A diverse range of messages for real-time applications. Used by [`SystemExclusiveMsg::UniversalRealTime`].
 #[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub enum UniversalRealTimeMsg {
     /// For use when a [`SystemCommonMsg::TimeCodeQuarterFrame`](crate::SystemCommonMsg::TimeCodeQuarterFrame1) is not appropriate:
     /// When rewinding, fast-forwarding, or otherwise locating and cueing, where sending quarter frame
@@ -285,118 +293,118 @@ pub enum UniversalRealTimeMsg {
 }
 
 impl UniversalRealTimeMsg {
-    fn extend_midi(&self, v: &mut Vec<u8>) {
+    fn extend_midi<E>(&self, mut v: impl Write<Error = E>) -> Result<(), E> {
         match self {
             UniversalRealTimeMsg::TimeCodeFull(code) => {
-                v.push(0x1);
-                v.push(0x1);
-                code.extend_midi(v);
+                v.push(01)?;
+                v.push(01)?;
+                code.extend_midi(&mut v)
             }
             UniversalRealTimeMsg::TimeCodeUserBits(user_bits) => {
-                v.push(0x1);
-                v.push(0x2);
+                v.push(01)?;
+                v.push(02)?;
                 let [ub1, ub2, ub3, ub4, ub5, ub6, ub7, ub8, ub9] = user_bits.to_nibbles();
-                v.extend_from_slice(&[ub1, ub2, ub3, ub4, ub5, ub6, ub7, ub8, ub9]);
+                v.write(&[ub1, ub2, ub3, ub4, ub5, ub6, ub7, ub8, ub9])
             }
             UniversalRealTimeMsg::ShowControl(msg) => {
-                v.push(0x2);
-                msg.extend_midi(v);
+                v.push(02)?;
+                msg.extend_midi(&mut v)
             }
             UniversalRealTimeMsg::BarMarker(marker) => {
-                v.push(0x3);
-                v.push(0x1);
-                marker.extend_midi(v);
+                v.push(03)?;
+                v.push(01)?;
+                marker.extend_midi(&mut v)
             }
             UniversalRealTimeMsg::TimeSignature(signature) => {
-                v.push(0x3);
-                v.push(0x2);
-                signature.extend_midi(v);
+                v.push(03)?;
+                v.push(02)?;
+                signature.extend_midi(&mut v)
             }
             UniversalRealTimeMsg::TimeSignatureDelayed(signature) => {
-                v.push(0x3);
-                v.push(0x42);
-                signature.extend_midi(v);
+                v.push(03)?;
+                v.push(0x42)?;
+                signature.extend_midi(&mut v)
             }
             UniversalRealTimeMsg::MasterVolume(vol) => {
-                v.push(0x4);
-                v.push(0x1);
-                push_u14(*vol, v);
+                v.push(04)?;
+                v.push(01)?;
+                push_u14(*vol, v)
             }
             UniversalRealTimeMsg::MasterBalance(bal) => {
-                v.push(0x4);
-                v.push(0x2);
-                push_u14(*bal, v);
+                v.push(04)?;
+                v.push(02)?;
+                push_u14(*bal, v)
             }
             UniversalRealTimeMsg::MasterFineTuning(t) => {
-                v.push(0x4);
-                v.push(0x3);
+                v.push(04)?;
+                v.push(03)?;
                 let [msb, lsb] = i_to_u14(*t);
-                v.push(lsb);
-                v.push(msb);
+                v.push(lsb)?;
+                v.push(msb)
             }
             UniversalRealTimeMsg::MasterCoarseTuning(t) => {
-                v.push(0x4);
-                v.push(0x4);
-                v.push(i_to_u7(*t));
+                v.push(04)?;
+                v.push(04)?;
+                v.push(i_to_u7(*t))
             }
             UniversalRealTimeMsg::GlobalParameterControl(gp) => {
-                v.push(0x4);
-                v.push(0x5);
-                gp.extend_midi(v);
+                v.push(04)?;
+                v.push(05)?;
+                gp.extend_midi(&mut v)
             }
             UniversalRealTimeMsg::TimeCodeCueing(msg) => {
-                v.push(0x5);
-                msg.extend_midi(v);
+                v.push(05)?;
+                msg.extend_midi(&mut v)
             }
             UniversalRealTimeMsg::MachineControlCommand(msg) => {
-                v.push(0x6);
-                msg.extend_midi(v);
+                v.push(06)?;
+                msg.extend_midi(&mut v)
             }
             UniversalRealTimeMsg::MachineControlResponse(msg) => {
-                v.push(0x7);
-                msg.extend_midi(v);
+                v.push(07)?;
+                msg.extend_midi(&mut v)
             }
             UniversalRealTimeMsg::TuningNoteChange(note_change) => {
-                v.push(0x8);
+                v.push(08)?;
                 v.push(if note_change.tuning_bank_num.is_some() {
-                    0x7
+                    07
                 } else {
-                    0x2
-                });
+                    02
+                })?;
                 if let Some(bank_num) = note_change.tuning_bank_num {
-                    v.push(to_u7(bank_num))
+                    v.push(to_u7(bank_num))?;
                 }
-                note_change.extend_midi(v);
+                note_change.extend_midi(&mut v)
             }
             UniversalRealTimeMsg::ScaleTuning1Byte(tuning) => {
-                v.push(0x8);
-                v.push(0x8);
-                tuning.extend_midi(v);
+                v.push(08)?;
+                v.push(08)?;
+                tuning.extend_midi(&mut v)
             }
             UniversalRealTimeMsg::ScaleTuning2Byte(tuning) => {
-                v.push(0x8);
-                v.push(0x9);
-                tuning.extend_midi(v);
+                v.push(08)?;
+                v.push(09)?;
+                tuning.extend_midi(&mut v)
             }
             UniversalRealTimeMsg::ChannelPressureControllerDestination(d) => {
-                v.push(0x9);
-                v.push(0x1);
-                d.extend_midi(v);
+                v.push(09)?;
+                v.push(01)?;
+                d.extend_midi(&mut v)
             }
             UniversalRealTimeMsg::PolyphonicKeyPressureControllerDestination(d) => {
-                v.push(0x9);
-                v.push(0x2);
-                d.extend_midi(v);
+                v.push(09)?;
+                v.push(02)?;
+                d.extend_midi(&mut v)
             }
             UniversalRealTimeMsg::ControlChangeControllerDestination(d) => {
-                v.push(0x9);
-                v.push(0x3);
-                d.extend_midi(v);
+                v.push(09)?;
+                v.push(03)?;
+                d.extend_midi(&mut v)
             }
             UniversalRealTimeMsg::KeyBasedInstrumentControl(control) => {
-                v.push(0xA);
-                v.push(0x1);
-                control.extend_midi(v);
+                v.push(0x0A)?;
+                v.push(01)?;
+                control.extend_midi(&mut v)
             }
         }
     }
@@ -407,7 +415,7 @@ impl UniversalRealTimeMsg {
         }
 
         match (m[0], m[1]) {
-            (0x1, 0x1) => {
+            (01, 01) => {
                 if m.len() > 6 {
                     Err(ParseError::Invalid(
                         "Extra bytes after a UniversalRealTimeMsg::TimeCodeFull",
@@ -425,6 +433,7 @@ impl UniversalRealTimeMsg {
 
 /// A diverse range of messages for non-real-time applications. Used by [`SystemExclusiveMsg::UniversalNonRealTime`].
 #[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub enum UniversalNonRealTimeMsg {
     /// Used to transmit sampler data.
     SampleDump(SampleDumpMsg),
@@ -474,134 +483,101 @@ pub enum UniversalNonRealTimeMsg {
 }
 
 impl UniversalNonRealTimeMsg {
-    fn extend_midi(&self, v: &mut Vec<u8>) {
+    fn extend_midi<E>(&self, mut v: impl Write<Error = E>) -> Result<(), E> {
         match self {
             UniversalNonRealTimeMsg::SampleDump(msg) => {
                 match msg {
-                    SampleDumpMsg::Header { .. } => v.push(0x1),
-                    SampleDumpMsg::Packet { .. } => v.push(0x2),
-                    SampleDumpMsg::Request { .. } => v.push(0x3),
-                    SampleDumpMsg::LoopPointTransmission { .. } => {
-                        v.push(0x5);
-                        v.push(0x1);
-                    }
-                    SampleDumpMsg::LoopPointsRequest { .. } => {
-                        v.push(0x5);
-                        v.push(0x2);
-                    }
-                }
-                msg.extend_midi(v);
+                    SampleDumpMsg::Header { .. } => v.write(&[01])?,
+                    SampleDumpMsg::Packet { .. } => v.write(&[02])?,
+                    SampleDumpMsg::Request { .. } => v.write(&[03])?,
+                    SampleDumpMsg::LoopPointTransmission { .. } => v.write(&[05, 01])?,
+                    SampleDumpMsg::LoopPointsRequest { .. } => v.write(&[05, 02])?,
+                };
+                msg.extend_midi(v)
             }
             UniversalNonRealTimeMsg::ExtendedSampleDump(msg) => {
-                v.push(0x5);
+                v.write(&[05])?;
                 match msg {
-                    ExtendedSampleDumpMsg::SampleName { .. } => v.push(0x3),
-                    ExtendedSampleDumpMsg::SampleNameRequest { .. } => v.push(0x4),
-                    ExtendedSampleDumpMsg::Header { .. } => v.push(0x5),
-                    ExtendedSampleDumpMsg::LoopPointTransmission { .. } => v.push(0x6),
-                    ExtendedSampleDumpMsg::LoopPointsRequest { .. } => v.push(0x7),
-                }
-                msg.extend_midi(v);
+                    ExtendedSampleDumpMsg::SampleName { .. } => v.write(&[03])?,
+                    ExtendedSampleDumpMsg::SampleNameRequest { .. } => v.write(&[04])?,
+                    ExtendedSampleDumpMsg::Header { .. } => v.write(&[05])?,
+                    ExtendedSampleDumpMsg::LoopPointTransmission { .. } => v.write(&[06])?,
+                    ExtendedSampleDumpMsg::LoopPointsRequest { .. } => v.write(&[07])?,
+                };
+                msg.extend_midi(v)
             }
             UniversalNonRealTimeMsg::TimeCodeCueingSetup(msg) => {
-                v.push(0x4);
-                msg.extend_midi(v);
+                v.write(&[04])?;
+                msg.extend_midi(v)
             }
-            UniversalNonRealTimeMsg::IdentityRequest => {
-                v.push(0x6);
-                v.push(0x1);
-            }
+            UniversalNonRealTimeMsg::IdentityRequest => v.write(&[06, 01]),
             UniversalNonRealTimeMsg::IdentityReply(identity) => {
-                v.push(0x6);
-                v.push(0x2);
-                identity.extend_midi(v);
+                v.write(&[06, 02])?;
+                identity.extend_midi(v)
             }
             UniversalNonRealTimeMsg::FileDump(msg) => {
-                v.push(0x7);
-                msg.extend_midi(v);
+                v.write(&[07])?;
+                msg.extend_midi(v)
             }
             UniversalNonRealTimeMsg::TuningBulkDumpRequest(program_num, bank_num) => {
-                v.push(0x8);
-                v.push(if bank_num.is_some() { 0x3 } else { 0x0 });
+                v.write(&[08])?;
                 if let Some(bank_num) = bank_num {
-                    v.push(to_u7(*bank_num))
+                    v.write(&[03, to_u7(*bank_num)])?;
+                } else {
+                    v.write(&[00])?;
                 }
-                v.push(to_u7(*program_num));
+                v.write(&[to_u7(*program_num)])
             }
             UniversalNonRealTimeMsg::KeyBasedTuningDump(tuning) => {
-                v.push(0x8);
-                v.push(if tuning.tuning_bank_num.is_some() {
-                    0x4
-                } else {
-                    0x1
-                });
-                tuning.extend_midi(v);
+                v.write(&[
+                    08,
+                    if tuning.tuning_bank_num.is_some() {
+                        04
+                    } else {
+                        01
+                    },
+                ])?;
+                tuning.extend_midi(v)
             }
             UniversalNonRealTimeMsg::ScaleTuningDump1Byte(tuning) => {
-                v.push(0x8);
-                v.push(0x5);
-                tuning.extend_midi(v);
+                v.write(&[08, 05])?;
+                tuning.extend_midi(v)
             }
             UniversalNonRealTimeMsg::ScaleTuningDump2Byte(tuning) => {
-                v.push(0x8);
-                v.push(0x6);
-                tuning.extend_midi(v);
+                v.write(&[08, 06])?;
+                tuning.extend_midi(v)
             }
             UniversalNonRealTimeMsg::TuningNoteChange(tuning) => {
-                v.push(0x8);
-                v.push(0x7);
-                if let Some(bank_num) = tuning.tuning_bank_num {
-                    v.push(to_u7(bank_num))
-                } else {
-                    v.push(0x0); // Fallback to Bank 0
-                }
-                tuning.extend_midi(v);
+                v.write(&[08, 07, to_u7(tuning.tuning_bank_num.unwrap_or_default())])?;
+                tuning.extend_midi(v)
             }
             UniversalNonRealTimeMsg::ScaleTuning1Byte(tuning) => {
-                v.push(0x8);
-                v.push(0x8);
-                tuning.extend_midi(v);
+                v.write(&[08, 08])?;
+                tuning.extend_midi(v)
             }
             UniversalNonRealTimeMsg::ScaleTuning2Byte(tuning) => {
-                v.push(0x8);
-                v.push(0x9);
-                tuning.extend_midi(v);
+                v.write(&[08, 09])?;
+                tuning.extend_midi(v)
             }
-            UniversalNonRealTimeMsg::GeneralMidi(gm) => {
-                v.push(0x9);
-                v.push(*gm as u8);
-            }
+            UniversalNonRealTimeMsg::GeneralMidi(gm) => v.write(&[09, *gm as u8]),
             UniversalNonRealTimeMsg::FileReference(msg) => {
-                v.push(0xB);
-                match msg {
-                    FileReferenceMsg::Open { .. } => v.push(0x1),
-                    FileReferenceMsg::SelectContents { .. } => v.push(0x2),
-                    FileReferenceMsg::OpenSelectContents { .. } => v.push(0x3),
-                    FileReferenceMsg::Close { .. } => v.push(0x4),
-                }
-                msg.extend_midi(v);
+                v.write(&[
+                    0x0B,
+                    match msg {
+                        FileReferenceMsg::Open { .. } => 01,
+                        FileReferenceMsg::SelectContents { .. } => 02,
+                        FileReferenceMsg::OpenSelectContents { .. } => 03,
+                        FileReferenceMsg::Close { .. } => 04,
+                    },
+                ])?;
+                msg.extend_midi(v)
             }
 
-            UniversalNonRealTimeMsg::EOF => {
-                v.push(0x7B);
-                v.push(0x0);
-            }
-            UniversalNonRealTimeMsg::Wait => {
-                v.push(0x7C);
-                v.push(0x0);
-            }
-            UniversalNonRealTimeMsg::Cancel => {
-                v.push(0x7D);
-                v.push(0x0);
-            }
-            UniversalNonRealTimeMsg::NAK(packet_num) => {
-                v.push(0x7E);
-                v.push(to_u7(*packet_num));
-            }
-            UniversalNonRealTimeMsg::ACK(packet_num) => {
-                v.push(0x7F);
-                v.push(to_u7(*packet_num));
-            }
+            UniversalNonRealTimeMsg::EOF => v.write(&[0x7B, 0]),
+            UniversalNonRealTimeMsg::Wait => v.write(&[0x7C, 0]),
+            UniversalNonRealTimeMsg::Cancel => v.write(&[0x7D, 0]),
+            UniversalNonRealTimeMsg::NAK(packet_num) => v.write(&[0x7E, to_u7(*packet_num)]),
+            UniversalNonRealTimeMsg::ACK(packet_num) => v.write(&[0x7F, to_u7(*packet_num)]),
         }
     }
 
@@ -611,7 +587,7 @@ impl UniversalNonRealTimeMsg {
         }
 
         match (m[0], m[1]) {
-            (0x6, 0x2) => {
+            (06, 02) => {
                 if m.len() < 3 {
                     return Err(crate::ParseError::UnexpectedEnd);
                 }
@@ -626,6 +602,7 @@ impl UniversalNonRealTimeMsg {
 /// that this message is sent from.
 /// Used by [`UniversalNonRealTimeMsg::IdentityReply`].
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub struct IdentityReply {
     pub id: ManufacturerID,
     pub family: u16,
@@ -635,18 +612,18 @@ pub struct IdentityReply {
 }
 
 impl IdentityReply {
-    fn extend_midi(&self, v: &mut Vec<u8>) {
-        self.id.extend_midi(v);
-        push_u14(self.family, v);
-        push_u14(self.family_member, v);
-        v.push(to_u7(self.software_revision.0));
-        v.push(to_u7(self.software_revision.1));
-        v.push(to_u7(self.software_revision.2));
-        v.push(to_u7(self.software_revision.3));
+    fn extend_midi<E>(&self, mut v: impl Write<Error = E>) -> Result<(), E> {
+        self.id.extend_midi(&mut v)?;
+        push_u14(self.family, &mut v)?;
+        push_u14(self.family_member, &mut v)?;
+        v.push(to_u7(self.software_revision.0))?;
+        v.push(to_u7(self.software_revision.1))?;
+        v.push(to_u7(self.software_revision.2))?;
+        v.push(to_u7(self.software_revision.3))
     }
 
     fn from_midi(m: &[u8]) -> Result<Self, ParseError> {
-        let (manufacturer_id, shift) = ManufacturerID::from_midi(m)?;
+        let (manufacturer_id, shift) = ManufacturerID::from_midi(&m)?;
         if m.len() < shift + 8 {
             return Err(crate::ParseError::UnexpectedEnd);
         }

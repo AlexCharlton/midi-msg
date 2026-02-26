@@ -12,9 +12,12 @@ use micromath::F32Ext;
 
 use core::error;
 
+use crate::Seek;
+use crate::Write;
+
 use super::{
-    Channel, HighResTimeCode, MidiMsg, ParseError, ReceiverContext, SystemExclusiveMsg,
-    TimeCodeType, util::*,
+    util::*, Channel, HighResTimeCode, MidiMsg, ParseError, ReceiverContext, SystemExclusiveMsg,
+    TimeCodeType,
 };
 
 // Standard Midi File 1.0 (SMF): RP-001 support
@@ -265,22 +268,20 @@ impl Header {
         Ok(())
     }
 
-    fn extend_midi(&self, v: &mut Vec<u8>) {
-        v.extend_from_slice(b"MThd");
-        push_u32(6, v); // Length of header, always 6 bytes
+    fn extend_midi<E>(&self, mut v: impl Write<Error = E>) -> Result<(), E> {
+        v.write(b"MThd")?;
+        push_u32(6, &mut v)?; // Length of header, always 6 bytes
 
-        self.format.extend_midi(v);
-        push_u16(self.num_tracks, v);
+        self.format.extend_midi(&mut v)?;
+        push_u16(self.num_tracks, &mut v)?;
         match self.division {
-            Division::TicksPerQuarterNote(tpqn) => {
-                push_u16(tpqn, v);
-            }
+            Division::TicksPerQuarterNote(tpqn) => push_u16(tpqn, &mut v),
             Division::TimeCode {
                 frames_per_second,
                 ticks_per_frame,
             } => {
-                v.push(0b1000_0000 | frames_per_second as u8);
-                v.push(ticks_per_frame);
+                v.push(0b1000_0000 | frames_per_second as u8)?;
+                v.push(ticks_per_frame)
             }
         }
     }
@@ -315,11 +316,11 @@ impl SMFFormat {
         ))
     }
 
-    fn extend_midi(&self, v: &mut Vec<u8>) {
+    fn extend_midi<E>(&self, mut v: impl Write<Error = E>) -> Result<(), E> {
         match self {
-            SMFFormat::SingleTrack => v.extend_from_slice(&[0, 0]),
-            SMFFormat::MultiTrack => v.extend_from_slice(&[0, 1]),
-            SMFFormat::MultiSong => v.extend_from_slice(&[0, 2]),
+            SMFFormat::SingleTrack => v.write(&[0, 0]),
+            SMFFormat::MultiTrack => v.write(&[0, 1]),
+            SMFFormat::MultiSong => v.write(&[0, 2]),
         }
     }
 }
@@ -452,23 +453,23 @@ impl Track {
         Ok(())
     }
 
-    fn extend_midi(&self, v: &mut Vec<u8>) {
+    fn extend_midi<E>(&self, mut v: impl Write<Error = E>) -> Result<(), E> {
         match self {
             Track::Midi(events) => {
-                v.extend_from_slice(b"MTrk");
-                let s = v.len();
-                push_u32(0, v); // We will fill this in after we know the length
+                v.write(b"MTrk")?;
+                let mut v = v.make_seekable().unwrap();
+                let s = v.tell()?;
+
+                push_u32(0, &mut v)?; // We will fill this in after we know the length
 
                 for event in events {
-                    event.extend_midi(v);
+                    event.extend_midi(&mut v)?;
                 }
-                let e = v.len();
+                let e = v.tell()?;
                 // Fill in the length
-                v[s..s + 4].copy_from_slice(&(e as u32 - s as u32 - 4).to_be_bytes());
+                v.write_at(&(e as u32 - s as u32 - 4).to_be_bytes(), s)
             }
-            Track::AlienChunk(data) => {
-                v.extend_from_slice(data);
-            }
+            Track::AlienChunk(data) => v.write(&data),
         }
     }
 }
@@ -589,7 +590,7 @@ impl TrackEvent {
         }
     }
 
-    fn extend_midi(&self, v: &mut Vec<u8>) {
+    fn extend_midi<E>(&self, mut v: impl Write<Error = E>) -> Result<(), E> {
         if matches!(
             self.event,
             MidiMsg::SystemRealTime {
@@ -598,12 +599,12 @@ impl TrackEvent {
         ) {
             #[cfg(feature = "std")]
             log::warn!("SMF contains System Reset event, which is not valid. Skipping.");
-            return;
+            return Ok(());
         } else if self.event.is_invalid() {
-            return;
+            return Ok(());
         }
 
-        push_vlq(self.delta_time, v);
+        push_vlq(self.delta_time, &mut v)?;
         // TODO this doesn't handle running-status events
         let event = self.event.to_midi();
 
@@ -616,18 +617,19 @@ impl TrackEvent {
                 | MidiMsg::SystemRealTime { .. }
         );
         if is_meta {
-            v.push(0xFF);
+            v.push(0xFF)?;
         } else if is_system {
             // We always use the 0xF7 format for system events, since it can be used for all system events, not just system exclusive
-            v.push(0xF7);
-            push_vlq(event.len() as u32, v);
+            v.push(0xF7)?;
+            push_vlq(event.len() as u32, &mut v)?;
         }
-        v.extend_from_slice(&event);
+        v.write(&event)
     }
 }
 
 /// A meta event in a Standard Midi File
 #[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub enum Meta {
     /// Must occur at the start of a track, and specifies the sequence number of the track. In a MultiSong file, this is the "pattern" number that identifies the song for cueing purposes.
     SequenceNumber(u16),
@@ -768,93 +770,93 @@ impl Meta {
         }
     }
 
-    pub(crate) fn extend_midi(&self, v: &mut Vec<u8>) {
+    pub(crate) fn extend_midi<E>(&self, mut v: impl Write<Error = E>) -> Result<(), E> {
         match self {
             Meta::SequenceNumber(n) => {
-                v.push(0x00);
-                push_vlq(2, v);
-                v.extend_from_slice(&n.to_be_bytes());
+                v.push(0x00)?;
+                push_vlq(2, &mut v)?;
+                v.write(&n.to_be_bytes())
             }
             Meta::Text(s) => {
-                v.push(0x01);
+                v.push(0x01)?;
                 let bytes = s.as_bytes();
-                push_vlq(bytes.len() as u32, v);
-                v.extend_from_slice(bytes);
+                push_vlq(bytes.len() as u32, &mut v)?;
+                v.write(bytes)
             }
             Meta::Copyright(s) => {
-                v.push(0x02);
+                v.push(0x02)?;
                 let bytes = s.as_bytes();
-                push_vlq(bytes.len() as u32, v);
-                v.extend_from_slice(bytes);
+                push_vlq(bytes.len() as u32, &mut v)?;
+                v.write(bytes)
             }
             Meta::TrackName(s) => {
-                v.push(0x03);
+                v.push(0x03)?;
                 let bytes = s.as_bytes();
-                push_vlq(bytes.len() as u32, v);
-                v.extend_from_slice(bytes);
+                push_vlq(bytes.len() as u32, &mut v)?;
+                v.write(bytes)
             }
             Meta::InstrumentName(s) => {
-                v.push(0x04);
+                v.push(0x04)?;
                 let bytes = s.as_bytes();
-                push_vlq(bytes.len() as u32, v);
-                v.extend_from_slice(bytes);
+                push_vlq(bytes.len() as u32, &mut v)?;
+                v.write(bytes)
             }
             Meta::Lyric(s) => {
-                v.push(0x05);
+                v.push(0x05)?;
                 let bytes = s.as_bytes();
-                push_vlq(bytes.len() as u32, v);
-                v.extend_from_slice(bytes);
+                push_vlq(bytes.len() as u32, &mut v)?;
+                v.write(bytes)
             }
             Meta::Marker(s) => {
-                v.push(0x06);
+                v.push(0x06)?;
                 let bytes = s.as_bytes();
-                push_vlq(bytes.len() as u32, v);
-                v.extend_from_slice(bytes);
+                push_vlq(bytes.len() as u32, &mut v)?;
+                v.write(bytes)
             }
             Meta::CuePoint(s) => {
-                v.push(0x07);
+                v.push(0x07)?;
                 let bytes = s.as_bytes();
-                push_vlq(bytes.len() as u32, v);
-                v.extend_from_slice(bytes);
+                push_vlq(bytes.len() as u32, &mut v)?;
+                v.write(bytes)
             }
             Meta::ChannelPrefix(n) => {
-                v.push(0x20);
-                push_vlq(1, v);
-                v.push(*n as u8);
+                v.push(0x20)?;
+                push_vlq(1, &mut v)?;
+                v.push(*n as u8)
             }
             Meta::EndOfTrack => {
-                v.push(0x2F);
-                push_vlq(0, v);
+                v.push(0x2F)?;
+                push_vlq(0, &mut v)
             }
             Meta::SetTempo(n) => {
-                v.push(0x51);
-                push_vlq(3, v);
-                v.extend_from_slice(&n.to_be_bytes()[1..]);
+                v.push(0x51)?;
+                push_vlq(3, &mut v)?;
+                v.write(&n.to_be_bytes()[1..])
             }
             Meta::SmpteOffset(t) => {
-                v.push(0x54);
-                push_vlq(5, v);
-                t.extend_midi(v);
+                v.push(0x54)?;
+                push_vlq(5, &mut v)?;
+                t.extend_midi(v)
             }
             Meta::TimeSignature(s) => {
-                v.push(0x58);
-                push_vlq(4, v);
-                s.extend_midi(v);
+                v.push(0x58)?;
+                push_vlq(4, &mut v)?;
+                s.extend_midi(v)
             }
             Meta::KeySignature(k) => {
-                v.push(0x59);
-                push_vlq(2, v);
-                k.extend_midi(v);
+                v.push(0x59)?;
+                push_vlq(2, &mut v)?;
+                k.extend_midi(v)
             }
             Meta::SequencerSpecific(d) => {
-                v.push(0x7F);
-                push_vlq(d.len() as u32, v);
-                v.extend_from_slice(d);
+                v.push(0x7F)?;
+                push_vlq(d.len() as u32, &mut v)?;
+                v.write(d)
             }
             Meta::Unknown { meta_type, data } => {
-                v.push(*meta_type);
-                push_vlq(data.len() as u32, v);
-                v.extend_from_slice(data);
+                v.push(*meta_type)?;
+                push_vlq(data.len() as u32, &mut v)?;
+                v.write(data)
             }
         }
     }
@@ -862,6 +864,7 @@ impl Meta {
 
 /// A time signature occurring in a Standard Midi File.
 #[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub struct FileTimeSignature {
     /// The numerator of the time signature, as it would be notated.
     pub numerator: u8,
@@ -888,16 +891,17 @@ impl FileTimeSignature {
         })
     }
 
-    pub(crate) fn extend_midi(&self, v: &mut Vec<u8>) {
-        v.push(self.numerator);
-        v.push((self.denominator as f32).log2() as u8);
-        v.push(self.clocks_per_metronome_tick);
-        v.push(self.thirty_second_notes_per_24_clocks);
+    pub(crate) fn extend_midi<E>(&self, mut v: impl Write<Error = E>) -> Result<(), E> {
+        v.push(self.numerator)?;
+        v.push((self.denominator as f32).log2() as u8)?;
+        v.push(self.clocks_per_metronome_tick)?;
+        v.push(self.thirty_second_notes_per_24_clocks)
     }
 }
 
 /// A key signature occurring in a Standard Midi File.
 #[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub struct KeySignature {
     /// Negative for number of flats, positive for number of sharps
     pub key: i8,
@@ -916,9 +920,9 @@ impl KeySignature {
         })
     }
 
-    pub(crate) fn extend_midi(&self, v: &mut Vec<u8>) {
-        v.push(self.key as u8);
-        v.push(self.scale);
+    pub(crate) fn extend_midi<E>(&self, mut v: impl Write<Error = E>) -> Result<(), E> {
+        v.push(self.key as u8)?;
+        v.push(self.scale)
     }
 }
 
@@ -974,9 +978,9 @@ mod tests {
 
     #[test]
     fn test_file_serde() {
+        use crate::message::MidiMsg;
         use crate::Channel;
         use crate::ChannelVoiceMsg;
-        use crate::message::MidiMsg;
 
         // Create a simple MIDI file
         let mut file = MidiFile::default();

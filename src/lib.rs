@@ -180,6 +180,9 @@ pub use file::*;
 mod message;
 pub use message::*;
 
+mod io;
+pub use io::*;
+
 // A helper used in tests
 #[cfg(test)]
 pub fn test_serialization(msg: MidiMsg, ctx: &mut ReceiverContext) {

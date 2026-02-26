@@ -1,9 +1,11 @@
+use crate::io::Write;
+
 use super::parse_error::*;
-use alloc::vec::Vec;
 
 /// A fairly limited set of messages used for device synchronization.
 /// Used in [`MidiMsg`](crate::MidiMsg).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub enum SystemRealTimeMsg {
     /// Used to synchronize clocks. Sent at a rate of 24 per quarter note.
     TimingClock,
@@ -25,14 +27,14 @@ pub enum SystemRealTimeMsg {
 }
 
 impl SystemRealTimeMsg {
-    pub(crate) fn extend_midi(&self, v: &mut Vec<u8>) {
+    pub(crate) fn extend_midi<E>(&self, mut v: impl Write<Error = E>) -> Result<(), E> {
         match self {
-            Self::TimingClock => v.push(0xF8),
-            Self::Start => v.push(0xFA),
-            Self::Continue => v.push(0xFB),
-            Self::Stop => v.push(0xFC),
-            Self::ActiveSensing => v.push(0xFE),
-            Self::SystemReset => v.push(0xFF),
+            Self::TimingClock => v.write(&[0xF8]),
+            Self::Start => v.write(&[0xFA]),
+            Self::Continue => v.write(&[0xFB]),
+            Self::Stop => v.write(&[0xFC]),
+            Self::ActiveSensing => v.write(&[0xFE]),
+            Self::SystemReset => v.write(&[0xFF]),
         }
     }
 

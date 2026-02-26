@@ -1,10 +1,12 @@
 use crate::parse_error::*;
 use crate::util::*;
+use crate::Write;
 use alloc::vec::Vec;
 
 /// Change the tunings of one or more notes, either real-time or not.
 /// Used by [`UniversalNonRealTimeMsg`](crate::UniversalNonRealTimeMsg) and [`UniversalRealTimeMsg`](crate::UniversalRealTimeMsg).
 #[derive(Debug, Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub struct TuningNoteChange {
     /// Which tuning program is targeted, 0-127. See [`Parameter::TuningProgramSelect`](crate::Parameter::TuningProgramSelect).
     pub tuning_program_num: u8,
@@ -16,21 +18,22 @@ pub struct TuningNoteChange {
 }
 
 impl TuningNoteChange {
-    pub(crate) fn extend_midi(&self, v: &mut Vec<u8>) {
+    pub(crate) fn extend_midi<E>(&self, mut v: impl Write<Error = E>) -> Result<(), E> {
         // The tuning_bank_num is pushed by the caller if needed
-        push_u7(self.tuning_program_num, v);
-        push_u7(self.tunings.len() as u8, v);
+        push_u7(self.tuning_program_num, &mut v)?;
+        push_u7(self.tunings.len() as u8, &mut v)?;
         for (note, tuning) in self.tunings.iter() {
-            push_u7(*note, v);
+            push_u7(*note, &mut v)?;
             if let Some(tuning) = tuning {
-                tuning.extend_midi(v);
+                tuning.extend_midi(&mut v)?;
             } else {
                 // "No change"
-                v.push(0x7F);
-                v.push(0x7F);
-                v.push(0x7F);
+                v.push(0x7F)?;
+                v.push(0x7F)?;
+                v.push(0x7F)?;
             }
         }
+        Ok(())
     }
 
     #[allow(dead_code)]
@@ -42,6 +45,7 @@ impl TuningNoteChange {
 /// Set the tunings of all 128 notes.
 /// Used by [`UniversalNonRealTimeMsg`](crate::UniversalNonRealTimeMsg).
 #[derive(Debug, Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub struct KeyBasedTuningDump {
     /// Which tuning program is targeted, 0-127. See [`Parameter::TuningProgramSelect`](crate::Parameter::TuningProgramSelect).
     pub tuning_program_num: u8,
@@ -57,14 +61,12 @@ pub struct KeyBasedTuningDump {
 }
 
 impl KeyBasedTuningDump {
-    pub(crate) fn extend_midi(&self, v: &mut Vec<u8>) {
+    pub(crate) fn extend_midi<E>(&self, mut v: impl Write<Error = E>) -> Result<(), E> {
         if let Some(bank_num) = self.tuning_bank_num {
-            v.push(to_u7(bank_num))
+            v.push(to_u7(bank_num))?;
         }
-        push_u7(self.tuning_program_num, v);
-        for ch in self.name.iter() {
-            v.push(*ch);
-        }
+        push_u7(self.tuning_program_num, &mut v)?;
+        v.write(&self.name)?;
         let mut i = 0;
         loop {
             if i >= 128 {
@@ -72,22 +74,22 @@ impl KeyBasedTuningDump {
             }
             if let Some(tuning) = self.tunings.get(i) {
                 if let Some(tuning) = tuning {
-                    tuning.extend_midi(v);
+                    tuning.extend_midi(&mut v)?;
                 } else {
                     // "No change"
-                    v.push(0x7F);
-                    v.push(0x7F);
-                    v.push(0x7F);
+                    v.push(0x7F)?;
+                    v.push(0x7F)?;
+                    v.push(0x7F)?;
                 }
             } else {
                 // The equivalent of equal temperament tuning
-                push_u7(i as u8, v);
-                v.push(0);
-                v.push(0);
+                push_u7(i as u8, &mut v)?;
+                v.push(0)?;
+                v.push(0)?;
             }
             i += 1;
         }
-        v.push(0); // Checksum <- Will be written over by `SystemExclusiveMsg.extend_midi`
+        Ok(())
     }
 
     #[allow(dead_code)]
@@ -98,6 +100,7 @@ impl KeyBasedTuningDump {
 
 /// Used to represent a tuning by [`TuningNoteChange`] and [`KeyBasedTuningDump`].
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub struct Tuning {
     /// The semitone corresponding with the same MIDI note number, 0-127
     pub semitone: u8,
@@ -127,11 +130,11 @@ impl Tuning {
         }
     }
 
-    fn extend_midi(&self, v: &mut Vec<u8>) {
-        push_u7(self.semitone, v);
+    fn extend_midi<E>(&self, mut v: impl Write<Error = E>) -> Result<(), E> {
+        push_u7(self.semitone, &mut v)?;
         let [msb, lsb] = to_u14(self.fraction);
-        v.push(msb); // For some reason this is the opposite order of everything else???
-        v.push(lsb);
+        v.push(msb)?; // For some reason this is the opposite order of everything else???
+        v.push(lsb)
     }
 }
 
@@ -140,6 +143,7 @@ impl Tuning {
 ///
 /// As defined in MIDI Tuning Updated Specification (CA-020/CA-021/RP-020)
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub struct ScaleTuningDump1Byte {
     /// Which tuning program is targeted, 0-127. See [`Parameter::TuningProgramSelect`](crate::Parameter::TuningProgramSelect).
     pub tuning_program_num: u8,
@@ -154,18 +158,11 @@ pub struct ScaleTuningDump1Byte {
 }
 
 impl ScaleTuningDump1Byte {
-    pub(crate) fn extend_midi(&self, v: &mut Vec<u8>) {
-        push_u7(self.tuning_bank_num, v);
-        push_u7(self.tuning_program_num, v);
-        for ch in self.name.iter() {
-            v.push(*ch);
-        }
-
-        for t in self.tuning.iter() {
-            v.push(i_to_u7(*t));
-        }
-
-        v.push(0); // Checksum <- Will be written over by `SystemExclusiveMsg.extend_midi`
+    pub(crate) fn extend_midi<E>(&self, mut v: impl Write<Error = E>) -> Result<(), E> {
+        push_u7(self.tuning_bank_num, &mut v)?;
+        push_u7(self.tuning_program_num, &mut v)?;
+        v.write(&self.name)?;
+        v.write_iter(self.tuning.iter().copied().map(i_to_u7))
     }
 
     #[allow(dead_code)]
@@ -179,6 +176,7 @@ impl ScaleTuningDump1Byte {
 ///
 /// As defined in MIDI Tuning Updated Specification (CA-020/CA-021/RP-020)
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub struct ScaleTuningDump2Byte {
     /// Which tuning program is targeted, 0-127. See [`Parameter::TuningProgramSelect`](crate::Parameter::TuningProgramSelect).
     pub tuning_program_num: u8,
@@ -193,20 +191,16 @@ pub struct ScaleTuningDump2Byte {
 }
 
 impl ScaleTuningDump2Byte {
-    pub(crate) fn extend_midi(&self, v: &mut Vec<u8>) {
-        push_u7(self.tuning_bank_num, v);
-        push_u7(self.tuning_program_num, v);
-        for ch in self.name.iter() {
-            v.push(*ch);
-        }
+    pub(crate) fn extend_midi<E>(&self, mut v: impl Write<Error = E>) -> Result<(), E> {
+        push_u7(self.tuning_bank_num, &mut v)?;
+        push_u7(self.tuning_program_num, &mut v)?;
 
-        for t in self.tuning.iter() {
-            let [msb, lsb] = i_to_u14(*t);
-            v.push(lsb);
-            v.push(msb);
-        }
+        v.write(&self.name)?;
 
-        v.push(0); // Checksum <- Will be written over by `SystemExclusiveMsg.extend_midi`
+        v.write_iter(self.tuning.iter().copied().flat_map(|t| {
+            let [msb, lsb] = i_to_u14(t);
+            [lsb, msb]
+        }))
     }
 
     #[allow(dead_code)]
@@ -220,6 +214,7 @@ impl ScaleTuningDump2Byte {
 ///
 /// As defined in MIDI Tuning Updated Specification (CA-020/CA-021/RP-020)
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub struct ScaleTuning1Byte {
     pub channels: ChannelBitMap,
     /// 12 semitones of tuning adjustments repeated over all octaves, starting with C
@@ -229,11 +224,9 @@ pub struct ScaleTuning1Byte {
 }
 
 impl ScaleTuning1Byte {
-    pub(crate) fn extend_midi(&self, v: &mut Vec<u8>) {
-        self.channels.extend_midi(v);
-        for t in self.tuning.iter() {
-            v.push(i_to_u7(*t));
-        }
+    pub(crate) fn extend_midi<E>(&self, mut v: impl Write<Error = E>) -> Result<(), E> {
+        self.channels.extend_midi(&mut v);
+        v.write_iter(self.tuning.iter().copied().map(i_to_u7))
     }
 
     #[allow(dead_code)]
@@ -247,6 +240,7 @@ impl ScaleTuning1Byte {
 ///
 /// As defined in MIDI Tuning Updated Specification (CA-020/CA-021/RP-020)
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub struct ScaleTuning2Byte {
     pub channels: ChannelBitMap,
     /// 12 semitones of tuning adjustments repeated over all octaves, starting with C
@@ -256,13 +250,14 @@ pub struct ScaleTuning2Byte {
 }
 
 impl ScaleTuning2Byte {
-    pub(crate) fn extend_midi(&self, v: &mut Vec<u8>) {
-        self.channels.extend_midi(v);
+    pub(crate) fn extend_midi<E>(&self, mut v: impl Write<Error = E>) -> Result<(), E> {
+        self.channels.extend_midi(&mut v);
         for t in self.tuning.iter() {
             let [msb, lsb] = i_to_u14(*t);
-            v.push(lsb);
-            v.push(msb);
+            v.push(lsb)?;
+            v.push(msb)?;
         }
+        Ok(())
     }
 
     #[allow(dead_code)]
@@ -273,6 +268,7 @@ impl ScaleTuning2Byte {
 
 /// The set of channels to apply this tuning message to. Used by [`ScaleTuning1Byte`] and [`ScaleTuning2Byte`].
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Default)]
+#[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub struct ChannelBitMap {
     pub channel_1: bool,
     pub channel_2: bool,
@@ -320,7 +316,7 @@ impl ChannelBitMap {
         Self::default()
     }
 
-    pub(crate) fn extend_midi(&self, v: &mut Vec<u8>) {
+    pub(crate) fn extend_midi<E>(&self, mut v: impl Write<Error = E>) -> Result<(), E> {
         let mut byte1: u8 = 0;
         if self.channel_16 {
             byte1 += 1 << 1;
@@ -328,7 +324,7 @@ impl ChannelBitMap {
         if self.channel_15 {
             byte1 += 1 << 0;
         }
-        v.push(byte1);
+        v.push(byte1)?;
 
         let mut byte2: u8 = 0;
         if self.channel_14 {
@@ -352,7 +348,7 @@ impl ChannelBitMap {
         if self.channel_8 {
             byte2 += 1 << 0;
         }
-        v.push(byte2);
+        v.push(byte2)?;
 
         let mut byte3: u8 = 0;
         if self.channel_7 {
@@ -376,7 +372,7 @@ impl ChannelBitMap {
         if self.channel_1 {
             byte3 += 1 << 0;
         }
-        v.push(byte3);
+        v.push(byte3)
     }
 
     #[allow(dead_code)]
