@@ -1,8 +1,9 @@
-use alloc::fmt;
 use core::error;
+use core::fmt;
 
 /// Returned when [`MidiMsg::from_midi`](crate::MidiMsg::from_midi) and similar where not successful.
 #[derive(Debug, PartialEq, Clone)]
+#[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub enum ParseError {
     /// The given input ended before a `MidiMsg` could be fully formed.
     UnexpectedEnd,

@@ -1,12 +1,14 @@
+use crate::io::Write;
+
 use super::parse_error::*;
 use super::time_code::*;
 use super::util::*;
 use super::ReceiverContext;
-use alloc::vec::Vec;
 
 /// A fairly limited set of messages, generally for device synchronization.
 /// Used in [`MidiMsg`](crate::MidiMsg).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub enum SystemCommonMsg {
     /// The first of 8 "quarter frame" messages, which are meant to be sent 4 per "frame".
     /// These messages function similarly to [`SystemRealTimeMsg::TimingClock`](crate::SystemRealTimeMsg::TimingClock)
@@ -31,49 +33,22 @@ pub enum SystemCommonMsg {
 }
 
 impl SystemCommonMsg {
-    pub(crate) fn extend_midi(&self, v: &mut Vec<u8>) {
+    pub(crate) fn extend_midi<E>(&self, mut v: impl Write<Error = E>) -> Result<(), E> {
         match self {
-            SystemCommonMsg::TimeCodeQuarterFrame1(qf) => {
-                v.push(0xF1);
-                v.push(qf.to_nibbles()[0]);
-            }
-            SystemCommonMsg::TimeCodeQuarterFrame2(qf) => {
-                v.push(0xF1);
-                v.push(qf.to_nibbles()[1]);
-            }
-            SystemCommonMsg::TimeCodeQuarterFrame3(qf) => {
-                v.push(0xF1);
-                v.push(qf.to_nibbles()[2]);
-            }
-            SystemCommonMsg::TimeCodeQuarterFrame4(qf) => {
-                v.push(0xF1);
-                v.push(qf.to_nibbles()[3]);
-            }
-            SystemCommonMsg::TimeCodeQuarterFrame5(qf) => {
-                v.push(0xF1);
-                v.push(qf.to_nibbles()[4]);
-            }
-            SystemCommonMsg::TimeCodeQuarterFrame6(qf) => {
-                v.push(0xF1);
-                v.push(qf.to_nibbles()[5]);
-            }
-            SystemCommonMsg::TimeCodeQuarterFrame7(qf) => {
-                v.push(0xF1);
-                v.push(qf.to_nibbles()[6]);
-            }
-            SystemCommonMsg::TimeCodeQuarterFrame8(qf) => {
-                v.push(0xF1);
-                v.push(qf.to_nibbles()[7]);
-            }
+            SystemCommonMsg::TimeCodeQuarterFrame1(qf) => v.write(&[0xF1, qf.to_nibbles()[0]]),
+            SystemCommonMsg::TimeCodeQuarterFrame2(qf) => v.write(&[0xF1, qf.to_nibbles()[1]]),
+            SystemCommonMsg::TimeCodeQuarterFrame3(qf) => v.write(&[0xF1, qf.to_nibbles()[2]]),
+            SystemCommonMsg::TimeCodeQuarterFrame4(qf) => v.write(&[0xF1, qf.to_nibbles()[3]]),
+            SystemCommonMsg::TimeCodeQuarterFrame5(qf) => v.write(&[0xF1, qf.to_nibbles()[4]]),
+            SystemCommonMsg::TimeCodeQuarterFrame6(qf) => v.write(&[0xF1, qf.to_nibbles()[5]]),
+            SystemCommonMsg::TimeCodeQuarterFrame7(qf) => v.write(&[0xF1, qf.to_nibbles()[6]]),
+            SystemCommonMsg::TimeCodeQuarterFrame8(qf) => v.write(&[0xF1, qf.to_nibbles()[7]]),
             SystemCommonMsg::SongPosition(pos) => {
-                v.push(0xF2);
-                push_u14(*pos, v);
+                v.write(&[0xF2])?;
+                push_u14(*pos, v)
             }
-            SystemCommonMsg::SongSelect(song) => {
-                v.push(0xF3);
-                v.push(to_u7(*song));
-            }
-            SystemCommonMsg::TuneRequest => v.push(0xF6),
+            SystemCommonMsg::SongSelect(song) => v.write(&[0xF3, to_u7(*song)]),
+            SystemCommonMsg::TuneRequest => v.write(&[0xF6]),
         }
     }
 

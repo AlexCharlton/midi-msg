@@ -1,6 +1,7 @@
 use crate::message::Channel;
 use crate::parse_error::*;
 use crate::util::*;
+use crate::Write;
 use alloc::vec::Vec;
 
 /// Allows for the selection of the destination of a channel pressure/poly key pressure message.
@@ -8,6 +9,7 @@ use alloc::vec::Vec;
 ///
 /// Defined in CA-022.
 #[derive(Debug, Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub struct ControllerDestination {
     pub channel: Channel,
     /// Any number of (ControlledParameter, range) pairs
@@ -15,12 +17,13 @@ pub struct ControllerDestination {
 }
 
 impl ControllerDestination {
-    pub(crate) fn extend_midi(&self, v: &mut Vec<u8>) {
-        v.push(self.channel as u8);
+    pub(crate) fn extend_midi<E>(&self, mut v: impl Write<Error = E>) -> Result<(), E> {
+        v.push(self.channel as u8)?;
         for (p, r) in self.param_ranges.iter() {
-            v.push(*p as u8);
-            push_u7(*r, v);
+            v.push(*p as u8)?;
+            push_u7(*r, &mut v)?;
         }
+        Ok(())
     }
 
     #[allow(dead_code)]
@@ -34,6 +37,7 @@ impl ControllerDestination {
 ///
 /// Defined in CA-022.
 #[derive(Debug, Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub struct ControlChangeControllerDestination {
     pub channel: Channel,
     /// A control number between `0x01` - `0x1F` or `0x40` - `0x5F`
@@ -44,17 +48,18 @@ pub struct ControlChangeControllerDestination {
 }
 
 impl ControlChangeControllerDestination {
-    pub(crate) fn extend_midi(&self, v: &mut Vec<u8>) {
-        v.push(self.channel as u8);
+    pub(crate) fn extend_midi<E>(&self, mut v: impl Write<Error = E>) -> Result<(), E> {
+        v.push(self.channel as u8)?;
         if self.control_number < 0x40 {
-            v.push(self.control_number.clamp(0x01, 0x1F));
+            v.push(self.control_number.clamp(0x01, 0x1F))?;
         } else {
-            v.push(self.control_number.clamp(0x40, 0x5F));
+            v.push(self.control_number.clamp(0x40, 0x5F))?;
         }
         for (p, r) in self.param_ranges.iter() {
-            v.push(*p as u8);
-            push_u7(*r, v);
+            v.push(*p as u8)?;
+            push_u7(*r, &mut v)?;
         }
+        Ok(())
     }
 
     #[allow(dead_code)]
@@ -67,6 +72,7 @@ impl ControlChangeControllerDestination {
 /// The parameters that can be controlled by [`ControllerDestination`] or
 /// [`ControlChangeControllerDestination`].
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub enum ControlledParameter {
     PitchControl = 0,
     FilterCutoffControl = 1,

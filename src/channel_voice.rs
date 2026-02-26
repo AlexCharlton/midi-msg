@@ -1,13 +1,17 @@
+use crate::io::Write;
 use crate::ReceiverContext;
 
 use super::parse_error::*;
 use super::util::*;
+#[cfg(test)]
 use alloc::vec;
+#[cfg(feature = "alloc")]
 use alloc::vec::Vec;
 
 /// Channel-level messages that act on a voice. For instance, turning notes on off,
 /// or modifying sounding notes. Used in [`MidiMsg`](crate::MidiMsg).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub enum ChannelVoiceMsg {
     /// Turn on a note
     NoteOn {
@@ -50,19 +54,19 @@ pub enum ChannelVoiceMsg {
 }
 
 impl ChannelVoiceMsg {
-    pub(crate) fn extend_midi(&self, v: &mut Vec<u8>) {
+    pub(crate) fn extend_midi<E>(&self, ch: u8, mut v: impl Write<Error = E>) -> Result<(), E> {
         match self {
-            ChannelVoiceMsg::NoteOff { .. } => v.push(0x80),
-            ChannelVoiceMsg::NoteOn { .. } => v.push(0x90),
-            ChannelVoiceMsg::HighResNoteOff { .. } => v.push(0x80),
-            ChannelVoiceMsg::HighResNoteOn { .. } => v.push(0x90),
-            ChannelVoiceMsg::PolyPressure { .. } => v.push(0xA0),
-            ChannelVoiceMsg::ControlChange { .. } => v.push(0xB0),
-            ChannelVoiceMsg::ProgramChange { .. } => v.push(0xC0),
-            ChannelVoiceMsg::ChannelPressure { .. } => v.push(0xD0),
-            ChannelVoiceMsg::PitchBend { .. } => v.push(0xE0),
+            ChannelVoiceMsg::NoteOff { .. } => v.write(&[0x80 + ch])?,
+            ChannelVoiceMsg::NoteOn { .. } => v.write(&[0x90 + ch])?,
+            ChannelVoiceMsg::HighResNoteOff { .. } => v.write(&[0x80 + ch])?,
+            ChannelVoiceMsg::HighResNoteOn { .. } => v.write(&[0x90 + ch])?,
+            ChannelVoiceMsg::PolyPressure { .. } => v.write(&[0xA0 + ch])?,
+            ChannelVoiceMsg::ControlChange { .. } => v.write(&[0xB0 + ch])?,
+            ChannelVoiceMsg::ProgramChange { .. } => v.write(&[0xC0 + ch])?,
+            ChannelVoiceMsg::ChannelPressure { .. } => v.write(&[0xD0 + ch])?,
+            ChannelVoiceMsg::PitchBend { .. } => v.write(&[0xE0 + ch])?,
         }
-        self.extend_midi_running(v);
+        self.extend_midi_running(ch, v)
     }
 
     // Can this message be extended by another?
@@ -140,42 +144,28 @@ impl ChannelVoiceMsg {
     }
 
     /// Out of necessity, pushes a Channel message after the note message for `HighResNoteOn/Off`
-    pub(crate) fn extend_midi_running(&self, v: &mut Vec<u8>) {
+    pub(crate) fn extend_midi_running<E>(
+        &self,
+        ch: u8,
+        mut v: impl Write<Error = E>,
+    ) -> Result<(), E> {
         match *self {
-            ChannelVoiceMsg::NoteOff { note, velocity } => {
-                v.push(to_u7(note));
-                v.push(to_u7(velocity));
+            ChannelVoiceMsg::NoteOff { note, velocity }
+            | ChannelVoiceMsg::NoteOn { note, velocity } => {
+                v.write(&[to_u7(note), to_u7(velocity)])
             }
-            ChannelVoiceMsg::NoteOn { note, velocity } => {
-                v.push(to_u7(note));
-                v.push(to_u7(velocity));
-            }
-            ChannelVoiceMsg::HighResNoteOff { note, velocity } => {
+            ChannelVoiceMsg::HighResNoteOff { note, velocity }
+            | ChannelVoiceMsg::HighResNoteOn { note, velocity } => {
                 let [msb, lsb] = to_u14(velocity);
-                push_u7(note, v);
-                v.push(msb);
-                v.push(0xB0);
-                v.push(0x58);
-                v.push(lsb);
-            }
-            ChannelVoiceMsg::HighResNoteOn { note, velocity } => {
-                let [msb, lsb] = to_u14(velocity);
-                push_u7(note, v);
-                v.push(msb);
-                v.push(0xB0);
-                v.push(0x58);
-                v.push(lsb);
+                v.write(&[to_u7(note), msb, 0xB0 + ch, 0x58, lsb])
             }
             ChannelVoiceMsg::PolyPressure { note, pressure } => {
-                v.push(to_u7(note));
-                v.push(to_u7(pressure));
+                v.write(&[to_u7(note), to_u7(pressure)])
             }
             ChannelVoiceMsg::ControlChange { control } => control.extend_midi_running(v),
-            ChannelVoiceMsg::ProgramChange { program } => v.push(to_u7(program)),
-            ChannelVoiceMsg::ChannelPressure { pressure } => v.push(to_u7(pressure)),
-            ChannelVoiceMsg::PitchBend { bend } => {
-                push_u14(bend, v);
-            }
+            ChannelVoiceMsg::ProgramChange { program } => v.write(&[to_u7(program)]),
+            ChannelVoiceMsg::ChannelPressure { pressure } => v.write(&[to_u7(pressure)]),
+            ChannelVoiceMsg::PitchBend { bend } => push_u14(bend, v),
         }
     }
 
@@ -363,6 +353,7 @@ pub enum ControlNumber {
 ///
 /// When deserializing and [`complex_cc`](crate::ReceiverContext) is false (the default), only [ControlChange::CC] values are returned. "Simple" CC values represent the control parameter with a number, while "complex" variants capture the semantics of the spec. Simple can be turned into their complex counterparts using the [`to_complex`](ControlChange::to_complex) method, or vis-versa using the [`to_simple`](ControlChange::to_simple) and [`to_simple_high_res`](ControlChange::to_simple_high_res) methods.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub enum ControlChange {
     /// "Simple" Control Change message.
     ///
@@ -844,25 +835,23 @@ impl ControlChange {
         }
     }
 
-    fn high_res_cc(v: &mut Vec<u8>, control: u8, value: u16) {
+    fn high_res_cc<E>(mut v: impl Write<Error = E>, control: u8, value: u16) -> Result<(), E> {
         let [msb, lsb] = to_u14(value);
-        v.push(control);
-        v.push(msb);
-        v.push(control + 32);
-        v.push(lsb);
+        v.write(&[control, msb, control + 32, lsb])
     }
 
-    fn undefined(v: &mut Vec<u8>, control: u8, value: u8) {
-        v.push(control.min(119));
-        v.push(to_u7(value));
+    fn undefined<E>(mut v: impl Write<Error = E>, control: u8, value: u8) -> Result<(), E> {
+        v.write(&[control.min(119), to_u7(value)])
     }
 
-    fn undefined_high_res(v: &mut Vec<u8>, control1: u8, control2: u8, value: u16) {
+    fn undefined_high_res<E>(
+        mut v: impl Write<Error = E>,
+        control1: u8,
+        control2: u8,
+        value: u16,
+    ) -> Result<(), E> {
         let [msb, lsb] = to_u14(value);
-        v.push(control1.min(119));
-        v.push(msb);
-        v.push(control2.min(119));
-        v.push(lsb);
+        v.write(&[control1.min(119), msb, control2.min(119), lsb])
     }
 
     fn is_msb(&self) -> bool {
@@ -893,13 +882,14 @@ impl ControlChange {
         matches!(self, Self::CC { control, .. } if (&32..&64).contains(&control) || control == &98 || control == &100)
     }
 
+    #[cfg(feature = "alloc")]
     pub fn to_midi_running(&self) -> Vec<u8> {
-        let mut r: Vec<u8> = vec![];
-        self.extend_midi_running(&mut r);
+        let mut r = Vec::new();
+        self.extend_midi_running(&mut r).expect("Vec can't expand?");
         r
     }
 
-    pub fn extend_midi_running(&self, v: &mut Vec<u8>) {
+    pub fn extend_midi_running<E>(&self, mut v: impl Write<Error = E>) -> Result<(), E> {
         match *self {
             ControlChange::BankSelect(x) => ControlChange::high_res_cc(v, 0, x),
             ControlChange::ModWheel(x) => ControlChange::high_res_cc(v, 1, x),
@@ -922,132 +912,66 @@ impl ControlChange {
             ControlChange::GeneralPurpose2(x) => ControlChange::high_res_cc(v, 17, x),
             ControlChange::GeneralPurpose3(x) => ControlChange::high_res_cc(v, 18, x),
             ControlChange::GeneralPurpose4(x) => ControlChange::high_res_cc(v, 19, x),
-            ControlChange::GeneralPurpose5(x) => {
-                v.push(80);
-                v.push(to_u7(x));
-            }
-            ControlChange::GeneralPurpose6(x) => {
-                v.push(82);
-                v.push(to_u7(x));
-            }
-            ControlChange::GeneralPurpose7(x) => {
-                v.push(83);
-                v.push(to_u7(x));
-            }
-            ControlChange::GeneralPurpose8(x) => {
-                v.push(84);
-                v.push(to_u7(x));
-            }
-            ControlChange::Hold(x) => {
-                v.push(64);
-                v.push(to_u7(x));
-            }
-            ControlChange::Hold2(x) => {
-                v.push(69);
-                v.push(to_u7(x));
-            }
-            ControlChange::TogglePortamento(on) => {
-                v.push(65);
-                v.push(if on { 127 } else { 0 });
-            }
-            ControlChange::Sostenuto(x) => {
-                v.push(66);
-                v.push(to_u7(x));
-            }
-            ControlChange::SoftPedal(x) => {
-                v.push(67);
-                v.push(to_u7(x));
-            }
-            ControlChange::ToggleLegato(on) => {
-                v.push(68);
-                v.push(if on { 127 } else { 0 });
-            }
+            ControlChange::GeneralPurpose5(x) => v.write(&[80, to_u7(x)]),
+            ControlChange::GeneralPurpose6(x) => v.write(&[82, to_u7(x)]),
+            ControlChange::GeneralPurpose7(x) => v.write(&[83, to_u7(x)]),
+            ControlChange::GeneralPurpose8(x) => v.write(&[84, to_u7(x)]),
+            ControlChange::Hold(x) => v.write(&[64, to_u7(x)]),
+            ControlChange::Hold2(x) => v.write(&[69, to_u7(x)]),
+            ControlChange::TogglePortamento(on) => v.write(&[65, if on { 127 } else { 0 }]),
+            ControlChange::Sostenuto(x) => v.write(&[66, to_u7(x)]),
+            ControlChange::SoftPedal(x) => v.write(&[67, to_u7(x)]),
+            ControlChange::ToggleLegato(on) => v.write(&[68, if on { 127 } else { 0 }]),
             ControlChange::SoundVariation(x) | ControlChange::SoundControl1(x) => {
-                v.push(70);
-                v.push(to_u7(x));
+                v.write(&[70, to_u7(x)])
             }
-            ControlChange::Timbre(x) | ControlChange::SoundControl2(x) => {
-                v.push(71);
-                v.push(to_u7(x));
-            }
+            ControlChange::Timbre(x) | ControlChange::SoundControl2(x) => v.write(&[71, to_u7(x)]),
             ControlChange::ReleaseTime(x) | ControlChange::SoundControl3(x) => {
-                v.push(72);
-                v.push(to_u7(x));
+                v.write(&[72, to_u7(x)])
             }
             ControlChange::AttackTime(x) | ControlChange::SoundControl4(x) => {
-                v.push(73);
-                v.push(to_u7(x));
+                v.write(&[73, to_u7(x)])
             }
             ControlChange::Brightness(x) | ControlChange::SoundControl5(x) => {
-                v.push(74);
-                v.push(to_u7(x));
+                v.write(&[74, to_u7(x)])
             }
             ControlChange::DecayTime(x) | ControlChange::SoundControl6(x) => {
-                v.push(75);
-                v.push(to_u7(x));
+                v.write(&[75, to_u7(x)])
             }
             ControlChange::VibratoRate(x) | ControlChange::SoundControl7(x) => {
-                v.push(76);
-                v.push(to_u7(x));
+                v.write(&[76, to_u7(x)])
             }
             ControlChange::VibratoDepth(x) | ControlChange::SoundControl8(x) => {
-                v.push(77);
-                v.push(to_u7(x));
+                v.write(&[77, to_u7(x)])
             }
             ControlChange::VibratoDelay(x) | ControlChange::SoundControl9(x) => {
-                v.push(78);
-                v.push(to_u7(x));
+                v.write(&[78, to_u7(x)])
             }
-            ControlChange::SoundControl10(x) => {
-                v.push(79);
-                v.push(to_u7(x));
-            }
-            ControlChange::PortamentoControl(x) => {
-                v.push(84);
-                v.push(to_u7(x));
-            }
-            ControlChange::HighResVelocity(x) => {
-                v.push(88);
-                v.push(to_u7(x));
-            }
+            ControlChange::SoundControl10(x) => v.write(&[79, to_u7(x)]),
+            ControlChange::PortamentoControl(x) => v.write(&[84, to_u7(x)]),
+            ControlChange::HighResVelocity(x) => v.write(&[88, to_u7(x)]),
             ControlChange::Effects1Depth(x) | ControlChange::ReverbSendLevel(x) => {
-                v.push(91);
-                v.push(to_u7(x));
+                v.write(&[91, to_u7(x)])
             }
             ControlChange::Effects2Depth(x) | ControlChange::TremoloDepth(x) => {
-                v.push(92);
-                v.push(to_u7(x));
+                v.write(&[92, to_u7(x)])
             }
             ControlChange::Effects3Depth(x) | ControlChange::ChorusSendLevel(x) => {
-                v.push(93);
-                v.push(to_u7(x));
+                v.write(&[93, to_u7(x)])
             }
             ControlChange::Effects4Depth(x) | ControlChange::CelesteDepth(x) => {
-                v.push(94);
-                v.push(to_u7(x));
+                v.write(&[94, to_u7(x)])
             }
             ControlChange::Effects5Depth(x) | ControlChange::PhaserDepth(x) => {
-                v.push(95);
-                v.push(to_u7(x));
+                v.write(&[95, to_u7(x)])
             }
 
             // Parameters
-            ControlChange::Parameter(p) => p.extend_midi_running(v),
+            ControlChange::Parameter(p) => p.extend_midi_running(&mut v),
             ControlChange::DataEntry(x) => ControlChange::high_res_cc(v, 6, x),
-            ControlChange::DataEntry2(msb, lsb) => {
-                v.push(6);
-                v.push(msb);
-                v.push(6 + 32);
-                v.push(lsb);
-            }
-            ControlChange::DataIncrement(x) => {
-                v.push(96);
-                v.push(to_u7(x));
-            }
-            ControlChange::DataDecrement(x) => {
-                v.push(97);
-                v.push(to_u7(x));
-            }
+            ControlChange::DataEntry2(msb, lsb) => v.write(&[6, msb, 6 + 32, lsb]),
+            ControlChange::DataIncrement(x) => v.write(&[96, to_u7(x)]),
+            ControlChange::DataDecrement(x) => v.write(&[97, to_u7(x)]),
         }
     }
 
@@ -1297,6 +1221,7 @@ impl ControlChange {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[cfg_attr(feature = "defmt", derive(defmt::Format))]
 /// Used by [`ControlChange::Parameter`]. "Entry" Parameters can be used to set the given parameters:
 /// they will first select that parameter, then send a [`ControlChange::DataEntry`] with the given value.
 pub enum Parameter {
@@ -1386,210 +1311,110 @@ pub enum Parameter {
 }
 
 impl Parameter {
-    fn extend_midi_running(&self, v: &mut Vec<u8>) {
+    fn extend_midi_running<E>(&self, v: &mut impl Write<Error = E>) -> Result<(), E> {
         match self {
-            Self::Null => {
-                v.push(100);
-                v.push(0x7F);
-                v.push(101);
-                v.push(0x7F);
-            }
-            Self::PitchBendSensitivity => {
-                v.push(100);
-                v.push(0);
-                v.push(101);
-                v.push(0);
-            }
+            Self::Null => v.write(&[100, 0x7F, 101, 0x7F]),
+            Self::PitchBendSensitivity => v.write(&[100, 0, 101, 0]),
             Self::PitchBendSensitivityEntry(c, f) => {
-                Self::PitchBendSensitivity.extend_midi_running(v);
+                Self::PitchBendSensitivity.extend_midi_running(v)?;
                 // Data entry:
-                v.push(6);
-                v.push(*c);
-                v.push(6 + 32);
-                v.push((*f).min(100));
+                v.write(&[6, *c, 6 + 32, (*f).min(100)])
             }
-            Self::FineTuning => {
-                v.push(100);
-                v.push(1);
-                v.push(101);
-                v.push(0);
-            }
+            Self::FineTuning => v.write(&[100, 1, 101, 0]),
             Self::FineTuningEntry(x) => {
-                Self::FineTuning.extend_midi_running(v);
+                Self::FineTuning.extend_midi_running(v)?;
                 // Data entry:
                 let [msb, lsb] = i_to_u14(*x);
-                v.push(6);
-                v.push(msb);
-                v.push(6 + 32);
-                v.push(lsb);
+                v.write(&[6, msb, 6 + 32, lsb])
             }
-            Self::CoarseTuning => {
-                v.push(100);
-                v.push(2);
-                v.push(101);
-                v.push(0);
-            }
+            Self::CoarseTuning => v.write(&[100, 2, 101, 0]),
             Self::CoarseTuningEntry(x) => {
-                Self::CoarseTuning.extend_midi_running(v);
+                Self::CoarseTuning.extend_midi_running(v)?;
                 // Data entry:
                 let msb = i_to_u7(*x);
-                v.push(6);
-                v.push(msb);
-                v.push(6 + 32);
-                v.push(0);
+                v.write(&[6, msb, 6 + 32, 0])
             }
-            Self::TuningProgramSelect => {
-                v.push(100);
-                v.push(3);
-                v.push(101);
-                v.push(0);
-            }
+            Self::TuningProgramSelect => v.write(&[100, 3, 101, 0]),
             Self::TuningProgramSelectEntry(x) => {
-                Self::TuningProgramSelect.extend_midi_running(v);
+                Self::TuningProgramSelect.extend_midi_running(v)?;
                 // Data entry (MSB only)
-                v.push(6);
-                v.push(*x);
+                v.write(&[6, *x])
             }
-            Self::TuningBankSelect => {
-                v.push(100);
-                v.push(4);
-                v.push(101);
-                v.push(0);
-            }
+            Self::TuningBankSelect => v.write(&[100, 4, 101, 0]),
             Self::TuningBankSelectEntry(x) => {
-                Self::TuningBankSelect.extend_midi_running(v);
+                Self::TuningBankSelect.extend_midi_running(v)?;
                 // Data entry (MSB only)
-                v.push(6);
-                v.push(*x);
+                v.write(&[6, *x])
             }
-            Self::ModulationDepthRange => {
-                v.push(100);
-                v.push(5);
-                v.push(101);
-                v.push(0);
-            }
+            Self::ModulationDepthRange => v.write(&[100, 5, 101, 0]),
             Self::ModulationDepthRangeEntry(x) => {
-                Self::ModulationDepthRange.extend_midi_running(v);
+                Self::ModulationDepthRange.extend_midi_running(v)?;
                 // Data entry
-                ControlChange::high_res_cc(v, 6, *x);
+                ControlChange::high_res_cc(v, 6, *x)
             }
-            Self::PolyphonicExpression => {
-                v.push(100);
-                v.push(6);
-                v.push(101);
-                v.push(0);
-            }
+            Self::PolyphonicExpression => v.write(&[100, 6, 101, 0]),
             Self::PolyphonicExpressionEntry(x) => {
-                Self::PolyphonicExpression.extend_midi_running(v);
+                Self::PolyphonicExpression.extend_midi_running(v)?;
                 // Data entry (MSB only)
-                v.push(6);
-                v.push((*x).min(16));
+                v.write(&[6, (*x).min(16)])
             }
-            Self::AzimuthAngle3DSound => {
-                v.push(100);
-                v.push(0);
-                v.push(101);
-                v.push(61); // 3D Sound
-            }
+            Self::AzimuthAngle3DSound => v.write(&[100, 0, 101, 61]),
             Self::AzimuthAngle3DSoundEntry(x) => {
-                Self::AzimuthAngle3DSound.extend_midi_running(v);
+                Self::AzimuthAngle3DSound.extend_midi_running(v)?;
                 // Data entry
-                ControlChange::high_res_cc(v, 6, *x);
+                ControlChange::high_res_cc(v, 6, *x)
             }
-            Self::ElevationAngle3DSound => {
-                v.push(100);
-                v.push(1);
-                v.push(101);
-                v.push(61); // 3D Sound
-            }
+            Self::ElevationAngle3DSound => v.write(&[100, 1, 101, 61]),
             Self::ElevationAngle3DSoundEntry(x) => {
-                Self::ElevationAngle3DSound.extend_midi_running(v);
+                Self::ElevationAngle3DSound.extend_midi_running(v)?;
                 // Data entry
-                ControlChange::high_res_cc(v, 6, *x);
+                ControlChange::high_res_cc(v, 6, *x)
             }
-            Self::Gain3DSound => {
-                v.push(100);
-                v.push(2);
-                v.push(101);
-                v.push(61); // 3D Sound
-            }
+            Self::Gain3DSound => v.write(&[100, 2, 101, 61]),
             Self::Gain3DSoundEntry(x) => {
-                Self::Gain3DSound.extend_midi_running(v);
+                Self::Gain3DSound.extend_midi_running(v)?;
                 // Data entry
-                ControlChange::high_res_cc(v, 6, *x);
+                ControlChange::high_res_cc(v, 6, *x)
             }
-            Self::DistanceRatio3DSound => {
-                v.push(100);
-                v.push(3);
-                v.push(101);
-                v.push(61); // 3D Sound
-            }
+            Self::DistanceRatio3DSound => v.write(&[100, 3, 101, 0]),
             Self::DistanceRatio3DSoundEntry(x) => {
-                Self::DistanceRatio3DSound.extend_midi_running(v);
+                Self::DistanceRatio3DSound.extend_midi_running(v)?;
                 // Data entry
-                ControlChange::high_res_cc(v, 6, *x);
+                ControlChange::high_res_cc(v, 6, *x)
             }
-            Self::MaxiumumDistance3DSound => {
-                v.push(100);
-                v.push(4);
-                v.push(101);
-                v.push(61); // 3D Sound
-            }
+            Self::MaxiumumDistance3DSound => v.write(&[100, 4, 101, 61]),
             Self::MaxiumumDistance3DSoundEntry(x) => {
-                Self::MaxiumumDistance3DSound.extend_midi_running(v);
+                Self::MaxiumumDistance3DSound.extend_midi_running(v)?;
                 // Data entry
-                ControlChange::high_res_cc(v, 6, *x);
+                ControlChange::high_res_cc(v, 6, *x)
             }
-            Self::GainAtMaxiumumDistance3DSound => {
-                v.push(100);
-                v.push(5);
-                v.push(101);
-                v.push(61); // 3D Sound
-            }
+            Self::GainAtMaxiumumDistance3DSound => v.write(&[100, 5, 101, 61]),
             Self::GainAtMaxiumumDistance3DSoundEntry(x) => {
-                Self::GainAtMaxiumumDistance3DSound.extend_midi_running(v);
+                Self::GainAtMaxiumumDistance3DSound.extend_midi_running(v)?;
                 // Data entry
-                ControlChange::high_res_cc(v, 6, *x);
+                ControlChange::high_res_cc(v, 6, *x)
             }
-            Self::ReferenceDistanceRatio3DSound => {
-                v.push(100);
-                v.push(6);
-                v.push(101);
-                v.push(61); // 3D Sound
-            }
+            Self::ReferenceDistanceRatio3DSound => v.write(&[100, 6, 101, 61]),
             Self::ReferenceDistanceRatio3DSoundEntry(x) => {
-                Self::ReferenceDistanceRatio3DSound.extend_midi_running(v);
+                Self::ReferenceDistanceRatio3DSound.extend_midi_running(v)?;
                 // Data entry
-                ControlChange::high_res_cc(v, 6, *x);
+                ControlChange::high_res_cc(v, 6, *x)
             }
-            Self::PanSpreadAngle3DSound => {
-                v.push(100);
-                v.push(7);
-                v.push(101);
-                v.push(61); // 3D Sound
-            }
+            Self::PanSpreadAngle3DSound => v.write(&[100, 7, 101, 61]),
             Self::PanSpreadAngle3DSoundEntry(x) => {
-                Self::PanSpreadAngle3DSound.extend_midi_running(v);
+                Self::PanSpreadAngle3DSound.extend_midi_running(v)?;
                 // Data entry
-                ControlChange::high_res_cc(v, 6, *x);
+                ControlChange::high_res_cc(v, 6, *x)
             }
-            Self::RollAngle3DSound => {
-                v.push(100);
-                v.push(8);
-                v.push(101);
-                v.push(61); // 3D Sound
-            }
+            Self::RollAngle3DSound => v.write(&[100, 8, 101, 61]),
             Self::RollAngle3DSoundEntry(x) => {
-                Self::RollAngle3DSound.extend_midi_running(v);
+                Self::RollAngle3DSound.extend_midi_running(v)?;
                 // Data entry
-                ControlChange::high_res_cc(v, 6, *x);
+                ControlChange::high_res_cc(v, 6, *x)
             }
             Self::Unregistered(x) => {
                 let [msb, lsb] = to_u14(*x);
-                v.push(98);
-                v.push(lsb);
-                v.push(99);
-                v.push(msb);
+                v.write(&[98, lsb, 99, msb])
             }
         }
     }

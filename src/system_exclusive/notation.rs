@@ -1,5 +1,6 @@
 use crate::parse_error::*;
 use crate::util::*;
+use crate::Write;
 use alloc::vec;
 use alloc::vec::Vec;
 
@@ -7,6 +8,7 @@ use alloc::vec::Vec;
 /// is optionally indicated by this message.
 /// Used by [`UniversalRealTimeMsg::BarMarker`](crate::UniversalRealTimeMsg::BarMarker).
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub enum BarMarker {
     /// "Actually, we're not running right now, so there is no bar." Don't know why this is used.
     NotRunning,
@@ -19,23 +21,19 @@ pub enum BarMarker {
 }
 
 impl BarMarker {
-    pub(crate) fn extend_midi(&self, v: &mut Vec<u8>) {
+    pub(crate) fn extend_midi<E>(&self, mut v: impl Write<Error = E>) -> Result<(), E> {
         match *self {
             Self::NotRunning => {
                 // Most negative number
-                v.push(0x00);
-                v.push(0x40);
+                v.push(0x00)?;
+                v.push(0x40)
             }
-            Self::CountIn(x) => {
-                push_i14(-(x.min(8191) as i16), v);
-            }
-            Self::Number(x) => {
-                push_i14(x.min(8191) as i16, v);
-            }
+            Self::CountIn(x) => push_i14(-(x.min(8191) as i16), v),
+            Self::Number(x) => push_i14(x.min(8191) as i16, v),
             Self::RunningUnknown => {
                 // Most positive number
-                v.push(0x7F);
-                v.push(0x3F);
+                v.push(0x7F)?;
+                v.push(0x3F)
             }
         }
     }
@@ -49,6 +47,7 @@ impl BarMarker {
 /// Used to communicate a new time signature to the receiver.
 /// Used by [`UniversalRealTimeMsg`](crate::UniversalRealTimeMsg).
 #[derive(Debug, Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub struct TimeSignature {
     /// The base time signature.
     pub signature: Signature,
@@ -74,17 +73,18 @@ impl Default for TimeSignature {
 }
 
 impl TimeSignature {
-    pub(crate) fn extend_midi(&self, v: &mut Vec<u8>) {
-        v.push((4 + (self.compound.len() * 2)).min(126) as u8); // Bytes to follow
-        self.signature.extend_midi(v);
-        v.push(to_u7(self.midi_clocks_in_metronome_click));
-        v.push(to_u7(self.thirty_second_notes_in_midi_quarter_note));
+    pub(crate) fn extend_midi<E>(&self, mut v: impl Write<Error = E>) -> Result<(), E> {
+        v.push((4 + (self.compound.len() * 2)).min(126) as u8)?; // Bytes to follow
+        self.signature.extend_midi(&mut v)?;
+        v.push(to_u7(self.midi_clocks_in_metronome_click))?;
+        v.push(to_u7(self.thirty_second_notes_in_midi_quarter_note))?;
         for (i, s) in self.compound.iter().enumerate() {
             if i >= 61 {
                 break;
             }
-            s.extend_midi(v);
+            s.extend_midi(&mut v)?;
         }
+        Ok(())
     }
 
     #[allow(dead_code)]
@@ -95,6 +95,7 @@ impl TimeSignature {
 
 /// A [time signature](https://en.wikipedia.org/wiki/Time_signature). Used by [`TimeSignature`].
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub struct Signature {
     /// Number of beats in a bar.
     pub beats: u8,
@@ -103,9 +104,9 @@ pub struct Signature {
 }
 
 impl Signature {
-    fn extend_midi(&self, v: &mut Vec<u8>) {
-        v.push(to_u7(self.beats));
-        v.push(self.beat_value.to_u8());
+    fn extend_midi<E>(&self, mut v: impl Write<Error = E>) -> Result<(), E> {
+        v.push(to_u7(self.beats))?;
+        v.push(self.beat_value.to_u8())
     }
 
     #[allow(dead_code)]
@@ -125,6 +126,7 @@ impl Default for Signature {
 
 /// The note value of a beat, used by [`Signature`].
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub enum BeatValue {
     Whole,
     Half,

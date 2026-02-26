@@ -1,5 +1,6 @@
 use crate::parse_error::*;
 use crate::time_code::*;
+use crate::Write;
 use alloc::vec::Vec;
 
 /// A MIDI Machine Control Command.
@@ -10,6 +11,7 @@ use alloc::vec::Vec;
 ///
 /// As defined in MIDI Machine Control 1.0 (MMA0016 / RP013)
 #[derive(Debug, Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub enum MachineControlCommandMsg {
     Stop,
     Play,
@@ -38,7 +40,7 @@ pub enum MachineControlCommandMsg {
 }
 
 impl MachineControlCommandMsg {
-    pub(crate) fn extend_midi(&self, v: &mut Vec<u8>) {
+    pub(crate) fn extend_midi<E>(&self, mut v: impl Write<Error = E>) -> Result<(), E> {
         match self {
             Self::Stop => v.push(0x01),
             Self::Play => v.push(0x02),
@@ -54,20 +56,20 @@ impl MachineControlCommandMsg {
             Self::CommandErrorReset => v.push(0x0C),
             Self::MMCReset => v.push(0x0D),
             Self::LocateInformationField(f) => {
-                v.push(0x44);
-                v.push(0x2); // Byte count
-                v.push(0x0); // Sub command
-                v.push(*f as u8);
+                v.push(0x44)?;
+                v.push(2)?; // Byte count
+                v.push(0)?; // Sub command
+                v.push(*f as u8)
             }
             Self::LocateTarget(stc) => {
-                v.push(0x44);
-                v.push(0x6); // Byte count
-                v.push(0x1); // Sub command
-                stc.extend_midi(v);
+                v.push(0x44)?;
+                v.push(6)?; // Byte count
+                v.push(1)?; // Sub command
+                stc.extend_midi(&mut v)
             }
             Self::Wait => v.push(0x01),
             Self::Resume => v.push(0x01),
-            Self::Unimplemented(d) => v.extend_from_slice(d),
+            Self::Unimplemented(d) => v.write(d),
         }
     }
 
@@ -81,6 +83,7 @@ impl MachineControlCommandMsg {
 ///
 /// As defined in MIDI Machine Control 1.0 (MMA0016 / RP013)
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub enum InformationField {
     SelectedTimeCode = 0x01,
     SelectedMasterCode = 0x02,
@@ -108,6 +111,7 @@ pub enum InformationField {
 ///
 /// As defined in MIDI Machine Control 1.0 (MMA0016 / RP013)
 #[derive(Debug, Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub enum MachineControlResponseMsg {
     /// Used to represent all unimplemented MCR messages.
     /// Is inherently not guaranteed to be a valid message.
@@ -115,9 +119,9 @@ pub enum MachineControlResponseMsg {
 }
 
 impl MachineControlResponseMsg {
-    pub(crate) fn extend_midi(&self, v: &mut Vec<u8>) {
+    pub(crate) fn extend_midi<E>(&self, mut v: impl Write<Error = E>) -> Result<(), E> {
         match self {
-            Self::Unimplemented(d) => v.extend_from_slice(d),
+            Self::Unimplemented(d) => v.write(d),
         }
     }
 

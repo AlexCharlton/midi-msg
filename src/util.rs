@@ -1,5 +1,6 @@
+use crate::io::Write;
+
 use super::ParseError;
-use alloc::vec::Vec;
 use micromath::F32Ext;
 
 #[inline]
@@ -106,8 +107,8 @@ pub fn to_nibble(x: u8) -> [u8; 2] {
 }
 
 #[inline]
-pub fn push_u7(x: u8, v: &mut Vec<u8>) {
-    v.push(to_u7(x));
+pub fn push_u7<E>(x: u8, mut v: impl Write<Error = E>) -> Result<(), E> {
+    v.write(&[to_u7(x)])
 }
 
 // #[inline]
@@ -116,10 +117,10 @@ pub fn push_u7(x: u8, v: &mut Vec<u8>) {
 // }
 
 #[inline]
-pub fn push_u14(x: u16, v: &mut Vec<u8>) {
+pub fn push_u14<E>(x: u16, mut v: impl Write<Error = E>) -> Result<(), E> {
     let [msb, lsb] = to_u14(x);
-    v.push(lsb);
-    v.push(msb);
+    v.write(&[lsb, msb])?;
+    Ok(())
 }
 
 /// Given a frequency in Hertz, returns a floating point midi note number with 1.0 = 100 cents
@@ -145,40 +146,81 @@ pub fn freq_to_midi_note_cents(freq: f32) -> (u8, f32) {
 
 #[cfg(feature = "sysex")]
 mod sysex_util {
-    use alloc::vec::Vec;
+    use crate::{NotSeekable, Write};
 
     #[inline]
-    pub fn push_i14(x: i16, v: &mut Vec<u8>) {
+    pub fn push_i14<E>(x: i16, mut v: impl Write<Error = E>) -> Result<(), E> {
         let [msb, lsb] = to_i14(x);
-        v.push(lsb);
-        v.push(msb);
+        v.push(lsb)?;
+        v.push(msb)
     }
 
     #[inline]
-    pub fn push_u21(x: u32, v: &mut Vec<u8>) {
+    pub fn push_u21<E>(x: u32, mut v: impl Write<Error = E>) -> Result<(), E> {
         let [msb, b, lsb] = to_u21(x);
-        v.push(lsb);
-        v.push(b);
-        v.push(msb);
+        v.write(&[lsb, b, msb])
     }
 
     #[inline]
-    pub fn push_u28(x: u32, v: &mut Vec<u8>) {
+    pub fn push_u28<E>(x: u32, mut v: impl Write<Error = E>) -> Result<(), E> {
         let [mmsb, msb, lsb, llsb] = to_u28(x);
-        v.push(llsb);
-        v.push(lsb);
-        v.push(msb);
-        v.push(mmsb);
+        v.push(llsb)?;
+        v.push(lsb)?;
+        v.push(msb)?;
+        v.push(mmsb)
     }
 
     #[inline]
-    pub fn push_u35(x: u64, v: &mut Vec<u8>) {
+    pub fn push_u35<E>(x: u64, mut v: impl Write<Error = E>) -> Result<(), E> {
         let [msb, b2, b3, b4, lsb] = to_u35(x);
-        v.push(lsb);
-        v.push(b4);
-        v.push(b3);
-        v.push(b2);
-        v.push(msb);
+        v.push(lsb)?;
+        v.push(b4)?;
+        v.push(b3)?;
+        v.push(b2)?;
+        v.push(msb)
+    }
+
+    pub struct ChecksummingWriter<E, W: Write<Error = E>> {
+        writer: W,
+        checksum: u8,
+    }
+
+    impl<E, W: Write<Error = E>> ChecksummingWriter<E, W> {
+        pub fn new(writer: W) -> Self {
+            Self {
+                writer,
+                checksum: 0,
+            }
+        }
+
+        pub fn finish(mut self) -> Result<W, E> {
+            self.writer.write(&[self.checksum])?;
+            Ok(self.writer)
+        }
+    }
+
+    impl<E, W: Write<Error = E>> Write for ChecksummingWriter<E, W> {
+        type Error = E;
+        type Seekable = NotSeekable<Self>;
+
+        #[inline]
+        fn write(&mut self, bytes: &[u8]) -> Result<(), Self::Error> {
+            for b in bytes {
+                self.checksum ^= *b;
+            }
+            self.writer.write(bytes)
+        }
+
+        #[inline]
+        fn invalid_input(msg: &'static str) -> Self::Error {
+            W::invalid_input(msg)
+        }
+
+        #[inline]
+        fn push(&mut self, b: u8) -> crate::WriteResult<Self> {
+            self.checksum ^= b;
+            self.writer.push(b)
+        }
     }
 
     pub fn checksum(bytes: &[u8]) -> u8 {
@@ -255,42 +297,43 @@ pub use sysex_util::*;
 
 #[cfg(feature = "file")]
 mod file_util {
+    use crate::Write;
+
     use super::ParseError;
-    use alloc::vec::Vec;
     use core::convert::TryInto;
 
     #[inline]
-    pub fn push_u16(x: u16, v: &mut Vec<u8>) {
+    pub fn push_u16<E>(x: u16, mut v: impl Write<Error = E>) -> Result<(), E> {
         let [b1, b2] = x.to_be_bytes();
-        v.push(b1);
-        v.push(b2);
+        v.push(b1)?;
+        v.push(b2)
     }
 
     #[inline]
-    pub fn push_u32(x: u32, v: &mut Vec<u8>) {
+    pub fn push_u32<E>(x: u32, mut v: impl Write<Error = E>) -> Result<(), E> {
         let [b1, b2, b3, b4] = x.to_be_bytes();
-        v.push(b1);
-        v.push(b2);
-        v.push(b3);
-        v.push(b4);
+        v.push(b1)?;
+        v.push(b2)?;
+        v.push(b3)?;
+        v.push(b4)
     }
 
     // Variable length quanity
-    pub fn push_vlq(x: u32, v: &mut Vec<u8>) {
+    pub fn push_vlq<E>(x: u32, mut v: impl Write<Error = E>) -> Result<(), E> {
         if x < 0x00000080 {
-            v.push(x as u8 & 0b01111111);
+            v.push(x as u8 & 0b01111111)
         } else if x < 0x00004000 {
-            v.push(((x >> 7) as u8 & 0b01111111) + 0b10000000);
-            v.push(x as u8 & 0b01111111);
+            v.push(((x >> 7) as u8 & 0b01111111) + 0b10000000)?;
+            v.push(x as u8 & 0b01111111)
         } else if x < 0x00200000 {
-            v.push(((x >> 14) as u8 & 0b01111111) + 0b10000000);
-            v.push(((x >> 7) as u8 & 0b01111111) + 0b10000000);
-            v.push(x as u8 & 0b01111111);
+            v.push(((x >> 14) as u8 & 0b01111111) + 0b10000000)?;
+            v.push(((x >> 7) as u8 & 0b01111111) + 0b10000000)?;
+            v.push(x as u8 & 0b01111111)
         } else if x <= 0x0FFFFFFF {
-            v.push(((x >> 21) as u8 & 0b01111111) + 0b10000000);
-            v.push(((x >> 14) as u8 & 0b01111111) + 0b10000000);
-            v.push(((x >> 7) as u8 & 0b01111111) + 0b10000000);
-            v.push(x as u8 & 0b01111111);
+            v.push(((x >> 21) as u8 & 0b01111111) + 0b10000000)?;
+            v.push(((x >> 14) as u8 & 0b01111111) + 0b10000000)?;
+            v.push(((x >> 7) as u8 & 0b01111111) + 0b10000000)?;
+            v.push(x as u8 & 0b01111111)
         } else {
             panic!("Cannot use such a large number as a variable quantity")
         }
@@ -486,7 +529,7 @@ mod tests {
     fn test_vlq() {
         fn test(x: u32, expected_len: usize) {
             let mut v = Vec::new();
-            push_vlq(x, &mut v);
+            push_vlq(x, &mut v).unwrap();
             let (y, len) = read_vlq(&v).unwrap();
             assert_eq!(
                 x, y,

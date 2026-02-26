@@ -143,6 +143,7 @@
 
 #![cfg_attr(not(feature = "std"), no_std)]
 
+#[cfg(feature = "alloc")]
 extern crate alloc;
 
 mod util;
@@ -179,6 +180,9 @@ pub use file::*;
 
 mod message;
 pub use message::*;
+
+mod io;
+pub use io::*;
 
 // A helper used in tests
 #[cfg(test)]

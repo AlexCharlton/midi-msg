@@ -1,8 +1,8 @@
 use super::parse_error::*;
-use crate::util::*;
-use alloc::vec::Vec;
+use crate::{io::Write, util::*};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[cfg_attr(feature = "defmt", derive(defmt::Format))]
 /// Channel-level messages that should alter the mode of the receiver. Used in [`MidiMsg`](crate::MidiMsg).
 pub enum ChannelModeMsg {
     /// Sound playing on the channel should be stopped as soon as possible, per GM2.
@@ -21,40 +21,25 @@ pub enum ChannelModeMsg {
 }
 
 impl ChannelModeMsg {
-    pub(crate) fn extend_midi(&self, v: &mut Vec<u8>) {
-        v.push(0xB0);
-        self.extend_midi_running(v);
+    pub(crate) fn extend_midi<E>(&self, ch: u8, mut v: impl Write<Error = E>) -> Result<(), E> {
+        v.write(&[0xB0 + ch])?;
+        self.extend_midi_running(v)
     }
 
-    pub(crate) fn extend_midi_running(&self, v: &mut Vec<u8>) {
+    pub(crate) fn extend_midi_running<E>(&self, mut v: impl Write<Error = E>) -> Result<(), E> {
         match self {
-            ChannelModeMsg::AllSoundOff => {
-                v.push(120);
-                v.push(0);
-            }
-            ChannelModeMsg::ResetAllControllers => {
-                v.push(121);
-                v.push(0);
-            }
-            ChannelModeMsg::LocalControl(on) => {
-                v.push(122);
-                v.push(if *on { 127 } else { 0 });
-            }
-            ChannelModeMsg::AllNotesOff => {
-                v.push(123);
-                v.push(0);
-            }
-            ChannelModeMsg::OmniMode(on) => {
-                v.push(if *on { 125 } else { 124 });
-                v.push(0);
-            }
-            ChannelModeMsg::PolyMode(m) => {
-                v.push(if *m == PolyMode::Poly { 127 } else { 126 });
-                v.push(match *m {
+            ChannelModeMsg::AllSoundOff => v.write(&[120, 0]),
+            ChannelModeMsg::ResetAllControllers => v.write(&[121, 0]),
+            ChannelModeMsg::LocalControl(on) => v.write(&[122, if *on { 127 } else { 0 }]),
+            ChannelModeMsg::AllNotesOff => v.write(&[123, 0]),
+            ChannelModeMsg::OmniMode(on) => v.write(&[if *on { 125 } else { 124 }, 0]),
+            ChannelModeMsg::PolyMode(m) => v.write(&[
+                if *m == PolyMode::Poly { 127 } else { 126 },
+                match *m {
                     PolyMode::Poly => 0,
                     PolyMode::Mono(n) => n.min(16),
-                })
-            }
+                },
+            ]),
         }
     }
 
@@ -90,6 +75,7 @@ impl ChannelModeMsg {
 
 /// Used by [`ChannelModeMsg::PolyMode`].
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub enum PolyMode {
     /// Request that the receiver be monophonic, with the given number M representing the
     /// number of channels that should be dedicated. Since this is sent with a `ChannelModeMsg`

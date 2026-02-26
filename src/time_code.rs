@@ -7,6 +7,7 @@ use super::util::*;
 ///
 /// As defined in the MIDI Time Code spec (MMA0001 / RP004 / RP008)
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+#[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub struct TimeCode {
     /// The position in frames, 0-29
     pub frames: u8,
@@ -84,6 +85,7 @@ impl TimeCode {
 ///
 /// See [the SMTPE time code standard](https://en.wikipedia.org/wiki/SMPTE_timecode).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub enum TimeCodeType {
     /// 24 Frames per second
     FPS24 = 0,
@@ -120,13 +122,14 @@ mod sysex_types {
     use super::*;
     use crate::MidiMsg;
     use crate::ParseError;
+    use crate::Write;
     use alloc::vec::Vec;
     use bstr::BString;
 
     impl TimeCode {
-        pub(crate) fn extend_midi(&self, v: &mut Vec<u8>) {
+        pub(crate) fn extend_midi<E>(&self, mut v: impl Write<Error = E>) -> Result<(), E> {
             let [frame, seconds, minutes, codehour] = self.to_bytes();
-            v.extend_from_slice(&[codehour, minutes, seconds, frame]);
+            v.write(&[codehour, minutes, seconds, frame])
         }
 
         pub(crate) fn from_midi(m: &[u8]) -> Result<Self, ParseError> {
@@ -145,6 +148,7 @@ mod sysex_types {
     }
 
     #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+    #[cfg_attr(feature = "defmt", derive(defmt::Format))]
     /// Like [`TimeCode`] but includes `fractional_frames`. Used in `TimeCodeCueingSetupMsg` and the SMF `Meta` event.
     ///
     /// As defined in the MIDI Time Code spec (MMA0001 / RP004 / RP008)
@@ -175,9 +179,9 @@ mod sysex_types {
             ]
         }
 
-        pub(crate) fn extend_midi(&self, v: &mut Vec<u8>) {
+        pub(crate) fn extend_midi<E>(&self, mut v: impl Write<Error = E>) -> Result<(), E> {
             let [fractional_frames, frames, seconds, minutes, codehour] = self.to_bytes();
-            v.extend_from_slice(&[codehour, minutes, seconds, frames, fractional_frames]);
+            v.write(&[codehour, minutes, seconds, frames, fractional_frames])
         }
 
         pub(crate) fn from_midi(v: &[u8]) -> Result<(Self, usize), ParseError> {
@@ -200,6 +204,7 @@ mod sysex_types {
     }
 
     #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+    #[cfg_attr(feature = "defmt", derive(defmt::Format))]
     /// Like [`TimeCode`] but uses `subframes` to optionally include status flags, and fractional frames.
     /// Also may be negative. Used in [`MachineControlCommandMsg`](crate::MachineControlCommandMsg).
     ///
@@ -245,9 +250,9 @@ mod sysex_types {
             [self.subframes.to_byte(), frames]
         }
 
-        pub(crate) fn extend_midi(&self, v: &mut Vec<u8>) {
+        pub(crate) fn extend_midi<E>(&self, mut v: impl Write<Error = E>) -> Result<(), E> {
             let [subframes, frames, seconds, minutes, codehour] = self.to_bytes();
-            v.extend_from_slice(&[codehour, minutes, seconds, frames, subframes]);
+            v.write(&[codehour, minutes, seconds, frames, subframes])
         }
 
         #[allow(dead_code)]
@@ -272,6 +277,7 @@ mod sysex_types {
 
     /// Used by [`StandardTimeCode`].
     #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+    #[cfg_attr(feature = "defmt", derive(defmt::Format))]
     pub enum SubFrames {
         /// The position in fractional frames, 0-99
         FractionalFrames(u8),
@@ -296,6 +302,7 @@ mod sysex_types {
 
     /// Used by [`StandardTimeCode`].
     #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+    #[cfg_attr(feature = "defmt", derive(defmt::Format))]
     pub struct TimeCodeStatus {
         pub estimated_code: bool,
         pub invalid_code: bool,
@@ -327,6 +334,7 @@ mod sysex_types {
     ///
     /// As defined in the MIDI Time Code spec (MMA0001 / RP004 / RP008)
     #[derive(Debug, Copy, Clone, PartialEq, Eq)]
+    #[cfg_attr(feature = "defmt", derive(defmt::Format))]
     pub struct UserBits {
         /// Full bytes can be used here. Sent such that the first is considered
         /// the "most significant" value
@@ -507,76 +515,195 @@ mod sysex_types {
         },
     }
 
-    impl TimeCodeCueingSetupMsg {
-        pub(crate) fn extend_midi(&self, v: &mut Vec<u8>) {
+    #[cfg(feature = "defmt")]
+    impl defmt::Format for TimeCodeCueingSetupMsg {
+        fn format(&self, fmt: defmt::Formatter) {
             match self {
                 Self::TimeCodeOffset { time_code } => {
-                    v.push(0x00);
-                    time_code.extend_midi(v);
-                    v.push(0x00);
-                    v.push(0x00);
+                    defmt::write!(
+                        fmt,
+                        "TimeCodeCueingSetupMsg::TimeCodeOffset {{ time_code: {:?} }}",
+                        time_code
+                    )
                 }
                 Self::EnableEventList => {
-                    v.push(0x00);
-                    HighResTimeCode::default().extend_midi(v);
-                    v.push(0x01);
-                    v.push(0x00);
+                    defmt::write!(fmt, "TimeCodeCueingSetupMsg::EnableEventList")
                 }
                 Self::DisableEventList => {
-                    v.push(0x00);
-                    HighResTimeCode::default().extend_midi(v);
-                    v.push(0x02);
-                    v.push(0x00);
+                    defmt::write!(fmt, "TimeCodeCueingSetupMsg::DisableEventList")
                 }
                 Self::ClearEventList => {
-                    v.push(0x00);
-                    HighResTimeCode::default().extend_midi(v);
-                    v.push(0x03);
-                    v.push(0x00);
+                    defmt::write!(fmt, "TimeCodeCueingSetupMsg::ClearEventList")
                 }
                 Self::SystemStop => {
-                    v.push(0x00);
-                    HighResTimeCode::default().extend_midi(v);
-                    v.push(0x04);
-                    v.push(0x00);
+                    defmt::write!(fmt, "TimeCodeCueingSetupMsg::SystemStop")
                 }
                 Self::EventListRequest { time_code } => {
-                    v.push(0x00);
-                    time_code.extend_midi(v);
-                    v.push(0x05);
-                    v.push(0x00);
+                    defmt::write!(
+                        fmt,
+                        "TimeCodeCueingSetupMsg::EventListRequest {{ time_code: {:?} }}",
+                        time_code
+                    )
                 }
                 Self::PunchIn {
                     time_code,
                     event_number,
                 } => {
-                    v.push(0x01);
-                    time_code.extend_midi(v);
-                    push_u14(*event_number, v);
+                    defmt::write!(
+                        fmt,
+                        "TimeCodeCueingSetupMsg::PunchIn {{ time_code: {:?}, event_number: {} }}",
+                        time_code,
+                        event_number
+                    )
                 }
                 Self::PunchOut {
                     time_code,
                     event_number,
                 } => {
-                    v.push(0x02);
-                    time_code.extend_midi(v);
-                    push_u14(*event_number, v);
+                    defmt::write!(
+                        fmt,
+                        "TimeCodeCueingSetupMsg::PunchOut {{ time_code: {:?}, event_number: {} }}",
+                        time_code,
+                        event_number
+                    )
                 }
                 Self::DeletePunchIn {
                     time_code,
                     event_number,
                 } => {
-                    v.push(0x03);
-                    time_code.extend_midi(v);
-                    push_u14(*event_number, v);
+                    defmt::write!(fmt, "TimeCodeCueingSetupMsg::DeletePunchIn {{ time_code: {:?}, event_number: {} }}", time_code, event_number)
                 }
                 Self::DeletePunchOut {
                     time_code,
                     event_number,
                 } => {
-                    v.push(0x04);
-                    time_code.extend_midi(v);
-                    push_u14(*event_number, v);
+                    defmt::write!(fmt, "TimeCodeCueingSetupMsg::DeletePunchOut {{ time_code: {:?}, event_number: {} }}", time_code, event_number)
+                }
+                Self::EventStart {
+                    time_code,
+                    event_number,
+                    additional_information,
+                } => {
+                    defmt::write!(fmt, "TimeCodeCueingSetupMsg::EventStart {{ time_code: {:?}, event_number: {}, additional_information: {:?} }}", time_code, event_number, additional_information)
+                }
+                Self::EventStop {
+                    time_code,
+                    event_number,
+                    additional_information,
+                } => {
+                    defmt::write!(fmt, "TimeCodeCueingSetupMsg::EventStop {{ time_code: {:?}, event_number: {}, additional_information: {:?} }}", time_code, event_number, additional_information)
+                }
+                Self::DeleteEventStart {
+                    time_code,
+                    event_number,
+                } => {
+                    defmt::write!(fmt, "TimeCodeCueingSetupMsg::DeleteEventStart {{ time_code: {:?}, event_number: {} }}", time_code, event_number)
+                }
+                Self::DeleteEventStop {
+                    time_code,
+                    event_number,
+                } => {
+                    defmt::write!(fmt, "TimeCodeCueingSetupMsg::DeleteEventStop {{ time_code: {:?}, event_number: {} }}", time_code, event_number)
+                }
+                Self::Cue {
+                    time_code,
+                    event_number,
+                    additional_information,
+                } => {
+                    defmt::write!(fmt, "TimeCodeCueingSetupMsg::Cue {{ time_code: {:?}, event_number: {}, additional_information: {:?} }}", time_code, event_number, additional_information)
+                }
+                Self::DeleteCue {
+                    time_code,
+                    event_number,
+                } => {
+                    defmt::write!(
+                        fmt,
+                        "TimeCodeCueingSetupMsg::DeleteCue {{ time_code: {:?}, event_number: {} }}",
+                        time_code,
+                        event_number
+                    )
+                }
+                Self::EventName {
+                    time_code,
+                    event_number,
+                    name,
+                } => {
+                    defmt::write!(fmt, "TimeCodeCueingSetupMsg::EventName {{ time_code: {:?}, event_number: {}, name: {:?} }}", time_code, event_number, name.as_slice())
+                }
+            }
+        }
+    }
+
+    impl TimeCodeCueingSetupMsg {
+        pub(crate) fn extend_midi<E>(&self, mut v: impl Write<Error = E>) -> Result<(), E> {
+            match self {
+                Self::TimeCodeOffset { time_code } => {
+                    v.push(0x00)?;
+                    time_code.extend_midi(&mut v)?;
+                    v.push(0x00)?;
+                    v.push(0x00)
+                }
+                Self::EnableEventList => {
+                    v.push(0x00)?;
+                    HighResTimeCode::default().extend_midi(&mut v)?;
+                    v.push(0x01)?;
+                    v.push(0x00)
+                }
+                Self::DisableEventList => {
+                    v.push(0x00)?;
+                    HighResTimeCode::default().extend_midi(&mut v)?;
+                    v.push(0x02)?;
+                    v.push(0x00)
+                }
+                Self::ClearEventList => {
+                    v.push(0x00)?;
+                    HighResTimeCode::default().extend_midi(&mut v)?;
+                    v.push(0x03)?;
+                    v.push(0x00)
+                }
+                Self::SystemStop => {
+                    v.push(0x00)?;
+                    HighResTimeCode::default().extend_midi(&mut v)?;
+                    v.push(0x04)?;
+                    v.push(0x00)
+                }
+                Self::EventListRequest { time_code } => {
+                    v.push(0x00)?;
+                    time_code.extend_midi(&mut v)?;
+                    v.push(0x05)?;
+                    v.push(0x00)
+                }
+                Self::PunchIn {
+                    time_code,
+                    event_number,
+                } => {
+                    v.push(0x01)?;
+                    time_code.extend_midi(&mut v)?;
+                    push_u14(*event_number, v)
+                }
+                Self::PunchOut {
+                    time_code,
+                    event_number,
+                } => {
+                    v.push(0x02)?;
+                    time_code.extend_midi(&mut v)?;
+                    push_u14(*event_number, v)
+                }
+                Self::DeletePunchIn {
+                    time_code,
+                    event_number,
+                } => {
+                    v.push(0x03)?;
+                    time_code.extend_midi(&mut v)?;
+                    push_u14(*event_number, v)
+                }
+                Self::DeletePunchOut {
+                    time_code,
+                    event_number,
+                } => {
+                    v.push(0x04)?;
+                    time_code.extend_midi(&mut v)?;
+                    push_u14(*event_number, v)
                 }
                 Self::EventStart {
                     time_code,
@@ -584,13 +711,13 @@ mod sysex_types {
                     additional_information,
                 } => {
                     if additional_information.is_empty() {
-                        v.push(0x05);
+                        v.push(0x05)?;
                     } else {
-                        v.push(0x07);
+                        v.push(0x07)?;
                     }
-                    time_code.extend_midi(v);
-                    push_u14(*event_number, v);
-                    push_nibblized_midi(additional_information, v);
+                    time_code.extend_midi(&mut v)?;
+                    push_u14(*event_number, &mut v)?;
+                    push_nibblized_midi(additional_information, v)
                 }
                 Self::EventStop {
                     time_code,
@@ -598,29 +725,29 @@ mod sysex_types {
                     additional_information,
                 } => {
                     if additional_information.is_empty() {
-                        v.push(0x06);
+                        v.push(0x06)?;
                     } else {
-                        v.push(0x08);
+                        v.push(0x08)?;
                     }
-                    time_code.extend_midi(v);
-                    push_u14(*event_number, v);
-                    push_nibblized_midi(additional_information, v);
+                    time_code.extend_midi(&mut v)?;
+                    push_u14(*event_number, &mut v)?;
+                    push_nibblized_midi(additional_information, v)
                 }
                 Self::DeleteEventStart {
                     time_code,
                     event_number,
                 } => {
-                    v.push(0x09);
-                    time_code.extend_midi(v);
-                    push_u14(*event_number, v);
+                    v.push(0x09)?;
+                    time_code.extend_midi(&mut v)?;
+                    push_u14(*event_number, v)
                 }
                 Self::DeleteEventStop {
                     time_code,
                     event_number,
                 } => {
-                    v.push(0x0A);
-                    time_code.extend_midi(v);
-                    push_u14(*event_number, v);
+                    v.push(0x0A)?;
+                    time_code.extend_midi(&mut v)?;
+                    push_u14(*event_number, v)
                 }
                 Self::Cue {
                     time_code,
@@ -628,31 +755,31 @@ mod sysex_types {
                     additional_information,
                 } => {
                     if additional_information.is_empty() {
-                        v.push(0x0B);
+                        v.push(0x0B)?;
                     } else {
-                        v.push(0x0C);
+                        v.push(0x0C)?;
                     }
-                    time_code.extend_midi(v);
-                    push_u14(*event_number, v);
-                    push_nibblized_midi(additional_information, v);
+                    time_code.extend_midi(&mut v)?;
+                    push_u14(*event_number, &mut v)?;
+                    push_nibblized_midi(additional_information, v)
                 }
                 Self::DeleteCue {
                     time_code,
                     event_number,
                 } => {
-                    v.push(0x0D);
-                    time_code.extend_midi(v);
-                    push_u14(*event_number, v);
+                    v.push(0x0D)?;
+                    time_code.extend_midi(&mut v)?;
+                    push_u14(*event_number, v)
                 }
                 Self::EventName {
                     time_code,
                     event_number,
                     name,
                 } => {
-                    v.push(0x0E);
-                    time_code.extend_midi(v);
-                    push_u14(*event_number, v);
-                    push_nibblized_name(name, v);
+                    v.push(0x0E)?;
+                    time_code.extend_midi(&mut v)?;
+                    push_u14(*event_number, &mut v)?;
+                    push_nibblized_name(name, v)
                 }
             }
         }
@@ -693,81 +820,134 @@ mod sysex_types {
         },
     }
 
-    fn push_nibblized_midi(msgs: &[MidiMsg], v: &mut Vec<u8>) {
-        for msg in msgs.iter() {
-            for b in msg.to_midi().iter() {
-                let [msn, lsn] = to_nibble(*b);
-                v.push(lsn);
-                v.push(msn);
+    #[cfg(feature = "defmt")]
+    impl defmt::Format for TimeCodeCueingMsg {
+        fn format(&self, fmt: defmt::Formatter) {
+            match self {
+                TimeCodeCueingMsg::SystemStop => defmt::write!(fmt, "SystemStop"),
+                TimeCodeCueingMsg::PunchIn { event_number } => {
+                    defmt::write!(fmt, "PunchIn({:x})", event_number)
+                }
+                TimeCodeCueingMsg::PunchOut { event_number } => {
+                    defmt::write!(fmt, "PunchOut({:x})", event_number)
+                }
+                TimeCodeCueingMsg::EventStart {
+                    event_number,
+                    additional_information,
+                } => {
+                    defmt::write!(
+                        fmt,
+                        "EventStart({:x}, {:x})",
+                        event_number,
+                        additional_information.len()
+                    )
+                }
+                TimeCodeCueingMsg::EventStop {
+                    event_number,
+                    additional_information,
+                } => {
+                    defmt::write!(
+                        fmt,
+                        "EventStop({:x}, {:x})",
+                        event_number,
+                        additional_information.len()
+                    )
+                }
+                TimeCodeCueingMsg::Cue {
+                    event_number,
+                    additional_information,
+                } => {
+                    defmt::write!(
+                        fmt,
+                        "Cue({:x}, {:x})",
+                        event_number,
+                        additional_information.len()
+                    )
+                }
+                TimeCodeCueingMsg::EventName { event_number, name } => {
+                    defmt::write!(fmt, "EventName({:x}, {})", event_number, name.as_slice())
+                }
             }
         }
     }
 
-    fn push_nibblized_name(name: &BString, v: &mut Vec<u8>) {
+    fn push_nibblized_midi<E>(msgs: &[MidiMsg], mut v: impl Write<Error = E>) -> Result<(), E> {
+        for msg in msgs.iter() {
+            for b in msg.to_midi().iter() {
+                let [msn, lsn] = to_nibble(*b);
+                v.push(lsn)?;
+                v.push(msn)?;
+            }
+        }
+        Ok(())
+    }
+
+    fn push_nibblized_name<E>(name: &BString, mut v: impl Write<Error = E>) -> Result<(), E> {
         // Not sure if this actually handles newlines correctly
         for b in name.iter() {
             let [msn, lsn] = to_nibble(*b);
-            v.push(lsn);
-            v.push(msn);
+            v.push(lsn)?;
+            v.push(msn)?;
         }
+        Ok(())
     }
 
     impl TimeCodeCueingMsg {
-        pub(crate) fn extend_midi(&self, v: &mut Vec<u8>) {
+        pub(crate) fn extend_midi<E>(&self, mut v: impl Write<Error = E>) -> Result<(), E> {
             match self {
                 Self::SystemStop => {
-                    v.push(0x00);
-                    v.push(0x04);
-                    v.push(0x00);
+                    v.push(0x00)?;
+                    v.push(0x04)?;
+                    v.push(0x00)
                 }
                 Self::PunchIn { event_number } => {
-                    v.push(0x01);
-                    push_u14(*event_number, v);
+                    v.push(0x01)?;
+                    push_u14(*event_number, v)
                 }
                 Self::PunchOut { event_number } => {
-                    v.push(0x02);
-                    push_u14(*event_number, v);
+                    v.push(0x02)?;
+                    push_u14(*event_number, v)
                 }
                 Self::EventStart {
                     event_number,
                     additional_information,
                 } => {
                     if additional_information.is_empty() {
-                        v.push(0x05);
+                        v.push(0x05)?;
                     } else {
-                        v.push(0x07);
+                        v.push(0x07)?;
                     }
-                    push_u14(*event_number, v);
-                    push_nibblized_midi(additional_information, v);
+                    push_u14(*event_number, &mut v)?;
+                    push_nibblized_midi(additional_information, v)
                 }
                 Self::EventStop {
                     event_number,
                     additional_information,
                 } => {
                     if additional_information.is_empty() {
-                        v.push(0x06);
+                        v.push(0x06)?;
                     } else {
-                        v.push(0x08);
+                        v.push(0x08)?;
                     }
-                    push_u14(*event_number, v);
-                    push_nibblized_midi(additional_information, v);
+                    push_u14(*event_number, &mut v)?;
+                    push_nibblized_midi(additional_information, v)
                 }
                 Self::Cue {
                     event_number,
                     additional_information,
                 } => {
                     if additional_information.is_empty() {
-                        v.push(0x0B);
+                        v.push(0x0B)?;
                     } else {
-                        v.push(0x0C);
+                        v.push(0x0C)?;
                     }
-                    push_u14(*event_number, v);
-                    push_nibblized_midi(additional_information, v);
+                    push_u14(*event_number, &mut v)?;
+                    push_nibblized_midi(additional_information, v)
                 }
                 Self::EventName { event_number, name } => {
-                    v.push(0x0E);
-                    push_u14(*event_number, v);
-                    push_nibblized_name(name, v);
+                    v.push(0x0E)?;
+                    push_u14(*event_number, &mut v)?;
+                    push_nibblized_name(name, v)
                 }
             }
         }
