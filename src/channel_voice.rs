@@ -871,7 +871,10 @@ impl ControlChange {
                 value,
             } => {
                 let [msb, lsb] = to_u14(*value);
-                Some(vec![((*control1).min(119), msb), ((*control2).min(119), lsb)])
+                Some(vec![
+                    ((*control1).min(119), msb),
+                    ((*control2).min(119), lsb),
+                ])
             }
             Self::BankSelect(x) => Some(Self::high_res_sub_ccs(0, *x)),
             Self::ModWheel(x) => Some(Self::high_res_sub_ccs(1, *x)),
@@ -1445,12 +1448,9 @@ impl Parameter {
         match self {
             Self::Null => vec![(100, 0x7F), (101, 0x7F)],
             Self::PitchBendSensitivity => vec![(100, 0), (101, 0)],
-            Self::PitchBendSensitivityEntry(c, f) => vec![
-                (100, 0),
-                (101, 0),
-                (6, *c),
-                (6 + 32, (*f).min(100)),
-            ],
+            Self::PitchBendSensitivityEntry(c, f) => {
+                vec![(100, 0), (101, 0), (6, *c), (6 + 32, (*f).min(100))]
+            }
             Self::FineTuning => vec![(100, 1), (101, 0)],
             Self::FineTuningEntry(x) => {
                 let [msb, lsb] = i_to_u14(*x);

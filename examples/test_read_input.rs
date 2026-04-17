@@ -13,7 +13,7 @@ extern crate midi_msg;
 extern crate midir;
 
 use std::error::Error;
-use std::io::{stdin, stdout, Write};
+use std::io::{Write, stdin, stdout};
 
 use midi_msg::*;
 use midir::{Ignore, MidiInput};

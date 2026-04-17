@@ -4,7 +4,7 @@ extern crate midir;
 use midi_msg::*;
 use midir::{Ignore, MidiInput};
 use std::error::Error;
-use std::io::{stdin, stdout, Write};
+use std::io::{Write, stdin, stdout};
 
 fn main() {
     match run() {
