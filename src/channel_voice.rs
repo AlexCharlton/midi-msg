@@ -852,6 +852,55 @@ impl ControlChange {
         v.push(lsb);
     }
 
+    /// If this `ControlChange` serializes to multiple CC sub-messages (i.e. a
+    /// "high-resolution" 14-bit CC, an explicit `CCHighRes`, or a `Parameter`),
+    /// return the sequence of `(control_number, value)` sub-CCs that make it up.
+    ///
+    /// Returns `None` for simple one-byte CCs that do not need to be split.
+    ///
+    /// This is used by SMF serialization to emit each sub-CC as its own track
+    /// event with its own delta-time, rather than relying on running status
+    /// within a single event.
+    pub(crate) fn sub_ccs(&self) -> Option<Vec<(u8, u8)>> {
+        match self {
+            Self::Parameter(p) => Some(p.sub_ccs()),
+            Self::CCHighRes {
+                control1,
+                control2,
+                value,
+            } => {
+                let [msb, lsb] = to_u14(*value);
+                Some(vec![
+                    (control1.min(&119).to_owned(), msb),
+                    (control2.min(&119).to_owned(), lsb),
+                ])
+            }
+            Self::BankSelect(x) => Some(Self::high_res_sub_ccs(0, *x)),
+            Self::ModWheel(x) => Some(Self::high_res_sub_ccs(1, *x)),
+            Self::Breath(x) => Some(Self::high_res_sub_ccs(2, *x)),
+            Self::Foot(x) => Some(Self::high_res_sub_ccs(4, *x)),
+            Self::Portamento(x) => Some(Self::high_res_sub_ccs(5, *x)),
+            Self::DataEntry(x) => Some(Self::high_res_sub_ccs(6, *x)),
+            Self::DataEntry2(msb, lsb) => Some(vec![(6, *msb), (6 + 32, *lsb)]),
+            Self::Volume(x) => Some(Self::high_res_sub_ccs(7, *x)),
+            Self::Balance(x) => Some(Self::high_res_sub_ccs(8, *x)),
+            Self::Pan(x) => Some(Self::high_res_sub_ccs(10, *x)),
+            Self::Expression(x) => Some(Self::high_res_sub_ccs(11, *x)),
+            Self::Effect1(x) => Some(Self::high_res_sub_ccs(12, *x)),
+            Self::Effect2(x) => Some(Self::high_res_sub_ccs(13, *x)),
+            Self::GeneralPurpose1(x) => Some(Self::high_res_sub_ccs(16, *x)),
+            Self::GeneralPurpose2(x) => Some(Self::high_res_sub_ccs(17, *x)),
+            Self::GeneralPurpose3(x) => Some(Self::high_res_sub_ccs(18, *x)),
+            Self::GeneralPurpose4(x) => Some(Self::high_res_sub_ccs(19, *x)),
+            _ => None,
+        }
+    }
+
+    fn high_res_sub_ccs(control: u8, value: u16) -> Vec<(u8, u8)> {
+        let [msb, lsb] = to_u14(value);
+        vec![(control, msb), (control + 32, lsb)]
+    }
+
     fn undefined(v: &mut Vec<u8>, control: u8, value: u8) {
         v.push(control.min(119));
         v.push(to_u7(value));
@@ -1386,211 +1435,102 @@ pub enum Parameter {
 }
 
 impl Parameter {
-    fn extend_midi_running(&self, v: &mut Vec<u8>) {
+    /// Returns the sequence of individual `(control_number, value)` Control Change
+    /// sub-messages that this `Parameter` serializes to.
+    ///
+    /// In a MIDI stream these can be efficiently emitted using running status
+    /// (i.e. omitting repeated status bytes), but when serializing a Standard
+    /// MIDI File each sub-CC must be its own event with its own delta-time, so
+    /// they need to be surfaced individually.
+    pub(crate) fn sub_ccs(&self) -> Vec<(u8, u8)> {
         match self {
-            Self::Null => {
-                v.push(100);
-                v.push(0x7F);
-                v.push(101);
-                v.push(0x7F);
-            }
-            Self::PitchBendSensitivity => {
-                v.push(100);
-                v.push(0);
-                v.push(101);
-                v.push(0);
-            }
-            Self::PitchBendSensitivityEntry(c, f) => {
-                Self::PitchBendSensitivity.extend_midi_running(v);
-                // Data entry:
-                v.push(6);
-                v.push(*c);
-                v.push(6 + 32);
-                v.push((*f).min(100));
-            }
-            Self::FineTuning => {
-                v.push(100);
-                v.push(1);
-                v.push(101);
-                v.push(0);
-            }
+            Self::Null => vec![(100, 0x7F), (101, 0x7F)],
+            Self::PitchBendSensitivity => vec![(100, 0), (101, 0)],
+            Self::PitchBendSensitivityEntry(c, f) => vec![
+                (100, 0),
+                (101, 0),
+                (6, *c),
+                (6 + 32, (*f).min(100)),
+            ],
+            Self::FineTuning => vec![(100, 1), (101, 0)],
             Self::FineTuningEntry(x) => {
-                Self::FineTuning.extend_midi_running(v);
-                // Data entry:
                 let [msb, lsb] = i_to_u14(*x);
-                v.push(6);
-                v.push(msb);
-                v.push(6 + 32);
-                v.push(lsb);
+                vec![(100, 1), (101, 0), (6, msb), (6 + 32, lsb)]
             }
-            Self::CoarseTuning => {
-                v.push(100);
-                v.push(2);
-                v.push(101);
-                v.push(0);
-            }
+            Self::CoarseTuning => vec![(100, 2), (101, 0)],
             Self::CoarseTuningEntry(x) => {
-                Self::CoarseTuning.extend_midi_running(v);
-                // Data entry:
                 let msb = i_to_u7(*x);
-                v.push(6);
-                v.push(msb);
-                v.push(6 + 32);
-                v.push(0);
+                vec![(100, 2), (101, 0), (6, msb), (6 + 32, 0)]
             }
-            Self::TuningProgramSelect => {
-                v.push(100);
-                v.push(3);
-                v.push(101);
-                v.push(0);
-            }
-            Self::TuningProgramSelectEntry(x) => {
-                Self::TuningProgramSelect.extend_midi_running(v);
-                // Data entry (MSB only)
-                v.push(6);
-                v.push(*x);
-            }
-            Self::TuningBankSelect => {
-                v.push(100);
-                v.push(4);
-                v.push(101);
-                v.push(0);
-            }
-            Self::TuningBankSelectEntry(x) => {
-                Self::TuningBankSelect.extend_midi_running(v);
-                // Data entry (MSB only)
-                v.push(6);
-                v.push(*x);
-            }
-            Self::ModulationDepthRange => {
-                v.push(100);
-                v.push(5);
-                v.push(101);
-                v.push(0);
-            }
+            Self::TuningProgramSelect => vec![(100, 3), (101, 0)],
+            Self::TuningProgramSelectEntry(x) => vec![(100, 3), (101, 0), (6, *x)],
+            Self::TuningBankSelect => vec![(100, 4), (101, 0)],
+            Self::TuningBankSelectEntry(x) => vec![(100, 4), (101, 0), (6, *x)],
+            Self::ModulationDepthRange => vec![(100, 5), (101, 0)],
             Self::ModulationDepthRangeEntry(x) => {
-                Self::ModulationDepthRange.extend_midi_running(v);
-                // Data entry
-                ControlChange::high_res_cc(v, 6, *x);
+                let [msb, lsb] = to_u14(*x);
+                vec![(100, 5), (101, 0), (6, msb), (6 + 32, lsb)]
             }
-            Self::PolyphonicExpression => {
-                v.push(100);
-                v.push(6);
-                v.push(101);
-                v.push(0);
-            }
+            Self::PolyphonicExpression => vec![(100, 6), (101, 0)],
             Self::PolyphonicExpressionEntry(x) => {
-                Self::PolyphonicExpression.extend_midi_running(v);
-                // Data entry (MSB only)
-                v.push(6);
-                v.push((*x).min(16));
+                vec![(100, 6), (101, 0), (6, (*x).min(16))]
             }
-            Self::AzimuthAngle3DSound => {
-                v.push(100);
-                v.push(0);
-                v.push(101);
-                v.push(61); // 3D Sound
-            }
+            Self::AzimuthAngle3DSound => vec![(100, 0), (101, 61)],
             Self::AzimuthAngle3DSoundEntry(x) => {
-                Self::AzimuthAngle3DSound.extend_midi_running(v);
-                // Data entry
-                ControlChange::high_res_cc(v, 6, *x);
+                let [msb, lsb] = to_u14(*x);
+                vec![(100, 0), (101, 61), (6, msb), (6 + 32, lsb)]
             }
-            Self::ElevationAngle3DSound => {
-                v.push(100);
-                v.push(1);
-                v.push(101);
-                v.push(61); // 3D Sound
-            }
+            Self::ElevationAngle3DSound => vec![(100, 1), (101, 61)],
             Self::ElevationAngle3DSoundEntry(x) => {
-                Self::ElevationAngle3DSound.extend_midi_running(v);
-                // Data entry
-                ControlChange::high_res_cc(v, 6, *x);
+                let [msb, lsb] = to_u14(*x);
+                vec![(100, 1), (101, 61), (6, msb), (6 + 32, lsb)]
             }
-            Self::Gain3DSound => {
-                v.push(100);
-                v.push(2);
-                v.push(101);
-                v.push(61); // 3D Sound
-            }
+            Self::Gain3DSound => vec![(100, 2), (101, 61)],
             Self::Gain3DSoundEntry(x) => {
-                Self::Gain3DSound.extend_midi_running(v);
-                // Data entry
-                ControlChange::high_res_cc(v, 6, *x);
+                let [msb, lsb] = to_u14(*x);
+                vec![(100, 2), (101, 61), (6, msb), (6 + 32, lsb)]
             }
-            Self::DistanceRatio3DSound => {
-                v.push(100);
-                v.push(3);
-                v.push(101);
-                v.push(61); // 3D Sound
-            }
+            Self::DistanceRatio3DSound => vec![(100, 3), (101, 61)],
             Self::DistanceRatio3DSoundEntry(x) => {
-                Self::DistanceRatio3DSound.extend_midi_running(v);
-                // Data entry
-                ControlChange::high_res_cc(v, 6, *x);
+                let [msb, lsb] = to_u14(*x);
+                vec![(100, 3), (101, 61), (6, msb), (6 + 32, lsb)]
             }
-            Self::MaxiumumDistance3DSound => {
-                v.push(100);
-                v.push(4);
-                v.push(101);
-                v.push(61); // 3D Sound
-            }
+            Self::MaxiumumDistance3DSound => vec![(100, 4), (101, 61)],
             Self::MaxiumumDistance3DSoundEntry(x) => {
-                Self::MaxiumumDistance3DSound.extend_midi_running(v);
-                // Data entry
-                ControlChange::high_res_cc(v, 6, *x);
+                let [msb, lsb] = to_u14(*x);
+                vec![(100, 4), (101, 61), (6, msb), (6 + 32, lsb)]
             }
-            Self::GainAtMaxiumumDistance3DSound => {
-                v.push(100);
-                v.push(5);
-                v.push(101);
-                v.push(61); // 3D Sound
-            }
+            Self::GainAtMaxiumumDistance3DSound => vec![(100, 5), (101, 61)],
             Self::GainAtMaxiumumDistance3DSoundEntry(x) => {
-                Self::GainAtMaxiumumDistance3DSound.extend_midi_running(v);
-                // Data entry
-                ControlChange::high_res_cc(v, 6, *x);
+                let [msb, lsb] = to_u14(*x);
+                vec![(100, 5), (101, 61), (6, msb), (6 + 32, lsb)]
             }
-            Self::ReferenceDistanceRatio3DSound => {
-                v.push(100);
-                v.push(6);
-                v.push(101);
-                v.push(61); // 3D Sound
-            }
+            Self::ReferenceDistanceRatio3DSound => vec![(100, 6), (101, 61)],
             Self::ReferenceDistanceRatio3DSoundEntry(x) => {
-                Self::ReferenceDistanceRatio3DSound.extend_midi_running(v);
-                // Data entry
-                ControlChange::high_res_cc(v, 6, *x);
+                let [msb, lsb] = to_u14(*x);
+                vec![(100, 6), (101, 61), (6, msb), (6 + 32, lsb)]
             }
-            Self::PanSpreadAngle3DSound => {
-                v.push(100);
-                v.push(7);
-                v.push(101);
-                v.push(61); // 3D Sound
-            }
+            Self::PanSpreadAngle3DSound => vec![(100, 7), (101, 61)],
             Self::PanSpreadAngle3DSoundEntry(x) => {
-                Self::PanSpreadAngle3DSound.extend_midi_running(v);
-                // Data entry
-                ControlChange::high_res_cc(v, 6, *x);
+                let [msb, lsb] = to_u14(*x);
+                vec![(100, 7), (101, 61), (6, msb), (6 + 32, lsb)]
             }
-            Self::RollAngle3DSound => {
-                v.push(100);
-                v.push(8);
-                v.push(101);
-                v.push(61); // 3D Sound
-            }
+            Self::RollAngle3DSound => vec![(100, 8), (101, 61)],
             Self::RollAngle3DSoundEntry(x) => {
-                Self::RollAngle3DSound.extend_midi_running(v);
-                // Data entry
-                ControlChange::high_res_cc(v, 6, *x);
+                let [msb, lsb] = to_u14(*x);
+                vec![(100, 8), (101, 61), (6, msb), (6 + 32, lsb)]
             }
             Self::Unregistered(x) => {
                 let [msb, lsb] = to_u14(*x);
-                v.push(98);
-                v.push(lsb);
-                v.push(99);
-                v.push(msb);
+                vec![(98, lsb), (99, msb)]
             }
+        }
+    }
+
+    fn extend_midi_running(&self, v: &mut Vec<u8>) {
+        for (control, value) in self.sub_ccs() {
+            v.push(control);
+            v.push(value);
         }
     }
 

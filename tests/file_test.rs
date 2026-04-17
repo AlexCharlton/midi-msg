@@ -399,3 +399,22 @@ fn test_smf_file_zero_length_meta() {
         ParseError::Invalid("Sequence number meta event must have exactly 2 bytes")
     );
 }
+
+#[test]
+#[cfg(feature = "file")]
+fn test_smf_file_with_rpn() {
+    let test_file = include_bytes!("./spiderman.mid");
+    let deserialize_result = MidiFile::from_midi(test_file);
+    assert!(deserialize_result.is_ok());
+    println!(
+        "{:#?}",
+        deserialize_result.as_ref().unwrap().tracks[3]
+            .events()
+            .iter()
+            .take(10)
+            .collect::<Vec<_>>()
+    );
+    let serialized = deserialize_result.unwrap().to_midi();
+    let deserialize_result = MidiFile::from_midi(&serialized);
+    assert!(deserialize_result.is_ok(),);
+}

@@ -13,8 +13,8 @@ use micromath::F32Ext;
 use core::error;
 
 use super::{
-    Channel, HighResTimeCode, MidiMsg, ParseError, ReceiverContext, SystemExclusiveMsg,
-    TimeCodeType, util::*,
+    Channel, ChannelVoiceMsg, HighResTimeCode, MidiMsg, ParseError, ReceiverContext,
+    SystemExclusiveMsg, TimeCodeType, util::*,
 };
 
 // Standard Midi File 1.0 (SMF): RP-001 support
@@ -603,8 +603,21 @@ impl TrackEvent {
             return;
         }
 
+        // Compound channel-voice messages (14-bit CCs, `CCHighRes`, `Parameter`,
+        // and high-resolution note on/off) serialize to multiple individual
+        // MIDI messages' worth of bytes. In a live MIDI stream these are sent
+        // back-to-back using running status, but in an SMF every such sub-message
+        // must be its own track event with its own delta-time, or re-parsing
+        // will misinterpret the stream. Emit them split here, with the track
+        // event's delta-time preceding the first sub-message and 0-delta
+        // preceding each subsequent one.
+        if let MidiMsg::ChannelVoice { channel, msg } = &self.event
+            && self.extend_midi_split_channel_voice(*channel, msg, v)
+        {
+            return;
+        }
+
         push_vlq(self.delta_time, v);
-        // TODO this doesn't handle running-status events
         let event = self.event.to_midi();
 
         let is_meta = matches!(self.event, MidiMsg::Meta { .. });
@@ -623,6 +636,56 @@ impl TrackEvent {
             push_vlq(event.len() as u32, v);
         }
         v.extend_from_slice(&event);
+    }
+
+    /// If `msg` is a compound channel-voice message that must be split into
+    /// multiple SMF events, write all the sub-events (delta-time + status byte
+    /// + payload, with 0-delta between them) and return `true`. Otherwise
+    ///   return `false` so the caller can fall back to the single-event path.
+    fn extend_midi_split_channel_voice(
+        &self,
+        channel: Channel,
+        msg: &ChannelVoiceMsg,
+        v: &mut Vec<u8>,
+    ) -> bool {
+        let ch = channel as u8;
+        match msg {
+            ChannelVoiceMsg::ControlChange { control } => match control.sub_ccs() {
+                Some(sub_ccs) => {
+                    let status = 0xB0 | ch;
+                    for (i, (cc, val)) in sub_ccs.iter().enumerate() {
+                        let dt = if i == 0 { self.delta_time } else { 0 };
+                        push_vlq(dt, v);
+                        v.push(status);
+                        v.push(*cc);
+                        v.push(*val);
+                    }
+                    true
+                }
+                None => false,
+            },
+            ChannelVoiceMsg::HighResNoteOn { note, velocity }
+            | ChannelVoiceMsg::HighResNoteOff { note, velocity } => {
+                // These messages are a note-on/off followed by a HighResVelocity
+                // CC (control 0x58). Emit them as two separate SMF events.
+                let [msb, lsb] = to_u14(*velocity);
+                let note_status = if matches!(msg, ChannelVoiceMsg::HighResNoteOn { .. }) {
+                    0x90 | ch
+                } else {
+                    0x80 | ch
+                };
+                push_vlq(self.delta_time, v);
+                v.push(note_status);
+                v.push(*note & 0x7F);
+                v.push(msb);
+                push_vlq(0, v);
+                v.push(0xB0 | ch);
+                v.push(88); // HighResVelocity CC
+                v.push(lsb);
+                true
+            }
+            _ => false,
+        }
     }
 }
 
