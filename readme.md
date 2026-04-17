@@ -33,10 +33,10 @@ The default `sysex` and `file` Cargo features can be disabled to exclude code re
 
 
 ## Support
-MIDI messages described by the following [Midi Manufacturer Association (MMA) documents](https://www.midi.org/specifications/midi1-specifications) are supported (with their corresponding Midi Manufacturer Association [MMA] publication number, Recommended Practice [RP] number, or Changes/Additions [CA] number as noted):
+MIDI messages described by the following [Midi Manufacturer Association (MMA) documents](https://midi.org/midi-1-0) are supported (with their corresponding Midi Manufacturer Association [MMA] publication number, Recommended Practice [RP] number, or Changes/Additions [CA] number as noted):
 
 - MIDI 1.0 Detailed Specification 4.2.1 (The base specification. All types should be assumed to be defined by this document unless otherwise specified)
-- Standard MIDI Files 1.0 (RP-001)
+- Standard MIDI Files 1.0 ([RP-001](https://midi.org/standard-midi-files))
 - MIDI Time Code (MTC) (MMA-001 / RP-004 / RP-008)
 - General MIDI System Level 1 (GM1) (MMA-007 / RP-003)
 - General MIDI 2 1.2 (GM2) (RP-024/RP-036/RP-037/RP-045)
