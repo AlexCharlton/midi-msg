@@ -382,6 +382,7 @@ fn test_smf_files_with_invalid_sysex() {
     assert!(!file_contains_invalid_message(deserialize_result.unwrap()));
 }
 
+#[cfg(feature = "file")]
 fn file_contains_invalid_message(file: MidiFile) -> bool {
     file.tracks
         .iter()

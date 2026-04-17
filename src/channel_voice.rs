@@ -861,6 +861,7 @@ impl ControlChange {
     /// This is used by SMF serialization to emit each sub-CC as its own track
     /// event with its own delta-time, rather than relying on running status
     /// within a single event.
+    #[cfg(feature = "file")]
     pub(crate) fn sub_ccs(&self) -> Option<Vec<(u8, u8)>> {
         match self {
             Self::Parameter(p) => Some(p.sub_ccs()),
@@ -870,10 +871,7 @@ impl ControlChange {
                 value,
             } => {
                 let [msb, lsb] = to_u14(*value);
-                Some(vec![
-                    (control1.min(&119).to_owned(), msb),
-                    (control2.min(&119).to_owned(), lsb),
-                ])
+                Some(vec![((*control1).min(119), msb), ((*control2).min(119), lsb)])
             }
             Self::BankSelect(x) => Some(Self::high_res_sub_ccs(0, *x)),
             Self::ModWheel(x) => Some(Self::high_res_sub_ccs(1, *x)),
@@ -896,6 +894,7 @@ impl ControlChange {
         }
     }
 
+    #[cfg(feature = "file")]
     fn high_res_sub_ccs(control: u8, value: u16) -> Vec<(u8, u8)> {
         let [msb, lsb] = to_u14(value);
         vec![(control, msb), (control + 32, lsb)]
