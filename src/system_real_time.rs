@@ -3,6 +3,7 @@ use alloc::vec::Vec;
 
 /// A fairly limited set of messages used for device synchronization.
 /// Used in [`MidiMsg`](crate::MidiMsg).
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum SystemRealTimeMsg {
     /// Used to synchronize clocks. Sent at a rate of 24 per quarter note.

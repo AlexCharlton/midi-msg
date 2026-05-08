@@ -4,6 +4,7 @@ use alloc::vec::Vec;
 
 /// Change the tunings of one or more notes, either real-time or not.
 /// Used by [`UniversalNonRealTimeMsg`](crate::UniversalNonRealTimeMsg) and [`UniversalRealTimeMsg`](crate::UniversalRealTimeMsg).
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct TuningNoteChange {
     /// Which tuning program is targeted, 0-127. See [`Parameter::TuningProgramSelect`](crate::Parameter::TuningProgramSelect).
@@ -41,6 +42,7 @@ impl TuningNoteChange {
 
 /// Set the tunings of all 128 notes.
 /// Used by [`UniversalNonRealTimeMsg`](crate::UniversalNonRealTimeMsg).
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct KeyBasedTuningDump {
     /// Which tuning program is targeted, 0-127. See [`Parameter::TuningProgramSelect`](crate::Parameter::TuningProgramSelect).
@@ -97,6 +99,7 @@ impl KeyBasedTuningDump {
 }
 
 /// Used to represent a tuning by [`TuningNoteChange`] and [`KeyBasedTuningDump`].
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub struct Tuning {
     /// The semitone corresponding with the same MIDI note number, 0-127
@@ -139,6 +142,7 @@ impl Tuning {
 /// Used by [`UniversalNonRealTimeMsg`](crate::UniversalNonRealTimeMsg).
 ///
 /// As defined in MIDI Tuning Updated Specification (CA-020/CA-021/RP-020)
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub struct ScaleTuningDump1Byte {
     /// Which tuning program is targeted, 0-127. See [`Parameter::TuningProgramSelect`](crate::Parameter::TuningProgramSelect).
@@ -178,6 +182,7 @@ impl ScaleTuningDump1Byte {
 /// Used by [`UniversalNonRealTimeMsg`](crate::UniversalNonRealTimeMsg).
 ///
 /// As defined in MIDI Tuning Updated Specification (CA-020/CA-021/RP-020)
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub struct ScaleTuningDump2Byte {
     /// Which tuning program is targeted, 0-127. See [`Parameter::TuningProgramSelect`](crate::Parameter::TuningProgramSelect).
@@ -219,6 +224,7 @@ impl ScaleTuningDump2Byte {
 /// Used by [`UniversalNonRealTimeMsg`](crate::UniversalNonRealTimeMsg) and [`UniversalRealTimeMsg`](crate::UniversalRealTimeMsg).
 ///
 /// As defined in MIDI Tuning Updated Specification (CA-020/CA-021/RP-020)
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub struct ScaleTuning1Byte {
     pub channels: ChannelBitMap,
@@ -246,6 +252,7 @@ impl ScaleTuning1Byte {
 /// Used by [`UniversalNonRealTimeMsg`](crate::UniversalNonRealTimeMsg) and [`UniversalRealTimeMsg`](crate::UniversalRealTimeMsg).
 ///
 /// As defined in MIDI Tuning Updated Specification (CA-020/CA-021/RP-020)
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub struct ScaleTuning2Byte {
     pub channels: ChannelBitMap,
@@ -272,6 +279,7 @@ impl ScaleTuning2Byte {
 }
 
 /// The set of channels to apply this tuning message to. Used by [`ScaleTuning1Byte`] and [`ScaleTuning2Byte`].
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Default)]
 pub struct ChannelBitMap {
     pub channel_1: bool,

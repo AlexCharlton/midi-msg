@@ -16,6 +16,10 @@ bstr = { version = "1.0.0", default-features = false, features = [
   "alloc",
 ], optional = true }
 micromath = "1.1.1"
+serde = { version = "1", default-features = false, features = [
+  "alloc",
+  "derive",
+], optional = true }
 strum = { version = "0.24.1", features = ["derive"], optional = true }
 log = { version = "0.4", optional = true }
 
@@ -27,3 +31,4 @@ default = ["std", "sysex", "file"]
 std = ["strum", "log"]
 sysex = ["bstr"]
 file = ["sysex"]
+serde = ["dep:serde", "bstr?/serde"]

@@ -12,6 +12,7 @@ use micromath::F32Ext;
 /// As defined in CA-024.
 ///
 /// This C/A is much more permissive than most, and thus has a pretty awkward interface.
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct GlobalParameterControl {
     /// Between 0 and 127 `SlotPath`s, with each successive path representing a child
@@ -28,6 +29,7 @@ pub struct GlobalParameterControl {
     pub params: Vec<GlobalParameter>,
 }
 
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 /// The type of reverb, used by [`GlobalParameterControl::reverb`].
 pub enum ReverbType {
@@ -39,6 +41,7 @@ pub enum ReverbType {
     Plate = 8,
 }
 
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 /// The type of chorus, used by [`GlobalParameterControl::chorus`].
 pub enum ChorusType {
@@ -162,6 +165,7 @@ impl GlobalParameterControl {
 
 /// The "slot" of the device being referred to by [`GlobalParameterControl`].
 /// Values other than `Unregistered` come from the General MIDI 2 spec.
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum SlotPath {
     Reverb,
@@ -195,6 +199,7 @@ impl SlotPath {
 }
 
 /// An `id`:`value` pair that must line up with the [`GlobalParameterControl`] that it is placed in.
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct GlobalParameter {
     pub id: Vec<u8>,

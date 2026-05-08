@@ -7,6 +7,7 @@ use alloc::vec::Vec;
 
 /// Channel-level messages that act on a voice. For instance, turning notes on off,
 /// or modifying sounding notes. Used in [`MidiMsg`](crate::MidiMsg).
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ChannelVoiceMsg {
     /// Turn on a note
@@ -274,6 +275,7 @@ impl ChannelVoiceMsg {
 }
 
 /// An enum that defines the MIDI numbers associated with Control Changes.
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ControlNumber {
     BankSelect = 0,
@@ -362,6 +364,7 @@ pub enum ControlNumber {
 /// Each control targets a particular [`ControlNumber`], the meaning of which is given by convention.
 ///
 /// When deserializing and [`complex_cc`](crate::ReceiverContext) is false (the default), only [ControlChange::CC] values are returned. "Simple" CC values represent the control parameter with a number, while "complex" variants capture the semantics of the spec. Simple can be turned into their complex counterparts using the [`to_complex`](ControlChange::to_complex) method, or vis-versa using the [`to_simple`](ControlChange::to_simple) and [`to_simple_high_res`](ControlChange::to_simple_high_res) methods.
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ControlChange {
     /// "Simple" Control Change message.
@@ -1347,9 +1350,10 @@ impl ControlChange {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 /// Used by [`ControlChange::Parameter`]. "Entry" Parameters can be used to set the given parameters:
 /// they will first select that parameter, then send a [`ControlChange::DataEntry`] with the given value.
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Parameter {
     /// A whole bunch of parameters defined by the given number 0-16383, that can be used for whatever.
     Unregistered(u16),

@@ -14,6 +14,7 @@ use super::SystemExclusiveMsg;
 use super::Meta;
 
 /// The primary interface of this library. Used to encode MIDI messages.
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[derive(Debug, Clone, PartialEq)]
 pub enum MidiMsg {
     /// Channel-level messages that act on a voice, such as turning notes on and off.
@@ -60,6 +61,7 @@ pub enum MidiMsg {
     /// These can only occur in MIDI files, since only in MIDI files do we know the
     /// length of (some) messages before we parse them.
     #[cfg(feature = "file")]
+    #[cfg_attr(feature = "serde", serde(skip))]
     Invalid { bytes: Vec<u8>, error: ParseError },
 }
 
@@ -499,6 +501,7 @@ use strum::{EnumIter, EnumString};
 
 /// The MIDI channel, 1-16. Used by [`MidiMsg`] and elsewhere.
 #[cfg_attr(feature = "std", derive(EnumIter, EnumString))]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[repr(u8)]
 pub enum Channel {

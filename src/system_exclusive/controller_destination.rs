@@ -7,6 +7,7 @@ use alloc::vec::Vec;
 /// Used by [`UniversalRealTimeMsg`](crate::UniversalRealTimeMsg).
 ///
 /// Defined in CA-022.
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ControllerDestination {
     pub channel: Channel,
@@ -33,6 +34,7 @@ impl ControllerDestination {
 /// Used by [`UniversalRealTimeMsg::GlobalParameterControl`](crate::UniversalRealTimeMsg::GlobalParameterControl).
 ///
 /// Defined in CA-022.
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ControlChangeControllerDestination {
     pub channel: Channel,
@@ -66,6 +68,7 @@ impl ControlChangeControllerDestination {
 }
 /// The parameters that can be controlled by [`ControllerDestination`] or
 /// [`ControlChangeControllerDestination`].
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ControlledParameter {
     PitchControl = 0,

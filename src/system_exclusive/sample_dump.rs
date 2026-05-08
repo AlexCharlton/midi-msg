@@ -5,6 +5,7 @@ use bstr::BString;
 
 /// Used to request and transmit sampler data.
 /// Used by [`UniversalNonRealTimeMsg::SampleDump`](crate::UniversalNonRealTimeMsg::SampleDump).
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum SampleDumpMsg {
     /// Request that the receiver send the given sample.
@@ -137,6 +138,7 @@ impl SampleDumpMsg {
 }
 
 /// What loop a [`SampleDumpMsg`] or [`ExtendedSampleDumpMsg`] is referring to.
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum LoopNumber {
     /// A loop with the given ID, 0-16382.
@@ -164,6 +166,7 @@ impl LoopNumber {
 }
 
 /// The type of loop being described by a [`SampleDumpMsg`].
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum LoopType {
     /// Forward only
@@ -176,6 +179,7 @@ pub enum LoopType {
 
 /// The extended sample dump messages described in CA-019, used to allow for longer, named samples.
 /// Used by [`UniversalNonRealTimeMsg::SampleDump`](crate::UniversalNonRealTimeMsg::SampleDump).
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[derive(Debug, Clone, PartialEq)]
 pub enum ExtendedSampleDumpMsg {
     Header {
@@ -294,6 +298,7 @@ impl ExtendedSampleDumpMsg {
 }
 
 /// The type of loop being described by a [`SampleDumpMsg`].
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum ExtendedLoopType {
     /// A forward, unidirectional loop

@@ -6,6 +6,7 @@ use bstr::BString;
 
 /// Used to transmit general file data.
 /// Used by [`UniversalNonRealTimeMsg`](crate::UniversalNonRealTimeMsg).
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum FileDumpMsg {
     /// Request that the file with `name` be sent.
@@ -118,6 +119,7 @@ impl FileDumpMsg {
 }
 
 /// A four-character file type used by [`FileDumpMsg`].
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum FileType {
     MIDI,

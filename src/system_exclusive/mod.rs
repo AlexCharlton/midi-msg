@@ -30,6 +30,7 @@ use super::util::*;
 /// The bulk of the MIDI spec lives here, in "Universal System Exclusive" messages.
 /// Also used for manufacturer-specific messages.
 /// Used in [`MidiMsg`](crate::MidiMsg).
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[derive(Debug, Clone, PartialEq)]
 pub enum SystemExclusiveMsg {
     /// An arbitrary set of 7-bit "bytes", the meaning of which must be derived from the
@@ -164,6 +165,7 @@ impl SystemExclusiveMsg {
 ///
 /// If second byte is None, it is a one-byte ID.
 /// The first byte in a one-byte ID may not be greater than 0x7C.
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct ManufacturerID(pub u8, pub Option<u8>);
 
@@ -207,6 +209,7 @@ impl From<(u8, u8)> for ManufacturerID {
 
 /// The device ID being addressed, either a number between 0-126 or `AllCall` (all devices).
 /// Used by [`SystemExclusiveMsg::UniversalNonRealTime`] and [`SystemExclusiveMsg::UniversalRealTime`].
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum DeviceID {
     Device(u8),
@@ -232,6 +235,7 @@ impl DeviceID {
 }
 
 /// A diverse range of messages for real-time applications. Used by [`SystemExclusiveMsg::UniversalRealTime`].
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[derive(Debug, Clone, PartialEq)]
 pub enum UniversalRealTimeMsg {
     /// For use when a [`SystemCommonMsg::TimeCodeQuarterFrame`](crate::SystemCommonMsg::TimeCodeQuarterFrame1) is not appropriate:
@@ -424,6 +428,7 @@ impl UniversalRealTimeMsg {
 }
 
 /// A diverse range of messages for non-real-time applications. Used by [`SystemExclusiveMsg::UniversalNonRealTime`].
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[derive(Debug, Clone, PartialEq)]
 pub enum UniversalNonRealTimeMsg {
     /// Used to transmit sampler data.
@@ -625,6 +630,7 @@ impl UniversalNonRealTimeMsg {
 /// A response to [`UniversalNonRealTimeMsg::IdentityRequest`], meant to indicate the type of device
 /// that this message is sent from.
 /// Used by [`UniversalNonRealTimeMsg::IdentityReply`].
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub struct IdentityReply {
     pub id: ManufacturerID,

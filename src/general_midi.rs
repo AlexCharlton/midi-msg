@@ -6,6 +6,7 @@ use strum::{Display, EnumIter, EnumString};
 /// Used to turn General MIDI level 1 or 2 on, or turn them off.
 ///
 /// Used in [`UniversalNonRealTimeMsg::GeneralMidi`](crate::UniversalNonRealTimeMsg::GeneralMidi)
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum GeneralMidi {
     GM1 = 1,
@@ -31,6 +32,7 @@ pub enum GeneralMidi {
 ///
 /// As defined in General MIDI System Level 1 (MMA0007 / RP003).
 #[cfg_attr(feature = "std", derive(EnumIter, Display, EnumString))]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[repr(u8)]
 pub enum GMSoundSet {
@@ -193,6 +195,7 @@ impl TryFrom<u8> for GMSoundSet {
 ///
 /// As defined in General MIDI System Level 1 (MMA0007 / RP003).
 #[cfg_attr(feature = "std", derive(EnumIter, Display, EnumString))]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[repr(u8)]
 pub enum GMPercussionMap {

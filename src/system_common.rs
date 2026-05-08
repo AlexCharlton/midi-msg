@@ -6,6 +6,7 @@ use alloc::vec::Vec;
 
 /// A fairly limited set of messages, generally for device synchronization.
 /// Used in [`MidiMsg`](crate::MidiMsg).
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum SystemCommonMsg {
     /// The first of 8 "quarter frame" messages, which are meant to be sent 4 per "frame".

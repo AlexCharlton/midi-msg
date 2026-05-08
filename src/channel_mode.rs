@@ -2,6 +2,7 @@ use super::parse_error::*;
 use crate::util::*;
 use alloc::vec::Vec;
 
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 /// Channel-level messages that should alter the mode of the receiver. Used in [`MidiMsg`](crate::MidiMsg).
 pub enum ChannelModeMsg {
@@ -89,6 +90,7 @@ impl ChannelModeMsg {
 }
 
 /// Used by [`ChannelModeMsg::PolyMode`].
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum PolyMode {
     /// Request that the receiver be monophonic, with the given number M representing the

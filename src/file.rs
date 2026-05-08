@@ -60,6 +60,7 @@ impl fmt::Display for MidiFileParseError {
 }
 
 /// A Standard Midi File (SMF)
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[derive(Debug, Clone, PartialEq, Default)]
 pub struct MidiFile {
     /// The header chunk: Contains the file format, number of tracks, and division
@@ -214,6 +215,7 @@ impl MidiFile {
 }
 
 /// The header chunk of a Standard Midi File
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[derive(Debug, Clone, PartialEq, Default)]
 pub struct Header {
     /// The format of the file
@@ -287,6 +289,7 @@ impl Header {
 }
 
 /// The format of a Standard Midi File
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[derive(Debug, Clone, PartialEq, Default)]
 pub enum SMFFormat {
     /// A single track file
@@ -325,6 +328,7 @@ impl SMFFormat {
 }
 
 /// The division of a Standard Midi File, which specifies the meaning of the delta times in the file
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum Division {
     /// Metrical time. Number of "ticks" per quarter note.
@@ -365,6 +369,7 @@ impl Division {
 }
 
 /// A track in a Standard Midi File
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[derive(Debug, Clone, PartialEq)]
 pub enum Track {
     /// A standard "MTrk" chunk
@@ -474,6 +479,7 @@ impl Track {
 }
 
 /// An event occurring in a track in a Standard Midi File
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[derive(Debug, Clone, PartialEq)]
 pub struct TrackEvent {
     /// The time since the last event. The meaning of this value is determined by the file header's [`Division`].
@@ -690,6 +696,7 @@ impl TrackEvent {
 }
 
 /// A meta event in a Standard Midi File
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[derive(Debug, Clone, PartialEq)]
 pub enum Meta {
     /// Must occur at the start of a track, and specifies the sequence number of the track. In a MultiSong file, this is the "pattern" number that identifies the song for cueing purposes.
@@ -924,6 +931,7 @@ impl Meta {
 }
 
 /// A time signature occurring in a Standard Midi File.
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[derive(Debug, Clone, PartialEq)]
 pub struct FileTimeSignature {
     /// The numerator of the time signature, as it would be notated.
@@ -960,6 +968,7 @@ impl FileTimeSignature {
 }
 
 /// A key signature occurring in a Standard Midi File.
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[derive(Debug, Clone, PartialEq)]
 pub struct KeySignature {
     /// Negative for number of flats, positive for number of sharps

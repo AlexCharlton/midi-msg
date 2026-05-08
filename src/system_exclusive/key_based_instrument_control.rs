@@ -8,6 +8,7 @@ use alloc::vec::Vec;
 /// Used by [`UniversalRealTimeMsg::KeyBasedInstrumentControl`](crate::UniversalRealTimeMsg::KeyBasedInstrumentControl).
 ///
 /// Defined in CA-023.
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct KeyBasedInstrumentControl {
     pub channel: Channel,

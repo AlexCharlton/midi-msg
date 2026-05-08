@@ -6,6 +6,7 @@ use super::util::*;
 /// Based on [the SMTPE time code standard](https://en.wikipedia.org/wiki/SMPTE_timecode).
 ///
 /// As defined in the MIDI Time Code spec (MMA0001 / RP004 / RP008)
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub struct TimeCode {
     /// The position in frames, 0-29
@@ -83,6 +84,7 @@ impl TimeCode {
 /// Indicates the frame rate of the given [`TimeCode`].
 ///
 /// See [the SMTPE time code standard](https://en.wikipedia.org/wiki/SMPTE_timecode).
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum TimeCodeType {
     /// 24 Frames per second
@@ -144,10 +146,11 @@ mod sysex_types {
         }
     }
 
-    #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
     /// Like [`TimeCode`] but includes `fractional_frames`. Used in `TimeCodeCueingSetupMsg` and the SMF `Meta` event.
     ///
     /// As defined in the MIDI Time Code spec (MMA0001 / RP004 / RP008)
+    #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+    #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
     pub struct HighResTimeCode {
         /// 0-99
         pub fractional_frames: u8,
@@ -199,12 +202,13 @@ mod sysex_types {
         }
     }
 
-    #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
     /// Like [`TimeCode`] but uses `subframes` to optionally include status flags, and fractional frames.
     /// Also may be negative. Used in [`MachineControlCommandMsg`](crate::MachineControlCommandMsg).
     ///
     /// As defined in MIDI Machine Control 1.0 (MMA0016 / RP013) and
     /// MIDI Show Control 1.1.1 (RP002/RP014)
+    #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+    #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
     pub struct StandardTimeCode {
         pub subframes: SubFrames,
         /// The position in frames, where a negative value indicates a negative TimeCode, -29-29
@@ -271,6 +275,7 @@ mod sysex_types {
     }
 
     /// Used by [`StandardTimeCode`].
+    #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
     #[derive(Debug, Clone, Copy, PartialEq, Eq)]
     pub enum SubFrames {
         /// The position in fractional frames, 0-99
@@ -295,6 +300,7 @@ mod sysex_types {
     }
 
     /// Used by [`StandardTimeCode`].
+    #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
     #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
     pub struct TimeCodeStatus {
         pub estimated_code: bool,
@@ -326,6 +332,7 @@ mod sysex_types {
     /// See [the SMTPE time code standard](https://en.wikipedia.org/wiki/SMPTE_timecode).
     ///
     /// As defined in the MIDI Time Code spec (MMA0001 / RP004 / RP008)
+    #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
     #[derive(Debug, Copy, Clone, PartialEq, Eq)]
     pub struct UserBits {
         /// Full bytes can be used here. Sent such that the first is considered
@@ -359,6 +366,7 @@ mod sysex_types {
     /// Like [`UserBits`] but allows for the embedding of a "secondary time code".
     ///
     /// As defined in MIDI Machine Control 1.0 (MMA0016 / RP013)
+    #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
     #[derive(Debug, Copy, Clone, PartialEq, Eq)]
     pub struct StandardUserBits {
         /// Full bytes can be used here. Sent such that the first is considered
@@ -445,6 +453,7 @@ mod sysex_types {
     /// Non-realtime Time Code Cueing. Used by [`UniversalNonRealTimeMsg::TimeCodeCueingSetup`](crate::UniversalNonRealTimeMsg::TimeCodeCueingSetup).
     ///
     /// As defined in the MIDI Time Code spec (MMA0001 / RP004 / RP008)
+    #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
     #[derive(Debug, Clone, PartialEq)]
     pub enum TimeCodeCueingSetupMsg {
         TimeCodeOffset {
@@ -666,6 +675,7 @@ mod sysex_types {
     /// Realtime Time Code Cueing. Used by [`UniversalRealTimeMsg::TimeCodeCueing`](crate::UniversalRealTimeMsg::TimeCodeCueing).
     ///
     /// As defined in the MIDI Time Code spec (MMA0001 / RP004 / RP008)
+    #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
     #[derive(Debug, Clone, PartialEq)]
     pub enum TimeCodeCueingMsg {
         SystemStop,

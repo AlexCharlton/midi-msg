@@ -9,6 +9,7 @@ use alloc::vec::Vec;
 /// represent commands not supported here.
 ///
 /// As defined in MIDI Machine Control 1.0 (MMA0016 / RP013)
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum MachineControlCommandMsg {
     Stop,
@@ -80,6 +81,7 @@ impl MachineControlCommandMsg {
 /// A MIDI Machine Control Information Field, which functions something like an address
 ///
 /// As defined in MIDI Machine Control 1.0 (MMA0016 / RP013)
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum InformationField {
     SelectedTimeCode = 0x01,
@@ -107,6 +109,7 @@ pub enum InformationField {
 /// Not implemented. The `Unimplemented` value can be used to represent generic responses.
 ///
 /// As defined in MIDI Machine Control 1.0 (MMA0016 / RP013)
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum MachineControlResponseMsg {
     /// Used to represent all unimplemented MCR messages.
@@ -129,6 +132,7 @@ impl MachineControlResponseMsg {
 
 #[doc(hidden)]
 /// As defined in MIDI Machine Control 1.0 (MMA0016 / RP013)
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct StandardSpeed(pub f32);
 
 impl StandardSpeed {
@@ -140,6 +144,7 @@ impl StandardSpeed {
 
 #[doc(hidden)]
 /// As defined in MIDI Machine Control 1.0 (MMA0016 / RP013)
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct StandardTrack {
     pub video_active: bool,
     pub time_code_active: bool,

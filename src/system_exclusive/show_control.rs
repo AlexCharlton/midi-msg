@@ -1,6 +1,7 @@
 use crate::parse_error::*;
 use alloc::vec::Vec;
 
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[derive(Debug, Clone, PartialEq, Eq)]
 /// A MIDI Show Control command.
 /// Used by [`UniversalRealTimeMsg::ShowControl`](crate::UniversalRealTimeMsg::ShowControl).
