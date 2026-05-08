@@ -14,13 +14,13 @@ Since the MIDI spec makes extensive use of non-byte-aligned integers, a Rust rep
 Add the following line to your Cargo.toml file:
 
 ```
-midi-msg = "0.8"
+midi-msg = "0.9"
 ```
 
 If you want to use midi-msg in a `no_std` environment, add this line instead:
 
 ```
-midi-msg = { version = "0.8", default-features = false, features=["sysex"/"file"] }
+midi-msg = { version = "0.9", default-features = false, features=["sysex"/"file"] }
 ```
 
 ## Disabling system exclusive or MIDI File functionality
@@ -105,6 +105,8 @@ requirement on the use of `midir` when specifying this crate as a dependency.
 [Pull requests](https://github.com/AlexCharlton/midi-msg/pulls) for the features listed above as not-yet supported, for bug fixes (any omissions from the spec are considered bugs), or for documentation additions are most welcome, as are [bug reports](https://github.com/AlexCharlton/midi-msg/issues).
 
 ## Changelog
+- **0.9**
+  - Added `serde` feature. `MidiMessage` is `Deserialize` and `Serialize`
 - **0.8**
   - Added `TryFrom<u8>` impls for `repr(u8)` enums (`Channel`, `GMSoundSet`, `GMPercussionMap`)
   - Added `MidiFile` `remove_track` method
